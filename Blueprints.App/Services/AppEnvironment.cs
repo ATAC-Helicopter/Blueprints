@@ -18,4 +18,13 @@ public static class AppEnvironment
 
     public static string GetSharedWorkspaceRoot() =>
         Path.Combine(GetAppRoot(), "Shared", "default");
+
+    public static string GetWorkspaceCatalogRoot() =>
+        Path.Combine(GetAppRoot(), "Workspaces");
+
+    public static string GetSharedProjectsRoot() =>
+        Path.Combine(GetAppRoot(), "SharedProjects");
+
+    public static string GetRecentProjectsPath() =>
+        Path.Combine(GetAppRoot(), "recent-projects.json");
 }

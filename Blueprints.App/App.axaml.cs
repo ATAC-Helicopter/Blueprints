@@ -38,13 +38,11 @@ public partial class App : Application
             }
 
             var identityService = CreateWindowsIdentityService();
-            var workspaceService = CreateWindowsWorkspaceService();
-            var sessionService = CreateWindowsSessionService(workspaceService);
-            var session = CreateSession(identityService, sessionService);
+            var coordinatorService = CreateWindowsProjectCoordinator(identityService);
 
             desktop.MainWindow = new MainWindow
             {
-                DataContext = new MainWindowViewModel(session),
+                DataContext = new MainWindowViewModel(coordinatorService),
             };
         }
 
@@ -74,33 +72,25 @@ public partial class App : Application
                 new DpapiPrivateKeyProtector()));
 
     [SupportedOSPlatform("windows")]
-    private static LocalWorkspaceService CreateWindowsWorkspaceService()
+    private static LocalWorkspaceService CreateWindowsWorkspaceService(IProjectWorkspaceStore workspaceStore) =>
+        new(AppEnvironment.GetWorkspaceRoot(), workspaceStore);
+
+    [SupportedOSPlatform("windows")]
+    private static ProjectWorkspaceCoordinatorService CreateWindowsProjectCoordinator(
+        IIdentityService identityService)
     {
         ISignedDocumentStore signedDocumentStore = new FileSystemSignedDocumentStore(
             new CanonicalJsonSerializer(),
             new Ed25519SignatureService());
         IProjectWorkspaceStore workspaceStore = new FileSystemProjectWorkspaceStore(signedDocumentStore);
-
-        return new LocalWorkspaceService(AppEnvironment.GetWorkspaceRoot(), workspaceStore);
-    }
-
-    [SupportedOSPlatform("windows")]
-    private static LocalWorkspaceSessionService CreateWindowsSessionService(
-        LocalWorkspaceService workspaceService)
-    {
         var snapshotBuilder = new WorkspaceExchangeSnapshotBuilder();
-        return new LocalWorkspaceSessionService(
-            workspaceService,
-            new FileSystemSyncStateStore(),
-            new WorkspaceSyncAnalyzer(snapshotBuilder));
-    }
+        var workspaceService = CreateWindowsWorkspaceService(workspaceStore);
 
-    [SupportedOSPlatform("windows")]
-    private static LocalWorkspaceSession CreateSession(
-        IIdentityService identityService,
-        LocalWorkspaceSessionService sessionService)
-    {
-        var identity = identityService.GetOrCreateDefaultIdentity("Local Admin");
-        return sessionService.GetOrCreateDefaultSession(identity, AppEnvironment.GetSharedWorkspaceRoot());
+        return new ProjectWorkspaceCoordinatorService(
+            identityService,
+            workspaceStore,
+            new FileSystemSyncStateStore(),
+            new WorkspaceSyncAnalyzer(snapshotBuilder),
+            new RecentProjectsStore(AppEnvironment.GetRecentProjectsPath()));
     }
 }

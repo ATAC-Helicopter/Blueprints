@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Blueprints.App.ViewModels"
         xmlns:models="using:Blueprints.Core.Models"
+        xmlns:appModels="using:Blueprints.App.Models"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
@@ -16,11 +17,10 @@
     <vm:MainWindowViewModel />
   </Design.DataContext>
 
-  <Grid ColumnDefinitions="240,320,*" RowDefinitions="Auto,*" Background="#F4F1E8">
-    <Border Grid.ColumnSpan="3"
-            Background="#17322C"
+  <Grid RowDefinitions="Auto,*" Background="#F4F1E8">
+    <Border Background="#17322C"
             Padding="24,18">
-      <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="16">
+      <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="16">
         <StackPanel Spacing="2">
           <TextBlock Text="Blueprints"
                      FontSize="24"
@@ -30,27 +30,36 @@
                      Foreground="#CFE2D8" />
         </StackPanel>
 
-        <Border Grid.Column="1"
+        <Button Grid.Column="1"
+                Content="Project Setup"
+                Command="{Binding ReturnToProjectSetupCommand}"
+                IsVisible="{Binding HasActiveSession}"
+                Padding="12,6"
+                VerticalAlignment="Center" />
+
+        <Border Grid.Column="2"
                 Background="#2D6B57"
                 CornerRadius="999"
                 Padding="12,6"
-                VerticalAlignment="Center">
+                VerticalAlignment="Center"
+                IsVisible="{Binding HasActiveSession}">
           <TextBlock Text="{Binding TrustBadge}"
                      FontWeight="SemiBold"
                      Foreground="#F6F1E8" />
         </Border>
 
-        <Border Grid.Column="2"
+        <Border Grid.Column="3"
                 Background="#C98339"
                 CornerRadius="999"
                 Padding="12,6"
-                VerticalAlignment="Center">
+                VerticalAlignment="Center"
+                IsVisible="{Binding HasActiveSession}">
           <TextBlock Text="{Binding SyncStatus}"
                      FontWeight="SemiBold"
                      Foreground="#1C1C1C" />
         </Border>
 
-        <StackPanel Grid.Column="3"
+        <StackPanel Grid.Column="4"
                     Spacing="2"
                     HorizontalAlignment="Right">
           <TextBlock Text="{Binding Identity.DisplayName}"
@@ -68,204 +77,346 @@
       </Grid>
     </Border>
 
-    <Border Grid.Row="1"
-            Background="#EFE7D7"
-            Padding="20"
-            BorderBrush="#D7CCB5"
-            BorderThickness="0,1,1,0">
-      <StackPanel Spacing="18">
-        <TextBlock Text="Workspace"
-                   FontSize="18"
+    <Grid Grid.Row="1"
+          IsVisible="{Binding IsSetupMode}"
+          ColumnDefinitions="1.1*,0.9*"
+          RowDefinitions="Auto,*"
+          ColumnSpacing="24"
+          Margin="24">
+      <StackPanel Grid.ColumnSpan="2"
+                  Spacing="8"
+                  Margin="0,0,0,8">
+        <TextBlock Text="Project Workflow"
+                   FontSize="30"
                    FontWeight="SemiBold"
                    Foreground="#17322C" />
+        <TextBlock Text="{Binding SetupMessage}"
+                   TextWrapping="Wrap"
+                   Foreground="#574E43" />
+      </StackPanel>
 
-        <Border Background="#F9F5EC"
-                CornerRadius="14"
-                Padding="14"
-                BorderBrush="#D7CCB5"
-                BorderThickness="1">
+      <Border Grid.Row="1"
+              Background="#FBF8F1"
+              CornerRadius="18"
+              Padding="22"
+              BorderBrush="#D7CCB5"
+              BorderThickness="1">
+        <StackPanel Spacing="18">
+          <TextBlock Text="Create Project"
+                     FontSize="22"
+                     FontWeight="SemiBold"
+                     Foreground="#17322C" />
+
+          <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+            <StackPanel Spacing="6">
+              <TextBlock Text="Project Name"
+                         Foreground="#574E43" />
+              <TextBox Text="{Binding CreateProjectName}" />
+            </StackPanel>
+
+            <StackPanel Grid.Column="1"
+                        Spacing="6">
+              <TextBlock Text="Project Code"
+                         Foreground="#574E43" />
+              <TextBox Text="{Binding CreateProjectCode}" />
+            </StackPanel>
+          </Grid>
+
+          <StackPanel Spacing="6">
+            <TextBlock Text="Versioning Scheme"
+                       Foreground="#574E43" />
+            <TextBox Text="{Binding CreateVersioningScheme}" />
+          </StackPanel>
+
           <StackPanel Spacing="6">
             <TextBlock Text="Local Workspace Root"
-                       FontWeight="SemiBold"
-                       Foreground="#17322C" />
-            <TextBlock Text="{Binding WorkspacePath}"
-                       TextWrapping="Wrap"
                        Foreground="#574E43" />
+            <TextBox Text="{Binding CreateLocalWorkspaceRoot}" />
           </StackPanel>
-        </Border>
 
-        <Border Background="#F9F5EC"
-                CornerRadius="14"
-                Padding="14"
-                BorderBrush="#D7CCB5"
-                BorderThickness="1">
           <StackPanel Spacing="6">
             <TextBlock Text="Shared Sync Root"
+                       Foreground="#574E43" />
+            <TextBox Text="{Binding CreateSharedWorkspaceRoot}" />
+          </StackPanel>
+
+          <Button Content="Create Project"
+                  Command="{Binding CreateProjectCommand}"
+                  Padding="14,8"
+                  HorizontalAlignment="Left" />
+        </StackPanel>
+      </Border>
+
+      <StackPanel Grid.Row="1"
+                  Grid.Column="1"
+                  Spacing="18">
+        <Border Background="#FBF8F1"
+                CornerRadius="18"
+                Padding="22"
+                BorderBrush="#D7CCB5"
+                BorderThickness="1">
+          <StackPanel Spacing="18">
+            <TextBlock Text="Open Project"
+                       FontSize="22"
                        FontWeight="SemiBold"
                        Foreground="#17322C" />
-            <TextBlock Text="{Binding SharedSyncPath}"
-                       TextWrapping="Wrap"
-                       Foreground="#574E43" />
+
+            <StackPanel Spacing="6">
+              <TextBlock Text="Local Workspace Root"
+                         Foreground="#574E43" />
+              <TextBox Text="{Binding OpenLocalWorkspaceRoot}" />
+            </StackPanel>
+
+            <StackPanel Spacing="6">
+              <TextBlock Text="Shared Sync Root"
+                         Foreground="#574E43" />
+              <TextBox Text="{Binding OpenSharedWorkspaceRoot}" />
+            </StackPanel>
+
+            <Button Content="Open Project"
+                    Command="{Binding OpenProjectCommand}"
+                    Padding="14,8"
+                    HorizontalAlignment="Left" />
           </StackPanel>
         </Border>
 
         <Border Background="#17322C"
-                CornerRadius="14"
-                Padding="14">
-          <StackPanel Spacing="4">
-            <TextBlock Text="Workspace Profile"
-                       Foreground="#CFE2D8" />
-            <TextBlock Text="{Binding VersioningScheme, StringFormat='Versioning: {0}'}"
-                       TextWrapping="Wrap"
-                       FontSize="18"
+                CornerRadius="18"
+                Padding="22">
+          <StackPanel Spacing="14">
+            <TextBlock Text="Recent Workspaces"
+                       FontSize="22"
                        FontWeight="SemiBold"
                        Foreground="#F6F1E8" />
-            <TextBlock Text="{Binding ActiveMemberCount, StringFormat='Active members: {0}'}"
-                       Foreground="#CFE2D8" />
-            <TextBlock Text="{Binding MembershipRevision, StringFormat='Membership revision: {0}'}"
-                       Foreground="#CFE2D8" />
+
+            <ListBox ItemsSource="{Binding RecentProjects}"
+                     SelectedItem="{Binding SelectedRecentProject}">
+              <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="appModels:RecentProjectReference">
+                  <StackPanel Spacing="3"
+                              Margin="0,6">
+                    <TextBlock Text="{Binding Name}"
+                               FontWeight="SemiBold"
+                               Foreground="#F6F1E8" />
+                    <TextBlock Text="{Binding ProjectCode, StringFormat='Code: {0}'}"
+                               Foreground="#CFE2D8" />
+                    <TextBlock Text="{Binding LocalWorkspaceRoot}"
+                               TextWrapping="Wrap"
+                               Foreground="#CFE2D8" />
+                  </StackPanel>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+
+            <Button Content="Open Selected Recent"
+                    Command="{Binding OpenSelectedRecentProjectCommand}"
+                    Padding="14,8"
+                    HorizontalAlignment="Left" />
           </StackPanel>
         </Border>
       </StackPanel>
-    </Border>
+    </Grid>
 
-    <Border Grid.Row="1"
-            Grid.Column="1"
-            Background="#FBF8F1"
-            Padding="20"
-            BorderBrush="#D7CCB5"
-            BorderThickness="0,1,1,0">
-      <StackPanel Spacing="16">
-        <Grid ColumnDefinitions="*,Auto">
-          <TextBlock Text="Versions"
+    <Grid Grid.Row="1"
+          IsVisible="{Binding HasActiveSession}"
+          ColumnDefinitions="240,320,*"
+          Margin="0">
+      <Border Background="#EFE7D7"
+              Padding="20"
+              BorderBrush="#D7CCB5"
+              BorderThickness="0,1,1,0">
+        <StackPanel Spacing="18">
+          <TextBlock Text="Workspace"
                      FontSize="18"
                      FontWeight="SemiBold"
                      Foreground="#17322C" />
-          <Button Grid.Column="1"
-                  Content="New Version"
-                  Padding="12,6" />
-        </Grid>
 
-        <ItemsControl ItemsSource="{Binding Versions}">
-          <ItemsControl.ItemTemplate>
-            <DataTemplate x:DataType="models:VersionSummary">
-              <Border Margin="0,0,0,12"
-                      Background="#FFFFFF"
-                      CornerRadius="14"
-                      Padding="14"
-                      BorderBrush="#D7CCB5"
-                      BorderThickness="1">
-                <StackPanel Spacing="8">
-                  <Grid ColumnDefinitions="*,Auto">
-                    <TextBlock Text="{Binding Name}"
-                               FontFamily="Cascadia Mono"
-                               FontSize="18"
-                               FontWeight="SemiBold"
-                               Foreground="#17322C" />
-                    <TextBlock Grid.Column="1"
-                               Text="{Binding Status}"
-                               Foreground="#7A6E5B"
-                               VerticalAlignment="Center" />
-                  </Grid>
-                  <TextBlock Text="{Binding CompletedItemCount, StringFormat='Completed items: {0}'}"
-                             Foreground="#574E43" />
-                  <TextBlock Text="{Binding ItemCount, StringFormat='Total items: {0}'}"
-                             Foreground="#574E43" />
-                </StackPanel>
-              </Border>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
-      </StackPanel>
-    </Border>
+          <Border Background="#F9F5EC"
+                  CornerRadius="14"
+                  Padding="14"
+                  BorderBrush="#D7CCB5"
+                  BorderThickness="1">
+            <StackPanel Spacing="6">
+              <TextBlock Text="Local Workspace Root"
+                         FontWeight="SemiBold"
+                         Foreground="#17322C" />
+              <TextBlock Text="{Binding WorkspacePath}"
+                         TextWrapping="Wrap"
+                         Foreground="#574E43" />
+            </StackPanel>
+          </Border>
 
-    <Border Grid.Row="1"
-            Grid.Column="2"
-            Background="#F6F1E8"
-            Padding="24"
-            BorderBrush="#D7CCB5"
-            BorderThickness="0,1,0,0">
-      <Grid RowDefinitions="Auto,Auto,*" RowSpacing="18">
-        <StackPanel Spacing="6">
-          <TextBlock Text="Live Workspace"
-                     FontSize="28"
-                     FontWeight="SemiBold"
-                     Foreground="#17322C" />
-          <TextBlock Text="{Binding TrustSummary}"
-                     TextWrapping="Wrap"
-                     Foreground="#574E43" />
+          <Border Background="#F9F5EC"
+                  CornerRadius="14"
+                  Padding="14"
+                  BorderBrush="#D7CCB5"
+                  BorderThickness="1">
+            <StackPanel Spacing="6">
+              <TextBlock Text="Shared Sync Root"
+                         FontWeight="SemiBold"
+                         Foreground="#17322C" />
+              <TextBlock Text="{Binding SharedSyncPath}"
+                         TextWrapping="Wrap"
+                         Foreground="#574E43" />
+            </StackPanel>
+          </Border>
+
+          <Border Background="#17322C"
+                  CornerRadius="14"
+                  Padding="14">
+            <StackPanel Spacing="4">
+              <TextBlock Text="Workspace Profile"
+                         Foreground="#CFE2D8" />
+              <TextBlock Text="{Binding VersioningScheme, StringFormat='Versioning: {0}'}"
+                         TextWrapping="Wrap"
+                         FontSize="18"
+                         FontWeight="SemiBold"
+                         Foreground="#F6F1E8" />
+              <TextBlock Text="{Binding ActiveMemberCount, StringFormat='Active members: {0}'}"
+                         Foreground="#CFE2D8" />
+              <TextBlock Text="{Binding MembershipRevision, StringFormat='Membership revision: {0}'}"
+                         Foreground="#CFE2D8" />
+            </StackPanel>
+          </Border>
         </StackPanel>
+      </Border>
 
-        <UniformGrid Grid.Row="1" Columns="3">
-          <Border Margin="0,0,12,0"
-                  Background="#FFFFFF"
-                  CornerRadius="14"
-                  Padding="16"
-                  BorderBrush="#D7CCB5"
-                  BorderThickness="1">
-            <StackPanel Spacing="4">
-              <TextBlock Text="Versions"
-                         FontWeight="SemiBold"
-                         Foreground="#17322C" />
-              <TextBlock Text="{Binding VersionCount, StringFormat='Tracked versions: {0}'}"
-                         TextWrapping="Wrap"
-                         Foreground="#574E43" />
-            </StackPanel>
-          </Border>
-
-          <Border Margin="0,0,12,0"
-                  Background="#FFFFFF"
-                  CornerRadius="14"
-                  Padding="16"
-                  BorderBrush="#D7CCB5"
-                  BorderThickness="1">
-            <StackPanel Spacing="4">
-              <TextBlock Text="Sync"
-                         FontWeight="SemiBold"
-                         Foreground="#17322C" />
-              <TextBlock Text="{Binding SyncStatus}"
-                         TextWrapping="Wrap"
-                         Foreground="#574E43" />
-              <TextBlock Text="{Binding ItemCount, StringFormat='Items tracked: {0}'}"
-                         TextWrapping="Wrap"
-                         Foreground="#574E43" />
-            </StackPanel>
-          </Border>
-
-          <Border Background="#FFFFFF"
-                  CornerRadius="14"
-                  Padding="16"
-                  BorderBrush="#D7CCB5"
-                  BorderThickness="1">
-            <StackPanel Spacing="4">
-              <TextBlock Text="Identity"
-                         FontWeight="SemiBold"
-                         Foreground="#17322C" />
-              <TextBlock Text="{Binding Identity.DisplayName}"
-                         TextWrapping="Wrap"
-                         Foreground="#574E43" />
-            </StackPanel>
-          </Border>
-        </UniformGrid>
-
-        <Border Grid.Row="2"
-                Background="#17322C"
-                CornerRadius="18"
-                Padding="20">
-          <StackPanel Spacing="12">
-            <TextBlock Text="Current Trust State"
+      <Border Grid.Column="1"
+              Background="#FBF8F1"
+              Padding="20"
+              BorderBrush="#D7CCB5"
+              BorderThickness="0,1,1,0">
+        <StackPanel Spacing="16">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Text="Versions"
                        FontSize="18"
                        FontWeight="SemiBold"
-                       Foreground="#F6F1E8" />
+                       Foreground="#17322C" />
+            <Button Grid.Column="1"
+                    Content="New Version"
+                    Padding="12,6" />
+          </Grid>
+
+          <ItemsControl ItemsSource="{Binding Versions}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="models:VersionSummary">
+                <Border Margin="0,0,0,12"
+                        Background="#FFFFFF"
+                        CornerRadius="14"
+                        Padding="14"
+                        BorderBrush="#D7CCB5"
+                        BorderThickness="1">
+                  <StackPanel Spacing="8">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Text="{Binding Name}"
+                                 FontFamily="Cascadia Mono"
+                                 FontSize="18"
+                                 FontWeight="SemiBold"
+                                 Foreground="#17322C" />
+                      <TextBlock Grid.Column="1"
+                                 Text="{Binding Status}"
+                                 Foreground="#7A6E5B"
+                                 VerticalAlignment="Center" />
+                    </Grid>
+                    <TextBlock Text="{Binding CompletedItemCount, StringFormat='Completed items: {0}'}"
+                               Foreground="#574E43" />
+                    <TextBlock Text="{Binding ItemCount, StringFormat='Total items: {0}'}"
+                               Foreground="#574E43" />
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
+
+      <Border Grid.Column="2"
+              Background="#F6F1E8"
+              Padding="24"
+              BorderBrush="#D7CCB5"
+              BorderThickness="0,1,0,0">
+        <Grid RowDefinitions="Auto,Auto,*" RowSpacing="18">
+          <StackPanel Spacing="6">
+            <TextBlock Text="Live Workspace"
+                       FontSize="28"
+                       FontWeight="SemiBold"
+                       Foreground="#17322C" />
             <TextBlock Text="{Binding TrustSummary}"
                        TextWrapping="Wrap"
-                       Foreground="#CFE2D8" />
-            <TextBlock Text="{Binding SharedSyncPath, StringFormat='Shared sync root: {0}'}"
-                       TextWrapping="Wrap"
-                       Foreground="#CFE2D8" />
+                       Foreground="#574E43" />
           </StackPanel>
-        </Border>
-      </Grid>
-    </Border>
+
+          <UniformGrid Grid.Row="1" Columns="3">
+            <Border Margin="0,0,12,0"
+                    Background="#FFFFFF"
+                    CornerRadius="14"
+                    Padding="16"
+                    BorderBrush="#D7CCB5"
+                    BorderThickness="1">
+              <StackPanel Spacing="4">
+                <TextBlock Text="Versions"
+                           FontWeight="SemiBold"
+                           Foreground="#17322C" />
+                <TextBlock Text="{Binding VersionCount, StringFormat='Tracked versions: {0}'}"
+                           TextWrapping="Wrap"
+                           Foreground="#574E43" />
+              </StackPanel>
+            </Border>
+
+            <Border Margin="0,0,12,0"
+                    Background="#FFFFFF"
+                    CornerRadius="14"
+                    Padding="16"
+                    BorderBrush="#D7CCB5"
+                    BorderThickness="1">
+              <StackPanel Spacing="4">
+                <TextBlock Text="Sync"
+                           FontWeight="SemiBold"
+                           Foreground="#17322C" />
+                <TextBlock Text="{Binding SyncStatus}"
+                           TextWrapping="Wrap"
+                           Foreground="#574E43" />
+                <TextBlock Text="{Binding ItemCount, StringFormat='Items tracked: {0}'}"
+                           TextWrapping="Wrap"
+                           Foreground="#574E43" />
+              </StackPanel>
+            </Border>
+
+            <Border Background="#FFFFFF"
+                    CornerRadius="14"
+                    Padding="16"
+                    BorderBrush="#D7CCB5"
+                    BorderThickness="1">
+              <StackPanel Spacing="4">
+                <TextBlock Text="Identity"
+                           FontWeight="SemiBold"
+                           Foreground="#17322C" />
+                <TextBlock Text="{Binding Identity.DisplayName}"
+                           TextWrapping="Wrap"
+                           Foreground="#574E43" />
+              </StackPanel>
+            </Border>
+          </UniformGrid>
+
+          <Border Grid.Row="2"
+                  Background="#17322C"
+                  CornerRadius="18"
+                  Padding="20">
+            <StackPanel Spacing="12">
+              <TextBlock Text="Current Trust State"
+                         FontSize="18"
+                         FontWeight="SemiBold"
+                         Foreground="#F6F1E8" />
+              <TextBlock Text="{Binding TrustSummary}"
+                         TextWrapping="Wrap"
+                         Foreground="#CFE2D8" />
+              <TextBlock Text="{Binding SharedSyncPath, StringFormat='Shared sync root: {0}'}"
+                         TextWrapping="Wrap"
+                         Foreground="#CFE2D8" />
+            </StackPanel>
+          </Border>
+        </Grid>
+      </Border>
+    </Grid>
   </Grid>
 </Window>
