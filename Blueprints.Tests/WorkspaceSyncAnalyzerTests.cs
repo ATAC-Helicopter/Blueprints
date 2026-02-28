@@ -31,9 +31,13 @@ public sealed class WorkspaceSyncAnalyzerTests : IDisposable
         var workspaceStore = new FileSystemProjectWorkspaceStore(signedStore);
 
         var localWorkspace = TestWorkspaceFactory.CreateWorkspaceSnapshot();
-        var sharedWorkspace = TestWorkspaceFactory.CreateWorkspaceSnapshot(projectId: localWorkspace.Project.ProjectId);
+        var sharedWorkspace = localWorkspace;
         workspaceStore.Save(localRoot, localWorkspace, new SignatureKeyMaterial(keyPair.KeyId, keyPair.PrivateKeyBytes));
         workspaceStore.Save(sharedRoot, sharedWorkspace, new SignatureKeyMaterial(keyPair.KeyId, keyPair.PrivateKeyBytes));
+        var baseline = new WorkspaceExchangeSnapshotBuilder()
+            .Build(sharedRoot)
+            .Select(static entry => new SyncTrackedEntry(entry.DocumentPath, entry.DocumentHash, entry.SignatureHash))
+            .ToArray();
 
         var localVersion = localWorkspace.Versions[0];
         var extraItem = new ItemDocument(
@@ -79,10 +83,6 @@ public sealed class WorkspaceSyncAnalyzerTests : IDisposable
             new SignatureKeyMaterial(keyPair.KeyId, keyPair.PrivateKeyBytes));
 
         var analyzer = new WorkspaceSyncAnalyzer(new WorkspaceExchangeSnapshotBuilder());
-        var baseline = new WorkspaceExchangeSnapshotBuilder()
-            .Build(sharedRoot)
-            .Select(static entry => new SyncTrackedEntry(entry.DocumentPath, entry.DocumentHash, entry.SignatureHash))
-            .ToArray();
         var analysis = analyzer.Analyze(new WorkspacePaths(localRoot, sharedRoot), baseline);
 
         Assert.Contains(analysis.OutgoingDocumentPaths, static path => path.Contains("/items/", StringComparison.Ordinal));

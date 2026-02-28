@@ -28,7 +28,7 @@ public partial class MainWindowViewModel : ViewModelBase
             project.Name,
             project.ProjectCode,
             session.LoadResult.TrustReport.State,
-            session.WorkspaceRoot);
+            session.Paths.SharedProjectRoot);
 
         Identity = new IdentitySummary(
             session.Identity.Profile.DisplayName,
@@ -51,12 +51,14 @@ public partial class MainWindowViewModel : ViewModelBase
                     version.Items.Count(static item => item.IsDone))));
 
         TrustSummary = session.LoadResult.TrustReport.Summary;
-        WorkspacePath = session.WorkspaceRoot;
+        WorkspacePath = session.Paths.LocalWorkspaceRoot;
+        SharedSyncPath = session.Paths.SharedProjectRoot;
         VersioningScheme = project.VersioningScheme;
         VersionCount = workspace.Versions.Count;
         ItemCount = workspace.Versions.Sum(static version => version.Items.Count);
         ActiveMemberCount = workspace.Members.Members.Count(static member => member.IsActive);
         MembershipRevision = workspace.Members.MembershipRevision;
+        Sync = session.Sync;
     }
 
     public string Title => $"{CurrentProject.Name} ({CurrentProject.Code})";
@@ -67,7 +69,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public string IdentityId => Identity.UserId;
 
-    public SyncSummary Sync { get; }
+    public SyncSummary Sync { get; private set; }
 
     public ObservableCollection<VersionSummary> Versions { get; }
 
@@ -76,6 +78,8 @@ public partial class MainWindowViewModel : ViewModelBase
     public string WorkspacePath { get; }
 
     public string VersioningScheme { get; }
+
+    public string SharedSyncPath { get; }
 
     public int VersionCount { get; }
 
@@ -92,7 +96,8 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             SyncHealth.Ready => $"{Sync.PendingOutgoingChanges} outgoing, {Sync.PendingIncomingChanges} incoming",
             SyncHealth.NeedsAttention => $"{Sync.ConflictCount} conflicts need attention",
-            _ => "Local workspace ready",
+            SyncHealth.Idle => "Sync baseline is current",
+            _ => "Sync unavailable",
         };
 
     private static LocalWorkspaceSession CreateDesignSession()
@@ -113,7 +118,9 @@ public partial class MainWindowViewModel : ViewModelBase
                     createdUtc),
                 new SignatureKeyMaterial("design-key", [1, 2, 3]),
                 new SignaturePublicKey("design-key", [4, 5, 6])),
-            @"C:\Users\Example\AppData\Local\Blueprints\Workspace\default",
+            new WorkspacePaths(
+                @"C:\Users\Example\AppData\Local\Blueprints\Workspace\default",
+                @"C:\Users\Example\AppData\Local\Blueprints\Shared\default"),
             new ProjectWorkspaceLoadResult(
                 new ProjectWorkspaceSnapshot(
                     new ProjectConfigurationDocument(
@@ -181,6 +188,7 @@ public partial class MainWindowViewModel : ViewModelBase
                                     "Local Admin"),
                             ]),
                     ]),
-                new TrustReport(TrustState.Trusted, "Validated 4 signed documents.", createdUtc)));
+                new TrustReport(TrustState.Trusted, "Validated 4 signed documents.", createdUtc)),
+            new SyncSummary(SyncHealth.Ready, 3, 0, 0));
     }
 }

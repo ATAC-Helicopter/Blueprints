@@ -120,7 +120,7 @@ public sealed class FileSystemWorkspaceSyncService
         {
             manifestResult = ReadManifest(workspacePaths.SharedProjectRoot, publicKey);
         }
-        catch (FileNotFoundException)
+        catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException)
         {
             return new WorkspaceSyncResult(
                 true,
@@ -219,7 +219,7 @@ public sealed class FileSystemWorkspaceSyncService
             var result = _manifestStore.Read(sharedProjectRoot, publicKey);
             return result.IsSignatureValid ? result.Document.ManifestVersion : 0;
         }
-        catch (FileNotFoundException)
+        catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException)
         {
             return 0;
         }
