@@ -51,6 +51,8 @@ public partial class MainWindowViewModel : ViewModelBase
     private bool _itemEditorIsDone;
     private string _selectedItemTypeId = "feature";
     private string _selectedCategoryId = "added";
+    private string _changelogPreview = string.Empty;
+    private string _lastChangelogExportPath = string.Empty;
 
     public MainWindowViewModel()
     {
@@ -256,7 +258,13 @@ public partial class MainWindowViewModel : ViewModelBase
             if (SetProperty(ref _selectedVersion, value))
             {
                 PopulateVersionEditor();
+                ChangelogPreview = string.Empty;
+                LastChangelogExportPath = string.Empty;
                 SelectedItem = value?.Items.FirstOrDefault();
+                OnPropertyChanged(nameof(CanEditSelectedVersion));
+                OnPropertyChanged(nameof(CanEditItems));
+                OnPropertyChanged(nameof(CanReleaseSelectedVersion));
+                OnPropertyChanged(nameof(SelectedVersionStateSummary));
             }
         }
     }
@@ -327,6 +335,18 @@ public partial class MainWindowViewModel : ViewModelBase
         set => SetProperty(ref _selectedCategoryId, value);
     }
 
+    public string ChangelogPreview
+    {
+        get => _changelogPreview;
+        private set => SetProperty(ref _changelogPreview, value);
+    }
+
+    public string LastChangelogExportPath
+    {
+        get => _lastChangelogExportPath;
+        private set => SetProperty(ref _lastChangelogExportPath, value);
+    }
+
     public IReadOnlyList<ReleaseStatus> AvailableStatuses { get; } =
         [ReleaseStatus.Planned, ReleaseStatus.InProgress, ReleaseStatus.Frozen, ReleaseStatus.Released];
 
@@ -339,6 +359,27 @@ public partial class MainWindowViewModel : ViewModelBase
             SyncHealth.NeedsAttention => $"{Sync.ConflictCount} conflicts need attention",
             SyncHealth.Idle => "Sync baseline is current",
             _ => "Sync unavailable",
+        };
+
+    public bool CanEditSelectedVersion =>
+        SelectedVersion is not null &&
+        SelectedVersion.Status is not ReleaseStatus.Frozen and not ReleaseStatus.Released;
+
+    public bool CanEditItems =>
+        SelectedVersion is not null &&
+        SelectedVersion.Status is not ReleaseStatus.Frozen and not ReleaseStatus.Released;
+
+    public bool CanReleaseSelectedVersion =>
+        SelectedVersion is not null &&
+        SelectedVersion.Status != ReleaseStatus.Released;
+
+    public string SelectedVersionStateSummary =>
+        SelectedVersion?.Status switch
+        {
+            ReleaseStatus.Frozen => "Frozen versions are read-only until they are explicitly released.",
+            ReleaseStatus.Released => "Released versions are immutable.",
+            _ when SelectedVersion is not null => "This version can still be edited.",
+            _ => "Select a version to manage release state.",
         };
 
     [RelayCommand]
@@ -483,6 +524,58 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    private void ReleaseSelectedVersion()
+    {
+        if (_coordinatorService is null || _currentSession is null || SelectedVersion is null)
+        {
+            WorkspaceMessage = "Select a version first.";
+            return;
+        }
+
+        try
+        {
+            var selectedVersionId = SelectedVersion.VersionId;
+            var selectedVersionName = SelectedVersion.Name;
+            ApplySession(
+                _coordinatorService.ReleaseVersion(
+                    _currentSession.Paths.LocalWorkspaceRoot,
+                    _currentSession.Paths.SharedProjectRoot,
+                    selectedVersionId));
+            ReselectVersion(selectedVersionId);
+            WorkspaceMessage = $"Released version {selectedVersionName}.";
+        }
+        catch (Exception exception)
+        {
+            WorkspaceMessage = exception.Message;
+        }
+    }
+
+    [RelayCommand]
+    private void ExportSelectedVersionChangelog()
+    {
+        if (_coordinatorService is null || _currentSession is null || SelectedVersion is null)
+        {
+            WorkspaceMessage = "Select a version first.";
+            return;
+        }
+
+        try
+        {
+            var export = _coordinatorService.ExportVersionChangelog(
+                _currentSession.Paths.LocalWorkspaceRoot,
+                _currentSession.Paths.SharedProjectRoot,
+                SelectedVersion.VersionId);
+            ChangelogPreview = export.Markdown;
+            LastChangelogExportPath = export.FilePath;
+            WorkspaceMessage = $"Exported changelog for {export.VersionName}.";
+        }
+        catch (Exception exception)
+        {
+            WorkspaceMessage = exception.Message;
+        }
+    }
+
+    [RelayCommand]
     private void AddItem()
     {
         if (_coordinatorService is null || _currentSession is null || SelectedVersion is null)
@@ -608,6 +701,8 @@ public partial class MainWindowViewModel : ViewModelBase
         Sync = session.Sync;
         HasActiveSession = true;
         WorkspaceMessage = string.Empty;
+        ChangelogPreview = string.Empty;
+        LastChangelogExportPath = string.Empty;
 
         if (previousSelectedVersionId is Guid selectedVersionId)
         {
@@ -649,9 +744,15 @@ public partial class MainWindowViewModel : ViewModelBase
         SelectedVersion = null;
         SelectedItem = null;
         WorkspaceMessage = string.Empty;
+        ChangelogPreview = string.Empty;
+        LastChangelogExportPath = string.Empty;
         HasActiveSession = false;
         OnPropertyChanged(nameof(TrustBadge));
         OnPropertyChanged(nameof(IdentityId));
+        OnPropertyChanged(nameof(CanEditSelectedVersion));
+        OnPropertyChanged(nameof(CanEditItems));
+        OnPropertyChanged(nameof(CanReleaseSelectedVersion));
+        OnPropertyChanged(nameof(SelectedVersionStateSummary));
     }
 
     private void ApplyDesignSession(LocalWorkspaceSession session)

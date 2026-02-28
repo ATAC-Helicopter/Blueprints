@@ -133,6 +133,121 @@ public sealed class ProjectWorkspaceCoordinatorServiceTests : IDisposable
         Assert.Equal("Ship create and open workflow", item.Title);
     }
 
+    [Fact]
+    public void ReleaseVersion_MarksVersionReleasedAndBlocksFurtherEdits()
+    {
+        var localRoot = Path.Combine(_rootDirectory, "release-local", "BP");
+        var sharedRoot = Path.Combine(_rootDirectory, "release-shared", "BP");
+        var service = CreateService();
+
+        service.CreateProject(
+            new ProjectCreateRequest(
+                "Blueprints",
+                "BP",
+                "SemVer",
+                localRoot,
+                sharedRoot));
+
+        var versionSession = service.SaveVersion(
+            localRoot,
+            sharedRoot,
+            new VersionEditRequest(
+                null,
+                "1.2.0",
+                ReleaseStatus.Frozen,
+                "Ready to ship"));
+        var versionId = versionSession.LoadResult.Workspace.Versions[0].Version.VersionId;
+
+        var released = service.ReleaseVersion(localRoot, sharedRoot, versionId);
+        var releasedVersion = released.LoadResult.Workspace.Versions.Single().Version;
+
+        Assert.Equal(ReleaseStatus.Released, releasedVersion.Status);
+        Assert.NotNull(releasedVersion.ReleasedUtc);
+
+        var versionException = Assert.Throws<InvalidOperationException>(
+            () => service.SaveVersion(
+                localRoot,
+                sharedRoot,
+                new VersionEditRequest(
+                    versionId,
+                    "1.2.1",
+                    ReleaseStatus.InProgress,
+                    "Should fail")));
+        Assert.Contains("immutable", versionException.Message, StringComparison.OrdinalIgnoreCase);
+
+        var itemException = Assert.Throws<InvalidOperationException>(
+            () => service.SaveItem(
+                localRoot,
+                sharedRoot,
+                new ItemEditRequest(
+                    versionId,
+                    null,
+                    "feature",
+                    "added",
+                    "Late feature",
+                    null,
+                    false)));
+        Assert.Contains("immutable", itemException.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ExportVersionChangelog_WritesMarkdownAndExcludesIncompleteItemsByDefault()
+    {
+        var localRoot = Path.Combine(_rootDirectory, "changelog-local", "BP");
+        var sharedRoot = Path.Combine(_rootDirectory, "changelog-shared", "BP");
+        var service = CreateService();
+
+        service.CreateProject(
+            new ProjectCreateRequest(
+                "Blueprints",
+                "BP",
+                "SemVer",
+                localRoot,
+                sharedRoot));
+
+        var versionSession = service.SaveVersion(
+            localRoot,
+            sharedRoot,
+            new VersionEditRequest(
+                null,
+                "1.5.0",
+                ReleaseStatus.InProgress,
+                "Release candidate"));
+        var versionId = versionSession.LoadResult.Workspace.Versions[0].Version.VersionId;
+
+        service.SaveItem(
+            localRoot,
+            sharedRoot,
+            new ItemEditRequest(
+                versionId,
+                null,
+                "feature",
+                "added",
+                "Ship project workflow",
+                "Create and open real workspaces.",
+                true));
+
+        service.SaveItem(
+            localRoot,
+            sharedRoot,
+            new ItemEditRequest(
+                versionId,
+                null,
+                "bug",
+                "fixed",
+                "Deferred bugfix",
+                "Still in progress.",
+                false));
+
+        var export = service.ExportVersionChangelog(localRoot, sharedRoot, versionId);
+
+        Assert.True(File.Exists(export.FilePath));
+        Assert.Contains("# Blueprints 1.5.0", export.Markdown, StringComparison.Ordinal);
+        Assert.Contains("## Added", export.Markdown, StringComparison.Ordinal);
+        Assert.Contains("`BP-151` Ship project workflow", export.Markdown, StringComparison.Ordinal);
+        Assert.DoesNotContain("Deferred bugfix", export.Markdown, StringComparison.Ordinal);
+    }
+
     private ProjectWorkspaceCoordinatorService CreateService()
     {
         var identityRoot = Path.Combine(_rootDirectory, "identities");
