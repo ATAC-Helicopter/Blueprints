@@ -1,10 +1,13 @@
 using Blueprints.App.Models;
+using Blueprints.Collaboration.Enums;
 using Blueprints.Core.Enums;
 using Blueprints.Core.Models;
 using Blueprints.Core.Services;
+using Blueprints.Collaboration.Models;
 using Blueprints.Security.Models;
 using Blueprints.Storage.Abstractions;
 using Blueprints.Storage.Models;
+using Blueprints.Storage.Services;
 
 namespace Blueprints.App.Services;
 
@@ -35,7 +38,11 @@ public sealed class LocalWorkspaceService
         }
 
         var loadResult = _workspaceStore.Load(_workspaceRoot, identity.PublicKey);
-        return new LocalWorkspaceSession(identity, _workspaceRoot, loadResult);
+        return new LocalWorkspaceSession(
+            identity,
+            WorkspacePathResolver.Create(_workspaceRoot, _workspaceRoot),
+            loadResult,
+            new SyncSummary(SyncHealth.Idle, 0, 0, 0));
     }
 
     private static ProjectWorkspaceSnapshot CreateStarterWorkspace(StoredIdentity identity)

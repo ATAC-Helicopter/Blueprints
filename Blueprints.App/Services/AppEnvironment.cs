@@ -15,4 +15,7 @@ public static class AppEnvironment
 
     public static string GetWorkspaceRoot() =>
         Path.Combine(GetAppRoot(), "Workspace", "default");
+
+    public static string GetSharedWorkspaceRoot() =>
+        Path.Combine(GetAppRoot(), "Shared", "default");
 }

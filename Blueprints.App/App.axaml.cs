@@ -9,6 +9,7 @@ using Blueprints.App.Models;
 using Blueprints.App.Services;
 using Blueprints.App.ViewModels;
 using Blueprints.App.Views;
+using Blueprints.Collaboration.Services;
 using Blueprints.Security.Abstractions;
 using Blueprints.Security.Services;
 using Blueprints.Storage.Abstractions;
@@ -38,7 +39,8 @@ public partial class App : Application
 
             var identityService = CreateWindowsIdentityService();
             var workspaceService = CreateWindowsWorkspaceService();
-            var session = CreateSession(identityService, workspaceService);
+            var sessionService = CreateWindowsSessionService(workspaceService);
+            var session = CreateSession(identityService, sessionService);
 
             desktop.MainWindow = new MainWindow
             {
@@ -83,11 +85,22 @@ public partial class App : Application
     }
 
     [SupportedOSPlatform("windows")]
-    private static LocalWorkspaceSession CreateSession(
-        IIdentityService identityService,
+    private static LocalWorkspaceSessionService CreateWindowsSessionService(
         LocalWorkspaceService workspaceService)
     {
+        var snapshotBuilder = new WorkspaceExchangeSnapshotBuilder();
+        return new LocalWorkspaceSessionService(
+            workspaceService,
+            new FileSystemSyncStateStore(),
+            new WorkspaceSyncAnalyzer(snapshotBuilder));
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static LocalWorkspaceSession CreateSession(
+        IIdentityService identityService,
+        LocalWorkspaceSessionService sessionService)
+    {
         var identity = identityService.GetOrCreateDefaultIdentity("Local Admin");
-        return workspaceService.GetOrCreateDefaultWorkspace(identity);
+        return sessionService.GetOrCreateDefaultSession(identity, AppEnvironment.GetSharedWorkspaceRoot());
     }
 }

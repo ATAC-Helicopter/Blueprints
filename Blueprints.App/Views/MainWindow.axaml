@@ -94,6 +94,21 @@
           </StackPanel>
         </Border>
 
+        <Border Background="#F9F5EC"
+                CornerRadius="14"
+                Padding="14"
+                BorderBrush="#D7CCB5"
+                BorderThickness="1">
+          <StackPanel Spacing="6">
+            <TextBlock Text="Shared Sync Root"
+                       FontWeight="SemiBold"
+                       Foreground="#17322C" />
+            <TextBlock Text="{Binding SharedSyncPath}"
+                       TextWrapping="Wrap"
+                       Foreground="#574E43" />
+          </StackPanel>
+        </Border>
+
         <Border Background="#17322C"
                 CornerRadius="14"
                 Padding="14">
@@ -205,10 +220,13 @@
                   BorderBrush="#D7CCB5"
                   BorderThickness="1">
             <StackPanel Spacing="4">
-              <TextBlock Text="Items"
+              <TextBlock Text="Sync"
                          FontWeight="SemiBold"
                          Foreground="#17322C" />
-              <TextBlock Text="{Binding ItemCount, StringFormat='Total items: {0}'}"
+              <TextBlock Text="{Binding SyncStatus}"
+                         TextWrapping="Wrap"
+                         Foreground="#574E43" />
+              <TextBlock Text="{Binding ItemCount, StringFormat='Items tracked: {0}'}"
                          TextWrapping="Wrap"
                          Foreground="#574E43" />
             </StackPanel>
@@ -242,7 +260,7 @@
             <TextBlock Text="{Binding TrustSummary}"
                        TextWrapping="Wrap"
                        Foreground="#CFE2D8" />
-            <TextBlock Text="Shared-folder sync is still pending, so this shell currently reflects the signed local workspace only."
+            <TextBlock Text="{Binding SharedSyncPath, StringFormat='Shared sync root: {0}'}"
                        TextWrapping="Wrap"
                        Foreground="#CFE2D8" />
           </StackPanel>
