@@ -95,6 +95,13 @@ public sealed class ProjectWorkspaceCoordinatorService
         var session = OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
         var workspace = session.LoadResult.Workspace;
         var versions = workspace.Versions.ToList();
+        var normalizedName = request.Name.Trim();
+        var normalizedNotes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim();
+
+        if (string.IsNullOrWhiteSpace(normalizedName))
+        {
+            throw new InvalidOperationException("Version name is required.");
+        }
 
         if (request.VersionId is Guid versionId)
         {
@@ -105,18 +112,29 @@ public sealed class ProjectWorkspaceCoordinatorService
             }
 
             var existing = versions[existingIndex];
+            EnsureVersionEditable(existing.Version.Status);
+            if (request.Status == ReleaseStatus.Released)
+            {
+                throw new InvalidOperationException("Use the release workflow to mark a version as released.");
+            }
+
             versions[existingIndex] = existing with
             {
                 Version = existing.Version with
                 {
-                    Name = request.Name.Trim(),
+                    Name = normalizedName,
                     Status = request.Status,
-                    Notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim(),
+                    Notes = normalizedNotes,
                 },
             };
         }
         else
         {
+            if (request.Status == ReleaseStatus.Released)
+            {
+                throw new InvalidOperationException("New versions cannot be created directly as released.");
+            }
+
             var createdUtc = DateTimeOffset.UtcNow;
             versions.Add(
                 new VersionWorkspaceSnapshot(
@@ -124,11 +142,11 @@ public sealed class ProjectWorkspaceCoordinatorService
                         1,
                         workspace.Project.ProjectId,
                         Guid.NewGuid(),
-                        request.Name.Trim(),
+                        normalizedName,
                         request.Status,
                         createdUtc,
                         null,
-                        string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim(),
+                        normalizedNotes,
                         []),
                     []));
         }
@@ -159,7 +177,15 @@ public sealed class ProjectWorkspaceCoordinatorService
         }
 
         var targetVersion = versions[versionIndex];
+        EnsureItemChangesAllowed(targetVersion.Version.Status);
         var items = targetVersion.Items.ToList();
+        var normalizedTitle = request.Title.Trim();
+        var normalizedDescription = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
+
+        if (string.IsNullOrWhiteSpace(normalizedTitle))
+        {
+            throw new InvalidOperationException("Item title is required.");
+        }
 
         if (request.ItemId is Guid itemId)
         {
@@ -174,8 +200,8 @@ public sealed class ProjectWorkspaceCoordinatorService
             {
                 ItemKeyTypeId = request.ItemTypeId,
                 CategoryId = request.CategoryId,
-                Title = request.Title.Trim(),
-                Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim(),
+                Title = normalizedTitle,
+                Description = normalizedDescription,
                 IsDone = request.IsDone,
                 UpdatedUtc = DateTimeOffset.UtcNow,
                 LastModifiedByUserId = identity.Profile.UserId,
@@ -194,8 +220,8 @@ public sealed class ProjectWorkspaceCoordinatorService
                     GenerateItemKey(workspace, targetVersion, request.ItemTypeId),
                     request.ItemTypeId,
                     request.CategoryId,
-                    request.Title.Trim(),
-                    string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim(),
+                    normalizedTitle,
+                    normalizedDescription,
                     request.IsDone,
                     [],
                     createdUtc,
@@ -219,6 +245,76 @@ public sealed class ProjectWorkspaceCoordinatorService
         {
             Versions = versions.ToArray(),
         });
+    }
+
+    public LocalWorkspaceSession ReleaseVersion(
+        string localWorkspaceRoot,
+        string sharedWorkspaceRoot,
+        Guid versionId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(localWorkspaceRoot);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sharedWorkspaceRoot);
+
+        var identity = _identityService.GetOrCreateDefaultIdentity("Local Admin");
+        var session = OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
+        var workspace = session.LoadResult.Workspace;
+        var versions = workspace.Versions.ToList();
+        var versionIndex = versions.FindIndex(snapshot => snapshot.Version.VersionId == versionId);
+        if (versionIndex < 0)
+        {
+            throw new InvalidOperationException("The selected version was not found.");
+        }
+
+        var existing = versions[versionIndex];
+        if (existing.Version.Status == ReleaseStatus.Released)
+        {
+            throw new InvalidOperationException("The selected version is already released.");
+        }
+
+        versions[versionIndex] = existing with
+        {
+            Version = existing.Version with
+            {
+                Status = ReleaseStatus.Released,
+                ReleasedUtc = DateTimeOffset.UtcNow,
+            },
+        };
+
+        return SaveWorkspace(localWorkspaceRoot, sharedWorkspaceRoot, identity, workspace with
+        {
+            Versions = versions.ToArray(),
+        });
+    }
+
+    public ChangelogExportResult ExportVersionChangelog(
+        string localWorkspaceRoot,
+        string sharedWorkspaceRoot,
+        Guid versionId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(localWorkspaceRoot);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sharedWorkspaceRoot);
+
+        var session = OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
+        var version = session.LoadResult.Workspace.Versions
+            .FirstOrDefault(entry => entry.Version.VersionId == versionId);
+        if (version is null)
+        {
+            throw new InvalidOperationException("The selected version was not found.");
+        }
+
+        var markdown = MarkdownChangelogBuilder.Build(session.LoadResult.Workspace, version);
+        var exportsRoot = Path.Combine(localWorkspaceRoot, "exports");
+        Directory.CreateDirectory(exportsRoot);
+
+        var fileName = $"{session.LoadResult.Workspace.Project.ProjectCode}-{SanitizeFileName(version.Version.Name)}-changelog.md";
+        var filePath = Path.Combine(exportsRoot, fileName);
+        File.WriteAllText(filePath, markdown);
+
+        return new ChangelogExportResult(
+            version.Version.VersionId,
+            version.Version.Name,
+            filePath,
+            markdown);
     }
 
     public string GetSuggestedLocalWorkspaceRoot(string projectName, string projectCode) =>
@@ -346,6 +442,32 @@ public sealed class ProjectWorkspaceCoordinatorService
         return ItemKeyFormatter.FormatVersionScoped(rule.Prefix, major, minor, versionSequence);
     }
 
+    private static void EnsureVersionEditable(ReleaseStatus status)
+    {
+        if (status == ReleaseStatus.Released)
+        {
+            throw new InvalidOperationException("Released versions are immutable.");
+        }
+
+        if (status == ReleaseStatus.Frozen)
+        {
+            throw new InvalidOperationException("Frozen versions are read-only until they are explicitly released.");
+        }
+    }
+
+    private static void EnsureItemChangesAllowed(ReleaseStatus status)
+    {
+        if (status == ReleaseStatus.Released)
+        {
+            throw new InvalidOperationException("Released versions are immutable.");
+        }
+
+        if (status == ReleaseStatus.Frozen)
+        {
+            throw new InvalidOperationException("Frozen versions do not accept item changes.");
+        }
+    }
+
     private static (int Major, int Minor) ParseVersion(string versionName)
     {
         var parts = versionName.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
@@ -380,5 +502,12 @@ public sealed class ProjectWorkspaceCoordinatorService
         var invalidChars = Path.GetInvalidFileNameChars();
         var sanitized = new string((basis ?? "Project").Trim().Select(ch => invalidChars.Contains(ch) ? '-' : ch).ToArray());
         return string.IsNullOrWhiteSpace(sanitized) ? "Project" : sanitized;
+    }
+
+    private static string SanitizeFileName(string value)
+    {
+        var invalidChars = Path.GetInvalidFileNameChars();
+        var sanitized = new string(value.Trim().Select(ch => invalidChars.Contains(ch) ? '-' : ch).ToArray());
+        return string.IsNullOrWhiteSpace(sanitized) ? "version" : sanitized;
     }
 }

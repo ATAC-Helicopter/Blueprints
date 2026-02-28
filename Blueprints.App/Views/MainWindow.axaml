@@ -420,15 +420,46 @@
                 <TextBox Watermark="Select a version"
                          Text="{Binding VersionEditorName}" />
                 <ComboBox ItemsSource="{Binding AvailableStatuses}"
-                          SelectedItem="{Binding VersionEditorStatus}" />
+                          SelectedItem="{Binding VersionEditorStatus}"
+                          IsEnabled="{Binding CanEditSelectedVersion}" />
                 <TextBox Watermark="Version notes"
                          Text="{Binding VersionEditorNotes}"
                          AcceptsReturn="True"
-                         Height="80" />
-                <Button Content="Save Version"
-                        Command="{Binding SaveVersionDetailsCommand}"
-                        Padding="14,8"
-                        HorizontalAlignment="Left" />
+                         Height="80"
+                         IsEnabled="{Binding CanEditSelectedVersion}" />
+                <Grid ColumnDefinitions="Auto,Auto,Auto"
+                      ColumnSpacing="10">
+                  <Button Content="Save Version"
+                          Command="{Binding SaveVersionDetailsCommand}"
+                          Padding="14,8"
+                          HorizontalAlignment="Left"
+                          IsEnabled="{Binding CanEditSelectedVersion}" />
+                  <Button Grid.Column="1"
+                          Content="Release Version"
+                          Command="{Binding ReleaseSelectedVersionCommand}"
+                          Padding="14,8"
+                          HorizontalAlignment="Left"
+                          IsEnabled="{Binding CanReleaseSelectedVersion}" />
+                  <Button Grid.Column="2"
+                          Content="Export Changelog"
+                          Command="{Binding ExportSelectedVersionChangelogCommand}"
+                          Padding="14,8"
+                          HorizontalAlignment="Left" />
+                </Grid>
+
+                <TextBlock Text="{Binding SelectedVersionStateSummary}"
+                           TextWrapping="Wrap"
+                           Foreground="#CFE2D8" />
+
+                <TextBlock Text="{Binding LastChangelogExportPath}"
+                           TextWrapping="Wrap"
+                           Foreground="#CFE2D8" />
+
+                <TextBox Text="{Binding ChangelogPreview}"
+                         AcceptsReturn="True"
+                         IsReadOnly="True"
+                         Height="220"
+                         TextWrapping="Wrap" />
 
                 <TextBlock Text="{Binding TrustSummary}"
                            TextWrapping="Wrap"
@@ -450,26 +481,33 @@
                              FontWeight="SemiBold"
                              Foreground="#17322C" />
                   <ComboBox ItemsSource="{Binding AvailableItemTypes}"
-                            SelectedItem="{Binding SelectedItemTypeId}" />
+                            SelectedItem="{Binding SelectedItemTypeId}"
+                            IsEnabled="{Binding CanEditItems}" />
                   <ComboBox ItemsSource="{Binding AvailableCategories}"
-                            SelectedItem="{Binding SelectedCategoryId}" />
+                            SelectedItem="{Binding SelectedCategoryId}"
+                            IsEnabled="{Binding CanEditItems}" />
                   <TextBox Watermark="Item title"
-                           Text="{Binding ItemEditorTitle}" />
+                           Text="{Binding ItemEditorTitle}"
+                           IsEnabled="{Binding CanEditItems}" />
                   <TextBox Watermark="Description"
                            Text="{Binding ItemEditorDescription}"
                            AcceptsReturn="True"
-                           Height="80" />
+                           Height="80"
+                           IsEnabled="{Binding CanEditItems}" />
                   <CheckBox Content="Done"
-                            IsChecked="{Binding ItemEditorIsDone}" />
+                            IsChecked="{Binding ItemEditorIsDone}"
+                            IsEnabled="{Binding CanEditItems}" />
                   <Grid ColumnDefinitions="Auto,Auto"
                         ColumnSpacing="10">
                     <Button Content="Add Item"
                             Command="{Binding AddItemCommand}"
-                            Padding="14,8" />
+                            Padding="14,8"
+                            IsEnabled="{Binding CanEditItems}" />
                     <Button Grid.Column="1"
                             Content="Save Item"
                             Command="{Binding SaveItemDetailsCommand}"
-                            Padding="14,8" />
+                            Padding="14,8"
+                            IsEnabled="{Binding CanEditItems}" />
                   </Grid>
                 </StackPanel>
 
