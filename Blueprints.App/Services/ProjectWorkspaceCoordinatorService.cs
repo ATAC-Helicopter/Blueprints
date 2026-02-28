@@ -4,6 +4,7 @@ using Blueprints.Collaboration.Models;
 using Blueprints.Collaboration.Services;
 using Blueprints.Core.Enums;
 using Blueprints.Core.Models;
+using Blueprints.Core.Services;
 using Blueprints.Security.Abstractions;
 using Blueprints.Storage.Abstractions;
 using Blueprints.Storage.Models;
@@ -79,6 +80,145 @@ public sealed class ProjectWorkspaceCoordinatorService
         var session = new LocalWorkspaceSession(identity, paths, loadResult, sync);
         RecordRecentProject(session);
         return session;
+    }
+
+    public LocalWorkspaceSession SaveVersion(
+        string localWorkspaceRoot,
+        string sharedWorkspaceRoot,
+        VersionEditRequest request)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(localWorkspaceRoot);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sharedWorkspaceRoot);
+        ArgumentNullException.ThrowIfNull(request);
+
+        var identity = _identityService.GetOrCreateDefaultIdentity("Local Admin");
+        var session = OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
+        var workspace = session.LoadResult.Workspace;
+        var versions = workspace.Versions.ToList();
+
+        if (request.VersionId is Guid versionId)
+        {
+            var existingIndex = versions.FindIndex(snapshot => snapshot.Version.VersionId == versionId);
+            if (existingIndex < 0)
+            {
+                throw new InvalidOperationException("The selected version was not found.");
+            }
+
+            var existing = versions[existingIndex];
+            versions[existingIndex] = existing with
+            {
+                Version = existing.Version with
+                {
+                    Name = request.Name.Trim(),
+                    Status = request.Status,
+                    Notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim(),
+                },
+            };
+        }
+        else
+        {
+            var createdUtc = DateTimeOffset.UtcNow;
+            versions.Add(
+                new VersionWorkspaceSnapshot(
+                    new VersionDocument(
+                        1,
+                        workspace.Project.ProjectId,
+                        Guid.NewGuid(),
+                        request.Name.Trim(),
+                        request.Status,
+                        createdUtc,
+                        null,
+                        string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim(),
+                        []),
+                    []));
+        }
+
+        return SaveWorkspace(localWorkspaceRoot, sharedWorkspaceRoot, identity, workspace with
+        {
+            Versions = versions.OrderByDescending(static version => version.Version.CreatedUtc).ToArray(),
+        });
+    }
+
+    public LocalWorkspaceSession SaveItem(
+        string localWorkspaceRoot,
+        string sharedWorkspaceRoot,
+        ItemEditRequest request)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(localWorkspaceRoot);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sharedWorkspaceRoot);
+        ArgumentNullException.ThrowIfNull(request);
+
+        var identity = _identityService.GetOrCreateDefaultIdentity("Local Admin");
+        var session = OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
+        var workspace = session.LoadResult.Workspace;
+        var versions = workspace.Versions.ToList();
+        var versionIndex = versions.FindIndex(snapshot => snapshot.Version.VersionId == request.VersionId);
+        if (versionIndex < 0)
+        {
+            throw new InvalidOperationException("The selected version was not found.");
+        }
+
+        var targetVersion = versions[versionIndex];
+        var items = targetVersion.Items.ToList();
+
+        if (request.ItemId is Guid itemId)
+        {
+            var itemIndex = items.FindIndex(item => item.ItemId == itemId);
+            if (itemIndex < 0)
+            {
+                throw new InvalidOperationException("The selected item was not found.");
+            }
+
+            var existing = items[itemIndex];
+            items[itemIndex] = existing with
+            {
+                ItemKeyTypeId = request.ItemTypeId,
+                CategoryId = request.CategoryId,
+                Title = request.Title.Trim(),
+                Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim(),
+                IsDone = request.IsDone,
+                UpdatedUtc = DateTimeOffset.UtcNow,
+                LastModifiedByUserId = identity.Profile.UserId,
+                LastModifiedByName = identity.Profile.DisplayName,
+            };
+        }
+        else
+        {
+            var createdUtc = DateTimeOffset.UtcNow;
+            items.Add(
+                new ItemDocument(
+                    1,
+                    workspace.Project.ProjectId,
+                    request.VersionId,
+                    Guid.NewGuid(),
+                    GenerateItemKey(workspace, targetVersion, request.ItemTypeId),
+                    request.ItemTypeId,
+                    request.CategoryId,
+                    request.Title.Trim(),
+                    string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim(),
+                    request.IsDone,
+                    [],
+                    createdUtc,
+                    createdUtc,
+                    identity.Profile.UserId,
+                    identity.Profile.DisplayName));
+        }
+
+        versions[versionIndex] = targetVersion with
+        {
+            Items = items
+                .OrderBy(static item => item.CreatedUtc)
+                .ToArray(),
+            Version = targetVersion.Version with
+            {
+                ManualOrder = items.Select(static item => item.ItemId).ToArray(),
+            },
+        };
+
+        return SaveWorkspace(localWorkspaceRoot, sharedWorkspaceRoot, identity, workspace with
+        {
+            Versions = versions.ToArray(),
+        });
     }
 
     public string GetSuggestedLocalWorkspaceRoot(string projectName, string projectCode) =>
@@ -170,6 +310,48 @@ public sealed class ProjectWorkspaceCoordinatorService
                         true),
                 ]),
             []);
+    }
+
+    private LocalWorkspaceSession SaveWorkspace(
+        string localWorkspaceRoot,
+        string sharedWorkspaceRoot,
+        Security.Models.StoredIdentity identity,
+        ProjectWorkspaceSnapshot workspace)
+    {
+        _workspaceStore.Save(localWorkspaceRoot, workspace, identity.SigningKey);
+        return OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
+    }
+
+    private static string GenerateItemKey(
+        ProjectWorkspaceSnapshot workspace,
+        VersionWorkspaceSnapshot version,
+        string itemTypeId)
+    {
+        if (!workspace.Project.ItemKeyRules.TryGetValue(itemTypeId, out var rule))
+        {
+            return Guid.NewGuid().ToString("N");
+        }
+
+        if (rule.Scope == ItemKeyScope.Project)
+        {
+            var sequence = workspace.Versions
+                .SelectMany(static entry => entry.Items)
+                .Count(item => string.Equals(item.ItemKeyTypeId, itemTypeId, StringComparison.Ordinal))
+                + 1;
+            return ItemKeyFormatter.FormatProjectScoped(rule.Prefix, sequence);
+        }
+
+        var (major, minor) = ParseVersion(version.Version.Name);
+        var versionSequence = version.Items.Count(item => string.Equals(item.ItemKeyTypeId, itemTypeId, StringComparison.Ordinal)) + 1;
+        return ItemKeyFormatter.FormatVersionScoped(rule.Prefix, major, minor, versionSequence);
+    }
+
+    private static (int Major, int Minor) ParseVersion(string versionName)
+    {
+        var parts = versionName.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var major = parts.Length > 0 && int.TryParse(parts[0], out var parsedMajor) ? parsedMajor : 0;
+        var minor = parts.Length > 1 && int.TryParse(parts[1], out var parsedMinor) ? parsedMinor : 0;
+        return (major, minor);
     }
 
     private static string ResolveLocalWorkspaceRoot(string projectName, string projectCode, string configuredPath)
