@@ -15,18 +15,18 @@ This file is the working reference for future GitHub-related tasks in this repos
 
 - `main`: stable branch for pushed, verified repository state
 - `develop`: integration branch for active work before promotion to `main`
-- `feature/issue-<number>-<slug>`: feature or implementation work tied to a GitHub issue
-- `chore/issue-<number>-<slug>`: repository/process/infrastructure work tied to a GitHub issue
+- `feature/<number>-<slug>`: feature or implementation work tied to a GitHub issue
+- `chore/<number>-<slug>`: repository/process/infrastructure work tied to a GitHub issue
 
 Current managed branches:
 
 - `main`
 - `develop`
-- `feature/issue-7-workspace-load-save`
-- `feature/issue-8-dpapi-key-storage`
-- `feature/issue-10-shared-folder-sync`
-- `feature/issue-11-avalonia-live-workspace`
-- `chore/issue-9-public-release-readiness`
+- `feature/7-workspace-persistence`
+- `feature/8-dpapi-key-storage`
+- `feature/10-shared-folder-sync`
+- `feature/11-avalonia-live-workspace`
+- `chore/9-public-release-readiness`
 
 Default workflow:
 
