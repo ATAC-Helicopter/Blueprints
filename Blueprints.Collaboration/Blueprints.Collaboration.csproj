@@ -1,5 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <ProjectReference Include="..\Blueprints.Core\Blueprints.Core.csproj" />
+    <ProjectReference Include="..\Blueprints.Security\Blueprints.Security.csproj" />
+    <ProjectReference Include="..\Blueprints.Storage\Blueprints.Storage.csproj" />
   </ItemGroup>
 </Project>

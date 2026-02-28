@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Blueprints.App\Blueprints.App.csproj" />
+    <ProjectReference Include="..\Blueprints.Collaboration\Blueprints.Collaboration.csproj" />
     <ProjectReference Include="..\Blueprints.Core\Blueprints.Core.csproj" />
     <ProjectReference Include="..\Blueprints.Security\Blueprints.Security.csproj" />
     <ProjectReference Include="..\Blueprints.Storage\Blueprints.Storage.csproj" />
