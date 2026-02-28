@@ -16,6 +16,7 @@ namespace Blueprints.App.ViewModels;
 public partial class MainWindowViewModel : ViewModelBase
 {
     private readonly ProjectWorkspaceCoordinatorService? _coordinatorService;
+    private LocalWorkspaceSession? _currentSession;
     private string _title = "Blueprints Setup";
     private ProjectSummary _currentProject = new(string.Empty, string.Empty, TrustState.Corrupt, string.Empty);
     private IdentitySummary _identity = new(string.Empty, string.Empty, string.Empty);
@@ -30,6 +31,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private int _membershipRevision;
     private bool _hasActiveSession;
     private string _setupMessage = string.Empty;
+    private string _workspaceMessage = string.Empty;
     private string _createProjectName = "Blueprints";
     private string _createProjectCode = "BP";
     private string _createVersioningScheme = "SemVer";
@@ -38,10 +40,23 @@ public partial class MainWindowViewModel : ViewModelBase
     private string _openLocalWorkspaceRoot = string.Empty;
     private string _openSharedWorkspaceRoot = string.Empty;
     private RecentProjectReference? _selectedRecentProject;
+    private WorkspaceVersionCard? _selectedVersion;
+    private WorkspaceItemCard? _selectedItem;
+    private string _newVersionName = "1.0.0";
+    private string _versionEditorName = string.Empty;
+    private string _versionEditorNotes = string.Empty;
+    private ReleaseStatus _versionEditorStatus = ReleaseStatus.InProgress;
+    private string _itemEditorTitle = string.Empty;
+    private string _itemEditorDescription = string.Empty;
+    private bool _itemEditorIsDone;
+    private string _selectedItemTypeId = "feature";
+    private string _selectedCategoryId = "added";
 
     public MainWindowViewModel()
     {
-        Versions = new ObservableCollection<VersionSummary>();
+        Versions = new ObservableCollection<WorkspaceVersionCard>();
+        AvailableItemTypes = new ObservableCollection<string>();
+        AvailableCategories = new ObservableCollection<string>();
         RecentProjects = new ObservableCollection<RecentProjectReference>();
         ApplyDesignSession(CreateDesignSession());
     }
@@ -49,13 +64,23 @@ public partial class MainWindowViewModel : ViewModelBase
     public MainWindowViewModel(ProjectWorkspaceCoordinatorService coordinatorService)
     {
         _coordinatorService = coordinatorService;
-        Versions = new ObservableCollection<VersionSummary>();
+        Versions = new ObservableCollection<WorkspaceVersionCard>();
+        AvailableItemTypes = new ObservableCollection<string>();
+        AvailableCategories = new ObservableCollection<string>();
         RecentProjects = new ObservableCollection<RecentProjectReference>();
 
         RefreshRecentProjects();
         RefreshSuggestedPaths();
         ApplySetupState("Create a new project or open an existing workspace.");
     }
+
+    public ObservableCollection<WorkspaceVersionCard> Versions { get; }
+
+    public ObservableCollection<string> AvailableItemTypes { get; }
+
+    public ObservableCollection<string> AvailableCategories { get; }
+
+    public ObservableCollection<RecentProjectReference> RecentProjects { get; }
 
     public string Title
     {
@@ -88,10 +113,6 @@ public partial class MainWindowViewModel : ViewModelBase
             }
         }
     }
-
-    public ObservableCollection<VersionSummary> Versions { get; }
-
-    public ObservableCollection<RecentProjectReference> RecentProjects { get; }
 
     public string TrustSummary
     {
@@ -161,6 +182,12 @@ public partial class MainWindowViewModel : ViewModelBase
         private set => SetProperty(ref _setupMessage, value);
     }
 
+    public string WorkspaceMessage
+    {
+        get => _workspaceMessage;
+        private set => SetProperty(ref _workspaceMessage, value);
+    }
+
     public string CreateProjectName
     {
         get => _createProjectName;
@@ -221,6 +248,88 @@ public partial class MainWindowViewModel : ViewModelBase
         set => SetProperty(ref _selectedRecentProject, value);
     }
 
+    public WorkspaceVersionCard? SelectedVersion
+    {
+        get => _selectedVersion;
+        set
+        {
+            if (SetProperty(ref _selectedVersion, value))
+            {
+                PopulateVersionEditor();
+                SelectedItem = value?.Items.FirstOrDefault();
+            }
+        }
+    }
+
+    public WorkspaceItemCard? SelectedItem
+    {
+        get => _selectedItem;
+        set
+        {
+            if (SetProperty(ref _selectedItem, value))
+            {
+                PopulateItemEditor();
+            }
+        }
+    }
+
+    public string NewVersionName
+    {
+        get => _newVersionName;
+        set => SetProperty(ref _newVersionName, value);
+    }
+
+    public string VersionEditorName
+    {
+        get => _versionEditorName;
+        set => SetProperty(ref _versionEditorName, value);
+    }
+
+    public string VersionEditorNotes
+    {
+        get => _versionEditorNotes;
+        set => SetProperty(ref _versionEditorNotes, value);
+    }
+
+    public ReleaseStatus VersionEditorStatus
+    {
+        get => _versionEditorStatus;
+        set => SetProperty(ref _versionEditorStatus, value);
+    }
+
+    public string ItemEditorTitle
+    {
+        get => _itemEditorTitle;
+        set => SetProperty(ref _itemEditorTitle, value);
+    }
+
+    public string ItemEditorDescription
+    {
+        get => _itemEditorDescription;
+        set => SetProperty(ref _itemEditorDescription, value);
+    }
+
+    public bool ItemEditorIsDone
+    {
+        get => _itemEditorIsDone;
+        set => SetProperty(ref _itemEditorIsDone, value);
+    }
+
+    public string SelectedItemTypeId
+    {
+        get => _selectedItemTypeId;
+        set => SetProperty(ref _selectedItemTypeId, value);
+    }
+
+    public string SelectedCategoryId
+    {
+        get => _selectedCategoryId;
+        set => SetProperty(ref _selectedCategoryId, value);
+    }
+
+    public IReadOnlyList<ReleaseStatus> AvailableStatuses { get; } =
+        [ReleaseStatus.Planned, ReleaseStatus.InProgress, ReleaseStatus.Frozen, ReleaseStatus.Released];
+
     public string TrustBadge => TrustStatePresenter.ToDisplayText(CurrentProject.TrustState);
 
     public string SyncStatus =>
@@ -248,17 +357,16 @@ public partial class MainWindowViewModel : ViewModelBase
 
         try
         {
-            var session = _coordinatorService.CreateProject(
-                new ProjectCreateRequest(
-                    CreateProjectName,
-                    CreateProjectCode,
-                    CreateVersioningScheme,
-                    CreateLocalWorkspaceRoot,
-                    CreateSharedWorkspaceRoot));
-
-            ApplySession(session);
+            ApplySession(
+                _coordinatorService.CreateProject(
+                    new ProjectCreateRequest(
+                        CreateProjectName,
+                        CreateProjectCode,
+                        CreateVersioningScheme,
+                        CreateLocalWorkspaceRoot,
+                        CreateSharedWorkspaceRoot)));
             RefreshRecentProjects();
-            SetupMessage = $"Created project {session.LoadResult.Workspace.Project.Name}.";
+            SetupMessage = $"Created project {CurrentProject.Name}.";
         }
         catch (Exception exception)
         {
@@ -282,10 +390,9 @@ public partial class MainWindowViewModel : ViewModelBase
 
         try
         {
-            var session = _coordinatorService.OpenProject(OpenLocalWorkspaceRoot, OpenSharedWorkspaceRoot);
-            ApplySession(session);
+            ApplySession(_coordinatorService.OpenProject(OpenLocalWorkspaceRoot, OpenSharedWorkspaceRoot));
             RefreshRecentProjects();
-            SetupMessage = $"Opened project {session.LoadResult.Workspace.Project.Name}.";
+            SetupMessage = $"Opened project {CurrentProject.Name}.";
         }
         catch (Exception exception)
         {
@@ -315,10 +422,148 @@ public partial class MainWindowViewModel : ViewModelBase
         RefreshSuggestedPaths();
     }
 
+    [RelayCommand]
+    private void CreateVersion()
+    {
+        if (_coordinatorService is null || _currentSession is null)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(NewVersionName))
+        {
+            WorkspaceMessage = "Version name is required.";
+            return;
+        }
+
+        try
+        {
+            ApplySession(
+                _coordinatorService.SaveVersion(
+                    _currentSession.Paths.LocalWorkspaceRoot,
+                    _currentSession.Paths.SharedProjectRoot,
+                    new VersionEditRequest(null, NewVersionName, ReleaseStatus.InProgress, null)));
+            WorkspaceMessage = $"Created version {NewVersionName}.";
+            NewVersionName = NextSuggestedVersionName();
+        }
+        catch (Exception exception)
+        {
+            WorkspaceMessage = exception.Message;
+        }
+    }
+
+    [RelayCommand]
+    private void SaveVersionDetails()
+    {
+        if (_coordinatorService is null || _currentSession is null || SelectedVersion is null)
+        {
+            WorkspaceMessage = "Select a version first.";
+            return;
+        }
+
+        try
+        {
+            var selectedVersionId = SelectedVersion.VersionId;
+            ApplySession(
+                _coordinatorService.SaveVersion(
+                    _currentSession.Paths.LocalWorkspaceRoot,
+                    _currentSession.Paths.SharedProjectRoot,
+                    new VersionEditRequest(
+                        selectedVersionId,
+                        VersionEditorName,
+                        VersionEditorStatus,
+                        VersionEditorNotes)));
+            ReselectVersion(selectedVersionId);
+            WorkspaceMessage = $"Updated version {VersionEditorName}.";
+        }
+        catch (Exception exception)
+        {
+            WorkspaceMessage = exception.Message;
+        }
+    }
+
+    [RelayCommand]
+    private void AddItem()
+    {
+        if (_coordinatorService is null || _currentSession is null || SelectedVersion is null)
+        {
+            WorkspaceMessage = "Select a version before adding an item.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(ItemEditorTitle))
+        {
+            WorkspaceMessage = "Item title is required.";
+            return;
+        }
+
+        try
+        {
+            var versionId = SelectedVersion.VersionId;
+            ApplySession(
+                _coordinatorService.SaveItem(
+                    _currentSession.Paths.LocalWorkspaceRoot,
+                    _currentSession.Paths.SharedProjectRoot,
+                    new ItemEditRequest(
+                        versionId,
+                        null,
+                        SelectedItemTypeId,
+                        SelectedCategoryId,
+                        ItemEditorTitle,
+                        ItemEditorDescription,
+                        ItemEditorIsDone)));
+            ReselectVersion(versionId);
+            WorkspaceMessage = $"Added item {ItemEditorTitle}.";
+            ClearItemEditorForNewItem();
+        }
+        catch (Exception exception)
+        {
+            WorkspaceMessage = exception.Message;
+        }
+    }
+
+    [RelayCommand]
+    private void SaveItemDetails()
+    {
+        if (_coordinatorService is null || _currentSession is null || SelectedVersion is null || SelectedItem is null)
+        {
+            WorkspaceMessage = "Select an item first.";
+            return;
+        }
+
+        try
+        {
+            var versionId = SelectedVersion.VersionId;
+            var itemId = SelectedItem.ItemId;
+            ApplySession(
+                _coordinatorService.SaveItem(
+                    _currentSession.Paths.LocalWorkspaceRoot,
+                    _currentSession.Paths.SharedProjectRoot,
+                    new ItemEditRequest(
+                        versionId,
+                        itemId,
+                        SelectedItemTypeId,
+                        SelectedCategoryId,
+                        ItemEditorTitle,
+                        ItemEditorDescription,
+                        ItemEditorIsDone)));
+            ReselectVersion(versionId);
+            ReselectItem(itemId);
+            WorkspaceMessage = $"Updated item {ItemEditorTitle}.";
+        }
+        catch (Exception exception)
+        {
+            WorkspaceMessage = exception.Message;
+        }
+    }
+
     private void ApplySession(LocalWorkspaceSession session)
     {
+        _currentSession = session;
+
         var workspace = session.LoadResult.Workspace;
         var project = workspace.Project;
+        var previousSelectedVersionId = SelectedVersion?.VersionId;
 
         CurrentProject = new ProjectSummary(
             project.Name,
@@ -334,13 +579,21 @@ public partial class MainWindowViewModel : ViewModelBase
         Versions.Clear();
         foreach (var version in workspace.Versions
                      .OrderByDescending(static value => value.Version.CreatedUtc)
-                     .Select(static value => new VersionSummary(
-                         value.Version.Name,
-                         value.Version.Status,
-                         value.Items.Count,
-                         value.Items.Count(static item => item.IsDone))))
+                     .Select(MapVersionCard))
         {
             Versions.Add(version);
+        }
+
+        AvailableItemTypes.Clear();
+        foreach (var itemTypeId in workspace.Project.ItemTypes.Keys.OrderBy(static value => value, StringComparer.Ordinal))
+        {
+            AvailableItemTypes.Add(itemTypeId);
+        }
+
+        AvailableCategories.Clear();
+        foreach (var categoryId in workspace.Project.DefaultCategories.Select(static category => category.Id))
+        {
+            AvailableCategories.Add(categoryId);
         }
 
         Title = $"{project.Name} ({project.ProjectCode})";
@@ -354,12 +607,31 @@ public partial class MainWindowViewModel : ViewModelBase
         MembershipRevision = workspace.Members.MembershipRevision;
         Sync = session.Sync;
         HasActiveSession = true;
+        WorkspaceMessage = string.Empty;
+
+        if (previousSelectedVersionId is Guid selectedVersionId)
+        {
+            SelectedVersion = Versions.FirstOrDefault(version => version.VersionId == selectedVersionId) ?? Versions.FirstOrDefault();
+        }
+        else
+        {
+            SelectedVersion = Versions.FirstOrDefault();
+        }
+
+        if (SelectedVersion is null)
+        {
+            ClearVersionEditor();
+            ClearItemEditorForNewItem();
+        }
+
+        NewVersionName = NextSuggestedVersionName();
         OnPropertyChanged(nameof(TrustBadge));
         OnPropertyChanged(nameof(IdentityId));
     }
 
     private void ApplySetupState(string message)
     {
+        _currentSession = null;
         Title = "Blueprints Setup";
         CurrentProject = new ProjectSummary(string.Empty, string.Empty, TrustState.Corrupt, string.Empty);
         TrustSummary = message;
@@ -372,6 +644,11 @@ public partial class MainWindowViewModel : ViewModelBase
         MembershipRevision = 0;
         Sync = new SyncSummary(SyncHealth.Idle, 0, 0, 0);
         Versions.Clear();
+        AvailableItemTypes.Clear();
+        AvailableCategories.Clear();
+        SelectedVersion = null;
+        SelectedItem = null;
+        WorkspaceMessage = string.Empty;
         HasActiveSession = false;
         OnPropertyChanged(nameof(TrustBadge));
         OnPropertyChanged(nameof(IdentityId));
@@ -412,6 +689,100 @@ public partial class MainWindowViewModel : ViewModelBase
         CreateSharedWorkspaceRoot = _coordinatorService.GetSuggestedSharedWorkspaceRoot(CreateProjectName, CreateProjectCode);
     }
 
+    private void PopulateVersionEditor()
+    {
+        if (SelectedVersion is null)
+        {
+            ClearVersionEditor();
+            return;
+        }
+
+        VersionEditorName = SelectedVersion.Name;
+        VersionEditorNotes = SelectedVersion.Notes ?? string.Empty;
+        VersionEditorStatus = SelectedVersion.Status;
+    }
+
+    private void PopulateItemEditor()
+    {
+        if (SelectedItem is null)
+        {
+            ClearItemEditorForNewItem();
+            return;
+        }
+
+        ItemEditorTitle = SelectedItem.Title;
+        ItemEditorDescription = SelectedItem.Description ?? string.Empty;
+        ItemEditorIsDone = SelectedItem.IsDone;
+        SelectedItemTypeId = SelectedItem.ItemTypeId;
+        SelectedCategoryId = SelectedItem.CategoryId;
+    }
+
+    private void ClearVersionEditor()
+    {
+        VersionEditorName = string.Empty;
+        VersionEditorNotes = string.Empty;
+        VersionEditorStatus = ReleaseStatus.InProgress;
+    }
+
+    private void ClearItemEditorForNewItem()
+    {
+        SelectedItem = null;
+        ItemEditorTitle = string.Empty;
+        ItemEditorDescription = string.Empty;
+        ItemEditorIsDone = false;
+        SelectedItemTypeId = AvailableItemTypes.FirstOrDefault() ?? "feature";
+        SelectedCategoryId = AvailableCategories.FirstOrDefault() ?? "added";
+    }
+
+    private void ReselectVersion(Guid versionId)
+    {
+        SelectedVersion = Versions.FirstOrDefault(version => version.VersionId == versionId);
+    }
+
+    private void ReselectItem(Guid itemId)
+    {
+        SelectedItem = SelectedVersion?.Items.FirstOrDefault(item => item.ItemId == itemId);
+    }
+
+    private string NextSuggestedVersionName()
+    {
+        if (!Versions.Any())
+        {
+            return "1.0.0";
+        }
+
+        var latestVersion = Versions
+            .Select(version => version.Name)
+            .FirstOrDefault(name => Version.TryParse(name, out _));
+
+        if (latestVersion is null || !Version.TryParse(latestVersion, out var parsed))
+        {
+            return "1.0.0";
+        }
+
+        return $"{parsed.Major}.{parsed.Minor + 1}.0";
+    }
+
+    private static WorkspaceVersionCard MapVersionCard(VersionWorkspaceSnapshot snapshot) =>
+        new(
+            snapshot.Version.VersionId,
+            snapshot.Version.Name,
+            snapshot.Version.Status,
+            snapshot.Version.Notes,
+            snapshot.Items.Count,
+            snapshot.Items.Count(static item => item.IsDone),
+            snapshot.Items
+                .OrderBy(static item => item.CreatedUtc)
+                .Select(static item => new WorkspaceItemCard(
+                    item.ItemId,
+                    item.ItemKey,
+                    item.ItemKeyTypeId,
+                    item.CategoryId,
+                    item.Title,
+                    item.Description,
+                    item.IsDone))
+                .ToArray());
+
     private static LocalWorkspaceSession CreateDesignSession()
     {
         var createdUtc = DateTimeOffset.Parse("2026-02-28T12:00:00Z");
@@ -443,17 +814,21 @@ public partial class MainWindowViewModel : ViewModelBase
                         "SemVer",
                         createdUtc,
                         [
-                            new CategoryDefinition("feature", "Feature"),
-                            new CategoryDefinition("bug", "Bug"),
-                            new CategoryDefinition("issue", "Issue"),
+                            new CategoryDefinition("added", "Added"),
+                            new CategoryDefinition("changed", "Changed"),
+                            new CategoryDefinition("fixed", "Fixed"),
+                            new CategoryDefinition("removed", "Removed"),
+                            new CategoryDefinition("security", "Security"),
                         ],
                         new Dictionary<string, ItemTypeDefinition>(StringComparer.Ordinal)
                         {
                             ["feature"] = new("feature", "Feature"),
+                            ["bug"] = new("bug", "Bug"),
                         },
                         new Dictionary<string, ItemKeyRule>(StringComparer.Ordinal)
                         {
                             ["feature"] = new("BP", ItemKeyScope.Version),
+                            ["bug"] = new("BUG", ItemKeyScope.Project),
                         },
                         new ChangelogRules(false, true, false, false)),
                     new MemberDocument(
@@ -479,7 +854,7 @@ public partial class MainWindowViewModel : ViewModelBase
                                 ReleaseStatus.InProgress,
                                 createdUtc,
                                 null,
-                                null,
+                                "Demo workspace",
                                 []),
                             [
                                 new ItemDocument(
@@ -489,9 +864,9 @@ public partial class MainWindowViewModel : ViewModelBase
                                     Guid.Parse("44444444-4444-4444-4444-444444444444"),
                                     "BP-1001",
                                     "feature",
-                                    "feature",
+                                    "added",
                                     "Starter item",
-                                    null,
+                                    "Seeded for design preview.",
                                     true,
                                     [],
                                     createdUtc,

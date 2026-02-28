@@ -292,14 +292,22 @@
                        FontSize="18"
                        FontWeight="SemiBold"
                        Foreground="#17322C" />
-            <Button Grid.Column="1"
-                    Content="New Version"
+          <StackPanel Grid.Column="1"
+                      Spacing="6"
+                      HorizontalAlignment="Right">
+            <TextBox Width="130"
+                     Watermark="1.0.0"
+                     Text="{Binding NewVersionName}" />
+            <Button Content="New Version"
+                    Command="{Binding CreateVersionCommand}"
                     Padding="12,6" />
-          </Grid>
+          </StackPanel>
+        </Grid>
 
-          <ItemsControl ItemsSource="{Binding Versions}">
-            <ItemsControl.ItemTemplate>
-              <DataTemplate x:DataType="models:VersionSummary">
+          <ListBox ItemsSource="{Binding Versions}"
+                   SelectedItem="{Binding SelectedVersion}">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="appModels:WorkspaceVersionCard">
                 <Border Margin="0,0,0,12"
                         Background="#FFFFFF"
                         CornerRadius="14"
@@ -325,8 +333,8 @@
                   </StackPanel>
                 </Border>
               </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
+            </ListBox.ItemTemplate>
+          </ListBox>
         </StackPanel>
       </Border>
 
@@ -337,13 +345,13 @@
               BorderThickness="0,1,0,0">
         <Grid RowDefinitions="Auto,Auto,*" RowSpacing="18">
           <StackPanel Spacing="6">
-            <TextBlock Text="Live Workspace"
+            <TextBlock Text="Workspace Detail"
                        FontSize="28"
                        FontWeight="SemiBold"
                        Foreground="#17322C" />
-            <TextBlock Text="{Binding TrustSummary}"
-                       TextWrapping="Wrap"
-                       Foreground="#574E43" />
+            <TextBlock Text="{Binding WorkspaceMessage}"
+                     TextWrapping="Wrap"
+                     Foreground="#574E43" />
           </StackPanel>
 
           <UniformGrid Grid.Row="1" Columns="3">
@@ -398,23 +406,109 @@
             </Border>
           </UniformGrid>
 
-          <Border Grid.Row="2"
-                  Background="#17322C"
-                  CornerRadius="18"
-                  Padding="20">
-            <StackPanel Spacing="12">
-              <TextBlock Text="Current Trust State"
-                         FontSize="18"
-                         FontWeight="SemiBold"
-                         Foreground="#F6F1E8" />
-              <TextBlock Text="{Binding TrustSummary}"
-                         TextWrapping="Wrap"
-                         Foreground="#CFE2D8" />
-              <TextBlock Text="{Binding SharedSyncPath, StringFormat='Shared sync root: {0}'}"
-                         TextWrapping="Wrap"
-                         Foreground="#CFE2D8" />
-            </StackPanel>
-          </Border>
+          <Grid Grid.Row="2"
+                ColumnDefinitions="0.95*,1.05*"
+                ColumnSpacing="18">
+            <Border Background="#17322C"
+                    CornerRadius="18"
+                    Padding="20">
+              <StackPanel Spacing="12">
+                <TextBlock Text="Version Editor"
+                           FontSize="18"
+                           FontWeight="SemiBold"
+                           Foreground="#F6F1E8" />
+                <TextBox Watermark="Select a version"
+                         Text="{Binding VersionEditorName}" />
+                <ComboBox ItemsSource="{Binding AvailableStatuses}"
+                          SelectedItem="{Binding VersionEditorStatus}" />
+                <TextBox Watermark="Version notes"
+                         Text="{Binding VersionEditorNotes}"
+                         AcceptsReturn="True"
+                         Height="80" />
+                <Button Content="Save Version"
+                        Command="{Binding SaveVersionDetailsCommand}"
+                        Padding="14,8"
+                        HorizontalAlignment="Left" />
+
+                <TextBlock Text="{Binding TrustSummary}"
+                           TextWrapping="Wrap"
+                           Foreground="#CFE2D8" />
+              </StackPanel>
+            </Border>
+
+            <Border Grid.Column="1"
+                    Background="#F9F5EC"
+                    CornerRadius="18"
+                    Padding="20"
+                    BorderBrush="#D7CCB5"
+                    BorderThickness="1">
+              <Grid RowDefinitions="Auto,Auto,*"
+                    RowSpacing="14">
+                <StackPanel Spacing="12">
+                  <TextBlock Text="Item Editor"
+                             FontSize="18"
+                             FontWeight="SemiBold"
+                             Foreground="#17322C" />
+                  <ComboBox ItemsSource="{Binding AvailableItemTypes}"
+                            SelectedItem="{Binding SelectedItemTypeId}" />
+                  <ComboBox ItemsSource="{Binding AvailableCategories}"
+                            SelectedItem="{Binding SelectedCategoryId}" />
+                  <TextBox Watermark="Item title"
+                           Text="{Binding ItemEditorTitle}" />
+                  <TextBox Watermark="Description"
+                           Text="{Binding ItemEditorDescription}"
+                           AcceptsReturn="True"
+                           Height="80" />
+                  <CheckBox Content="Done"
+                            IsChecked="{Binding ItemEditorIsDone}" />
+                  <Grid ColumnDefinitions="Auto,Auto"
+                        ColumnSpacing="10">
+                    <Button Content="Add Item"
+                            Command="{Binding AddItemCommand}"
+                            Padding="14,8" />
+                    <Button Grid.Column="1"
+                            Content="Save Item"
+                            Command="{Binding SaveItemDetailsCommand}"
+                            Padding="14,8" />
+                  </Grid>
+                </StackPanel>
+
+                <TextBlock Grid.Row="1"
+                           Text="Selected Version Items"
+                           FontWeight="SemiBold"
+                           Foreground="#17322C" />
+
+                <ListBox Grid.Row="2"
+                         ItemsSource="{Binding SelectedVersion.Items}"
+                         SelectedItem="{Binding SelectedItem}">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="appModels:WorkspaceItemCard">
+                      <Border Margin="0,0,0,10"
+                              Background="#FFFFFF"
+                              CornerRadius="12"
+                              Padding="12"
+                              BorderBrush="#D7CCB5"
+                              BorderThickness="1">
+                        <StackPanel Spacing="4">
+                          <TextBlock Text="{Binding ItemKey}"
+                                     FontFamily="Cascadia Mono"
+                                     FontWeight="SemiBold"
+                                     Foreground="#17322C" />
+                          <TextBlock Text="{Binding Title}"
+                                     FontWeight="SemiBold"
+                                     Foreground="#17322C" />
+                          <TextBlock Text="{Binding CategoryId, StringFormat='Category: {0}'}"
+                                     Foreground="#574E43" />
+                          <TextBlock Text="{Binding ItemTypeId, StringFormat='Type: {0}'}"
+                                     Foreground="#574E43" />
+                        </StackPanel>
+                      </Border>
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+              </Grid>
+            </Border>
+          </Grid>
         </Grid>
       </Border>
     </Grid>

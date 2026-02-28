@@ -1,6 +1,7 @@
 using System.Runtime.Versioning;
 using Blueprints.App.Models;
 using Blueprints.App.Services;
+using Blueprints.Core.Enums;
 using Blueprints.Security.Services;
 using Blueprints.Storage.Services;
 
@@ -60,6 +61,76 @@ public sealed class ProjectWorkspaceCoordinatorServiceTests : IDisposable
         Assert.Equal("Blueprints", opened.LoadResult.Workspace.Project.Name);
         Assert.Equal(localRoot, opened.Paths.LocalWorkspaceRoot);
         Assert.Equal(sharedRoot, opened.Paths.SharedProjectRoot);
+    }
+
+    [Fact]
+    public void SaveVersion_CreatesVersionInProjectWorkspace()
+    {
+        var localRoot = Path.Combine(_rootDirectory, "version-local", "BP");
+        var sharedRoot = Path.Combine(_rootDirectory, "version-shared", "BP");
+        var service = CreateService();
+
+        service.CreateProject(
+            new ProjectCreateRequest(
+                "Blueprints",
+                "BP",
+                "SemVer",
+                localRoot,
+                sharedRoot));
+
+        var updated = service.SaveVersion(
+            localRoot,
+            sharedRoot,
+            new VersionEditRequest(
+                null,
+                "1.1.0",
+                ReleaseStatus.InProgress,
+                "First active milestone"));
+
+        Assert.Single(updated.LoadResult.Workspace.Versions);
+        Assert.Equal("1.1.0", updated.LoadResult.Workspace.Versions[0].Version.Name);
+    }
+
+    [Fact]
+    public void SaveItem_CreatesItemAndGeneratesExpectedKey()
+    {
+        var localRoot = Path.Combine(_rootDirectory, "item-local", "BP");
+        var sharedRoot = Path.Combine(_rootDirectory, "item-shared", "BP");
+        var service = CreateService();
+
+        var created = service.CreateProject(
+            new ProjectCreateRequest(
+                "Blueprints",
+                "BP",
+                "SemVer",
+                localRoot,
+                sharedRoot));
+
+        var versionSession = service.SaveVersion(
+            localRoot,
+            sharedRoot,
+            new VersionEditRequest(
+                null,
+                "1.5.0",
+                ReleaseStatus.InProgress,
+                null));
+        var versionId = versionSession.LoadResult.Workspace.Versions[0].Version.VersionId;
+
+        var updated = service.SaveItem(
+            localRoot,
+            sharedRoot,
+            new ItemEditRequest(
+                versionId,
+                null,
+                "feature",
+                "added",
+                "Ship create and open workflow",
+                "Adds the project bootstrap UI.",
+                false));
+
+        var item = updated.LoadResult.Workspace.Versions[0].Items.Single();
+        Assert.Equal("BP-151", item.ItemKey);
+        Assert.Equal("Ship create and open workflow", item.Title);
     }
 
     private ProjectWorkspaceCoordinatorService CreateService()
