@@ -11,6 +11,29 @@ This file is the working reference for future GitHub-related tasks in this repos
 - Default branch: `main`
 - Visibility: `private` for now
 
+## Branch Strategy
+
+- `main`: stable branch for pushed, verified repository state
+- `develop`: integration branch for active work before promotion to `main`
+- `feature/issue-<number>-<slug>`: feature or implementation work tied to a GitHub issue
+- `chore/issue-<number>-<slug>`: repository/process/infrastructure work tied to a GitHub issue
+
+Current managed branches:
+
+- `main`
+- `develop`
+- `feature/issue-7-workspace-load-save`
+- `feature/issue-8-dpapi-key-storage`
+- `feature/issue-10-shared-folder-sync`
+- `feature/issue-11-avalonia-live-workspace`
+- `chore/issue-9-public-release-readiness`
+
+Default workflow:
+
+- branch from `develop` for active work
+- merge feature or chore branches into `develop`
+- promote `develop` into `main` once the state is intentionally ready
+
 ## Current GitHub Setup
 
 - Issues: enabled
