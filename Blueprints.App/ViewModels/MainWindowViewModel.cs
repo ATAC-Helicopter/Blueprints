@@ -3,6 +3,7 @@ using Blueprints.Collaboration.Enums;
 using Blueprints.Collaboration.Models;
 using Blueprints.Core.Enums;
 using Blueprints.Core.Models;
+using Blueprints.Security.Abstractions;
 using Blueprints.Security.Models;
 using Blueprints.Security.Services;
 
@@ -10,8 +11,12 @@ namespace Blueprints.App.ViewModels;
 
 public partial class MainWindowViewModel : ViewModelBase
 {
-    public MainWindowViewModel()
+    public MainWindowViewModel(IIdentityService identityService)
     {
+        ArgumentNullException.ThrowIfNull(identityService);
+
+        var identity = identityService.GetOrCreateDefaultIdentity("Local Admin");
+
         CurrentProject = new ProjectSummary(
             "VaultSync",
             "VS",
@@ -19,9 +24,9 @@ public partial class MainWindowViewModel : ViewModelBase
             @"\\NAS\Blueprints\VaultSync");
 
         Identity = new IdentitySummary(
-            "Flavio",
-            "b2d53ce4-f2e2-4ec5-b0ed-31fd2049d7f8",
-            "DPAPI");
+            identity.Profile.DisplayName,
+            identity.Profile.UserId.ToString(),
+            identity.Profile.KeyStorageProvider);
 
         Sync = new SyncSummary(
             SyncHealth.Ready,
@@ -42,6 +47,8 @@ public partial class MainWindowViewModel : ViewModelBase
     public ProjectSummary CurrentProject { get; }
 
     public IdentitySummary Identity { get; }
+
+    public string IdentityId => Identity.UserId;
 
     public SyncSummary Sync { get; }
 
