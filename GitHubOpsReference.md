@@ -9,7 +9,8 @@ This file is the working reference for future GitHub-related tasks in this repos
 - Remote: `origin`
 - URL: `https://github.com/ATAC-Helicopter/Blueprints`
 - Default branch: `main`
-- Visibility: `private` for now
+- Visibility: `public`
+- License: `MIT`
 
 ## Branch Strategy
 
@@ -178,9 +179,9 @@ gh repo edit ATAC-Helicopter/Blueprints --description "Repository description"
 
 ## Public Release Readiness Checklist
 
-Before switching the repository to public:
+For public maintenance:
 
-- choose and add a license
+- confirm the current license still matches project intent
 - review `README.md`
 - review `SECURITY.md`
 - confirm issue and PR templates are correct
@@ -188,13 +189,12 @@ Before switching the repository to public:
 - confirm no sensitive data or secrets were committed
 - review topics, labels, milestones, and release notes
 - decide whether Discussions should stay disabled
-- decide whether branch protection rules should be added
+- review whether admin bypass should remain allowed
 
 ## Safe Defaults For Future GitHub Tasks
 
 Unless there is a strong reason otherwise:
 
-- keep the repository private until licensing and public docs are ready
 - prefer draft prereleases before publishing anything final
 - keep merge commits disabled
 - use squash or rebase merge only
@@ -419,7 +419,22 @@ Update if needed:
 - verify there are no secrets or unsafe artifacts
 - apply branch protection once available
 
-### 14. After Any GitHub/Admin Task
+### 14. Protected Branches
+
+Check:
+
+- whether `main` and `develop` are still protected
+- whether required checks still match the actual CI workflow names
+- whether review requirements are still appropriate for the maintainer model
+- whether admin bypass should remain enabled
+
+Update if needed:
+
+- adjust branch protection when CI names change
+- tighten admin enforcement only when maintainer coverage makes it safe
+- avoid deadlocking the repo with protection rules that nobody can satisfy
+
+### 15. After Any GitHub/Admin Task
 
 Always do:
 
