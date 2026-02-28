@@ -183,6 +183,235 @@ Unless there is a strong reason otherwise:
 - use squash or rebase merge only
 - treat security-related changes conservatively
 
+## Full GitHub Maintenance Checklist
+
+Use this section every time GitHub-related work is requested.
+
+### 1. Local Repository State
+
+Check:
+
+- `git status --short`
+- current branch
+- whether local `main` and `develop` are up to date
+- whether there are unpushed commits
+- whether there are uncommitted changes that should not be mixed into repo admin work
+
+Update if needed:
+
+- pull latest `main`
+- rebase local work before pushing
+- commit repo-management files separately from product/code changes when possible
+
+### 2. Remote Branch Hygiene
+
+Check:
+
+- current managed branches still match the roadmap
+- old feature branches that can be deleted
+- stale remote-tracking refs
+- accidental or noisy branches from bots
+
+Update if needed:
+
+- create missing managed branches
+- delete stale local branches
+- delete stale remote branches that are no longer needed
+- prune remote-tracking refs with `git fetch --prune origin`
+
+### 3. Pull Requests
+
+Check:
+
+- open PR list
+- whether any PR is stale, redundant, or superseded
+- CI status on each open PR
+- labels, milestones, assignees, and project linkage
+- whether Dependabot PRs overlap or conflict
+
+Update if needed:
+
+- merge safe maintenance PRs after checks pass
+- close redundant PRs with a clear reason
+- rebase or refresh PRs if required
+- ensure important PRs are attached to the right milestone/project
+
+### 4. Issues
+
+Check:
+
+- whether active work has a corresponding GitHub issue
+- whether issues are labeled correctly
+- whether milestone assignment is missing
+- whether roadmap issues still reflect actual priorities
+- whether closed work should also close matching issues
+
+Update if needed:
+
+- create missing issues
+- add or correct labels
+- assign milestones
+- add issues to the project board
+- close or rewrite outdated issues
+
+### 5. GitHub Project
+
+Check:
+
+- project exists and is linked to the repo
+- roadmap items are actually present in the project
+- items reflect current priorities
+- project is missing newly created issues or PRs
+
+Update if needed:
+
+- add newly created issues/PRs
+- remove obsolete items
+- keep milestone and project intent aligned
+
+### 6. Labels
+
+Check:
+
+- whether labels still match the repo workflow
+- whether any new work area needs a label
+- whether default labels are enough for triage
+- whether noisy or unused labels should be retired
+
+Update if needed:
+
+- add missing labels
+- rename or recolor labels only if it improves clarity
+- keep security/planning/core/app/storage/collaboration labels available
+
+### 7. Milestones
+
+Check:
+
+- whether new planned work belongs to an existing milestone
+- whether milestone descriptions still match the scope
+- whether completed milestones should be closed
+
+Update if needed:
+
+- create new milestones
+- update milestone descriptions
+- move issues/PRs into the correct milestone
+- close milestones when complete
+
+### 8. Releases and Tags
+
+Check:
+
+- latest tags
+- whether draft releases match actual tags
+- whether prerelease naming is still consistent
+- whether a new tag is needed after meaningful milestones
+
+Update if needed:
+
+- create annotated tags
+- push tags
+- create or update draft prereleases
+- publish releases only when intentionally ready
+
+### 9. Repository Settings
+
+Check:
+
+- description
+- topics
+- merge strategy settings
+- issue/project/wiki/discussions state
+- default branch
+- visibility
+
+Update if needed:
+
+- keep description accurate
+- keep topics relevant
+- keep merge commits disabled unless there is a specific reason
+- review settings before public launch
+
+### 10. GitHub Actions and CI
+
+Check:
+
+- workflow files still reflect the intended build/test process
+- latest workflow runs are passing
+- action versions are current enough
+- CI is triggered on the intended branches and PRs
+
+Update if needed:
+
+- fix failing workflows quickly
+- update action versions
+- keep workflows minimal and deterministic
+- avoid adding workflows without a clear maintenance owner
+
+### 11. Dependabot
+
+Check:
+
+- whether grouped update behavior is still working
+- whether there is PR spam again
+- whether dependency PRs are stale or redundant
+- whether update cadence is too noisy or too slow
+
+Update if needed:
+
+- adjust grouping rules
+- adjust update intervals
+- close superseded dependency PRs
+- keep GitHub Actions and NuGet updates manageable
+
+### 12. Templates and Community Files
+
+Check:
+
+- issue templates
+- PR template
+- `README.md`
+- `CONTRIBUTING.md`
+- `SECURITY.md`
+- `CODE_OF_CONDUCT.md`
+- `GitHubOpsReference.md`
+
+Update if needed:
+
+- keep templates aligned with the current workflow
+- keep docs aligned with repo state
+- update security guidance when reporting flow changes
+- update this reference whenever repo operations materially change
+
+### 13. Public Readiness
+
+Check:
+
+- license status
+- public-facing README quality
+- no sensitive data in repo history
+- security policy is sensible
+- branch protection availability
+- release quality and naming
+
+Update if needed:
+
+- add a license before public release
+- clean up docs and onboarding
+- verify there are no secrets or unsafe artifacts
+- apply branch protection once available
+
+### 14. After Any GitHub/Admin Task
+
+Always do:
+
+- verify `git status --short`
+- push any intended local repo-management commits
+- confirm resulting GitHub state with `gh`
+- update `GitHubOpsReference.md` if conventions changed
+- avoid leaving the repo in a half-configured state
+
 ## Notes
 
 This file should be updated whenever repository settings, release conventions, labels, milestones, or GitHub workflows materially change.
