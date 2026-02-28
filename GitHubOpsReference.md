@@ -46,6 +46,23 @@ Default workflow:
 - Rebase merge: enabled
 - Delete branch on merge: enabled
 
+Protected branches:
+
+- `main`
+- `develop`
+
+Current protection baseline on protected branches:
+
+- required status check: `build-and-test`
+- branch must be up to date before merge
+- 1 approving review required
+- stale reviews dismissed on new pushes
+- conversation resolution required
+- linear history required
+- force pushes disabled
+- branch deletion disabled
+- admin bypass remains allowed for now
+
 ## Topics
 
 - `dotnet`
