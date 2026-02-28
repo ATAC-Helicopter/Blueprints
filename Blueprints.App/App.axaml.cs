@@ -3,9 +3,13 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core;
 using Avalonia.Data.Core.Plugins;
 using System.Linq;
+using System.Runtime.Versioning;
 using Avalonia.Markup.Xaml;
+using Blueprints.App.Services;
 using Blueprints.App.ViewModels;
 using Blueprints.App.Views;
+using Blueprints.Security.Abstractions;
+using Blueprints.Security.Services;
 
 namespace Blueprints.App;
 
@@ -23,9 +27,17 @@ public partial class App : Application
             // Avoid duplicate validations from both Avalonia and the CommunityToolkit. 
             // More info: https://docs.avaloniaui.net/docs/guides/development-guides/data-validation#manage-validationplugins
             DisableAvaloniaDataAnnotationValidation();
+
+            if (!OperatingSystem.IsWindows())
+            {
+                throw new PlatformNotSupportedException("Blueprints v1.0 currently supports Windows only.");
+            }
+
+            var identityService = CreateWindowsIdentityService();
+
             desktop.MainWindow = new MainWindow
             {
-                DataContext = new MainWindowViewModel(),
+                DataContext = new MainWindowViewModel(identityService),
             };
         }
 
@@ -44,4 +56,13 @@ public partial class App : Application
             BindingPlugins.DataValidators.Remove(plugin);
         }
     }
+
+    [SupportedOSPlatform("windows")]
+    private static IIdentityService CreateWindowsIdentityService() =>
+        new IdentityService(
+            AppEnvironment.GetIdentityRoot(),
+            new FileSystemIdentityStore(
+                AppEnvironment.GetIdentityRoot(),
+                new Ed25519KeyPairGenerator(),
+                new DpapiPrivateKeyProtector()));
 }

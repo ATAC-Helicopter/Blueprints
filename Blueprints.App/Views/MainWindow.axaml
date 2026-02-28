@@ -60,6 +60,10 @@
           <TextBlock Text="{Binding Identity.KeyStorageProvider}"
                      Foreground="#CFE2D8"
                      HorizontalAlignment="Right" />
+          <TextBlock Text="{Binding IdentityId}"
+                     Foreground="#9DB7AA"
+                     FontSize="11"
+                     HorizontalAlignment="Right" />
         </StackPanel>
       </Grid>
     </Border>
