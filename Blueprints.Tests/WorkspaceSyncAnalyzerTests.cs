@@ -1,3 +1,4 @@
+using Blueprints.Collaboration.Models;
 using Blueprints.Collaboration.Services;
 using Blueprints.Core.Models;
 using Blueprints.Security.Models;
@@ -78,11 +79,58 @@ public sealed class WorkspaceSyncAnalyzerTests : IDisposable
             new SignatureKeyMaterial(keyPair.KeyId, keyPair.PrivateKeyBytes));
 
         var analyzer = new WorkspaceSyncAnalyzer(new WorkspaceExchangeSnapshotBuilder());
-        var analysis = analyzer.Analyze(new WorkspacePaths(localRoot, sharedRoot));
+        var baseline = new WorkspaceExchangeSnapshotBuilder()
+            .Build(sharedRoot)
+            .Select(static entry => new SyncTrackedEntry(entry.DocumentPath, entry.DocumentHash, entry.SignatureHash))
+            .ToArray();
+        var analysis = analyzer.Analyze(new WorkspacePaths(localRoot, sharedRoot), baseline);
 
         Assert.Contains(analysis.OutgoingDocumentPaths, static path => path.Contains("/items/", StringComparison.Ordinal));
         Assert.Contains("versions/" + sharedVersion.Version.VersionId.ToString("N") + "/version.json", analysis.IncomingDocumentPaths);
         Assert.DoesNotContain("versions/" + sharedVersion.Version.VersionId.ToString("N") + "/version.json", analysis.PotentialConflictDocumentPaths);
+    }
+
+    [Fact]
+    public void Analyze_FindsConflict_WhenBothSidesChangeSameDocumentFromBaseline()
+    {
+        var localRoot = Path.Combine(_rootDirectory, "conflict-local");
+        var sharedRoot = Path.Combine(_rootDirectory, "conflict-shared");
+        Directory.CreateDirectory(localRoot);
+        Directory.CreateDirectory(sharedRoot);
+
+        var keyPair = new Ed25519KeyPairGenerator().Generate("sync-admin");
+        var signedStore = new FileSystemSignedDocumentStore(
+            new CanonicalJsonSerializer(),
+            new Ed25519SignatureService());
+        var workspaceStore = new FileSystemProjectWorkspaceStore(signedStore);
+
+        var workspace = TestWorkspaceFactory.CreateWorkspaceSnapshot();
+        workspaceStore.Save(localRoot, workspace, new SignatureKeyMaterial(keyPair.KeyId, keyPair.PrivateKeyBytes));
+        workspaceStore.Save(sharedRoot, workspace, new SignatureKeyMaterial(keyPair.KeyId, keyPair.PrivateKeyBytes));
+
+        var baseline = new WorkspaceExchangeSnapshotBuilder()
+            .Build(sharedRoot)
+            .Select(static entry => new SyncTrackedEntry(entry.DocumentPath, entry.DocumentHash, entry.SignatureHash))
+            .ToArray();
+
+        var version = workspace.Versions[0].Version;
+        var localUpdated = new ProjectWorkspaceSnapshot(
+            workspace.Project,
+            workspace.Members,
+            [new VersionWorkspaceSnapshot(version with { Notes = "local edit" }, workspace.Versions[0].Items)]);
+        var sharedUpdated = new ProjectWorkspaceSnapshot(
+            workspace.Project,
+            workspace.Members,
+            [new VersionWorkspaceSnapshot(version with { Notes = "shared edit" }, workspace.Versions[0].Items)]);
+
+        workspaceStore.Save(localRoot, localUpdated, new SignatureKeyMaterial(keyPair.KeyId, keyPair.PrivateKeyBytes));
+        workspaceStore.Save(sharedRoot, sharedUpdated, new SignatureKeyMaterial(keyPair.KeyId, keyPair.PrivateKeyBytes));
+
+        var analyzer = new WorkspaceSyncAnalyzer(new WorkspaceExchangeSnapshotBuilder());
+        var analysis = analyzer.Analyze(new WorkspacePaths(localRoot, sharedRoot), baseline);
+        var versionPath = $"versions/{version.VersionId:N}/version.json";
+
+        Assert.Contains(versionPath, analysis.PotentialConflictDocumentPaths);
     }
 
     public void Dispose()

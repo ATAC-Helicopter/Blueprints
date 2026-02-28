@@ -6,4 +6,5 @@ public sealed record SyncStateDocument(
     int LastPushedManifestVersion,
     DateTimeOffset? LastSuccessfulTrustValidationUtc,
     IReadOnlyList<string> KnownRemoteBatchIds,
-    IReadOnlyList<string> UnresolvedConflicts);
+    IReadOnlyList<string> UnresolvedConflicts,
+    IReadOnlyList<SyncTrackedEntry> TrackedEntries);

@@ -33,7 +33,8 @@ public sealed class FileSystemSyncStateStoreTests : IDisposable
             3,
             DateTimeOffset.UtcNow,
             ["batch-0003", "batch-0004"],
-            ["versions/123/version.json"]);
+            ["versions/123/version.json"],
+            [new SyncTrackedEntry("project/project.json", "ABC", "DEF")]);
 
         store.Save(_workspaceRoot, expected);
 
@@ -43,6 +44,7 @@ public sealed class FileSystemSyncStateStoreTests : IDisposable
         Assert.Equal(expected.LastPushedManifestVersion, actual.LastPushedManifestVersion);
         Assert.Equal(expected.KnownRemoteBatchIds, actual.KnownRemoteBatchIds);
         Assert.Equal(expected.UnresolvedConflicts, actual.UnresolvedConflicts);
+        Assert.Equal(expected.TrackedEntries, actual.TrackedEntries);
     }
 
     public void Dispose()

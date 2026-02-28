@@ -53,6 +53,7 @@ public sealed class FileSystemSyncStateStore
             0,
             null,
             [],
+            [],
             []);
 
     private static string GetStatePath(string localWorkspaceRoot) =>
