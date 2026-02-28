@@ -23,10 +23,6 @@ Current managed branches:
 
 - `main`
 - `develop`
-- `feature/7-workspace-persistence`
-- `feature/8-dpapi-key-storage`
-- `feature/10-shared-folder-sync`
-- `feature/11-avalonia-live-workspace`
 - `chore/9-public-release-readiness`
 
 Default workflow:
@@ -100,6 +96,7 @@ Default labels exist, plus these project labels:
 
 - Current pre-release tag: `v0.1.0-alpha.1`
 - A draft prerelease already exists for that tag
+- `develop` currently includes identity, signed workspace persistence, live workspace wiring, and shared-folder sync foundation
 
 ## Standard Local Checks
 
@@ -184,8 +181,10 @@ For public maintenance:
 - confirm the current license still matches project intent
 - review `README.md`
 - review `SECURITY.md`
+- review release notes and draft release text
 - confirm issue and PR templates are correct
 - confirm CI is green
+- confirm `main` and `develop` both have working CI triggers
 - confirm no sensitive data or secrets were committed
 - review topics, labels, milestones, and release notes
 - decide whether Discussions should stay disabled
@@ -357,7 +356,7 @@ Check:
 - workflow files still reflect the intended build/test process
 - latest workflow runs are passing
 - action versions are current enough
-- CI is triggered on the intended branches and PRs
+- CI is triggered on `main`, `develop`, and PRs
 
 Update if needed:
 
@@ -407,6 +406,7 @@ Check:
 
 - license status
 - public-facing README quality
+- app launch/build instructions
 - no sensitive data in repo history
 - security policy is sensible
 - branch protection availability
