@@ -10,17 +10,20 @@ public sealed class FileSystemWorkspaceSyncService
     private readonly WorkspaceSyncAnalyzer _analyzer;
     private readonly FileSystemSyncManifestStore _manifestStore;
     private readonly FileSystemSyncStateStore _syncStateStore;
+    private readonly WorkspaceExchangeValidator _exchangeValidator;
 
     public FileSystemWorkspaceSyncService(
         WorkspaceExchangeSnapshotBuilder snapshotBuilder,
         WorkspaceSyncAnalyzer analyzer,
         FileSystemSyncManifestStore manifestStore,
-        FileSystemSyncStateStore syncStateStore)
+        FileSystemSyncStateStore syncStateStore,
+        WorkspaceExchangeValidator exchangeValidator)
     {
         _snapshotBuilder = snapshotBuilder;
         _analyzer = analyzer;
         _manifestStore = manifestStore;
         _syncStateStore = syncStateStore;
+        _exchangeValidator = exchangeValidator;
     }
 
     public WorkspaceSyncResult Push(
@@ -174,6 +177,22 @@ public sealed class FileSystemWorkspaceSyncService
                 manifestResult.Document.BatchId,
                 [],
                 "No incoming changes detected.");
+        }
+
+        var validationResult = _exchangeValidator.Validate(
+            workspacePaths.SharedProjectRoot,
+            analysis.IncomingDocumentPaths,
+            publicKey);
+        if (!validationResult.IsValid)
+        {
+            return new WorkspaceSyncResult(
+                false,
+                "pull",
+                0,
+                state.LastPulledManifestVersion,
+                manifestResult.Document.BatchId,
+                validationResult.InvalidDocumentPaths,
+                "Pull blocked because one or more incoming document signatures are invalid.");
         }
 
         var inboxRoot = Path.Combine(workspacePaths.LocalWorkspaceRoot, "sync", "inbox", manifestResult.Document.BatchId);

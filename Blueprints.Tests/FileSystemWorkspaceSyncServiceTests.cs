@@ -131,13 +131,44 @@ public sealed class FileSystemWorkspaceSyncServiceTests : IDisposable
         Assert.NotEmpty(result.Conflicts);
     }
 
+    [Fact]
+    public void Pull_BlocksWhenIncomingDocumentSignatureIsInvalid()
+    {
+        var localRoot = Path.Combine(_rootDirectory, "invalid-local");
+        var sharedRoot = Path.Combine(_rootDirectory, "invalid-shared");
+        Directory.CreateDirectory(localRoot);
+        Directory.CreateDirectory(sharedRoot);
+
+        var keyPair = new Ed25519KeyPairGenerator().Generate("sync-admin");
+        var signingKey = new SignatureKeyMaterial(keyPair.KeyId, keyPair.PrivateKeyBytes);
+        var publicKey = new SignaturePublicKey(keyPair.KeyId, keyPair.PublicKeyBytes);
+        var signedStore = new FileSystemSignedDocumentStore(new CanonicalJsonSerializer(), new Ed25519SignatureService());
+        var workspaceStore = new FileSystemProjectWorkspaceStore(signedStore);
+        var workspace = TestWorkspaceFactory.CreateWorkspaceSnapshot();
+        workspaceStore.Save(sharedRoot, workspace, signingKey);
+
+        var manifestStore = new FileSystemSyncManifestStore(signedStore, new WorkspaceExchangeSnapshotBuilder());
+        manifestStore.Write(sharedRoot, workspace.Project.ProjectId, 1, "batch-0001", signingKey);
+
+        var projectPath = Path.Combine(sharedRoot, "project", "project.json");
+        File.AppendAllText(projectPath, " ");
+
+        var service = CreateService(signedStore);
+        var result = service.Pull(new WorkspacePaths(localRoot, sharedRoot), publicKey);
+
+        Assert.False(result.Success);
+        Assert.Contains("project/project.json", result.Conflicts);
+        Assert.False(File.Exists(Path.Combine(localRoot, "project", "project.json")));
+    }
+
     private static FileSystemWorkspaceSyncService CreateService(FileSystemSignedDocumentStore signedStore)
     {
         var builder = new WorkspaceExchangeSnapshotBuilder();
         var analyzer = new WorkspaceSyncAnalyzer(builder);
         var manifestStore = new FileSystemSyncManifestStore(signedStore, builder);
         var stateStore = new FileSystemSyncStateStore();
-        return new FileSystemWorkspaceSyncService(builder, analyzer, manifestStore, stateStore);
+        var validator = new WorkspaceExchangeValidator(new Ed25519SignatureService());
+        return new FileSystemWorkspaceSyncService(builder, analyzer, manifestStore, stateStore, validator);
     }
 
     public void Dispose()
