@@ -5,11 +5,14 @@ using Avalonia.Data.Core.Plugins;
 using System.Linq;
 using System.Runtime.Versioning;
 using Avalonia.Markup.Xaml;
+using Blueprints.App.Models;
 using Blueprints.App.Services;
 using Blueprints.App.ViewModels;
 using Blueprints.App.Views;
 using Blueprints.Security.Abstractions;
 using Blueprints.Security.Services;
+using Blueprints.Storage.Abstractions;
+using Blueprints.Storage.Services;
 
 namespace Blueprints.App;
 
@@ -34,10 +37,12 @@ public partial class App : Application
             }
 
             var identityService = CreateWindowsIdentityService();
+            var workspaceService = CreateWindowsWorkspaceService();
+            var session = CreateSession(identityService, workspaceService);
 
             desktop.MainWindow = new MainWindow
             {
-                DataContext = new MainWindowViewModel(identityService),
+                DataContext = new MainWindowViewModel(session),
             };
         }
 
@@ -65,4 +70,24 @@ public partial class App : Application
                 AppEnvironment.GetIdentityRoot(),
                 new Ed25519KeyPairGenerator(),
                 new DpapiPrivateKeyProtector()));
+
+    [SupportedOSPlatform("windows")]
+    private static LocalWorkspaceService CreateWindowsWorkspaceService()
+    {
+        ISignedDocumentStore signedDocumentStore = new FileSystemSignedDocumentStore(
+            new CanonicalJsonSerializer(),
+            new Ed25519SignatureService());
+        IProjectWorkspaceStore workspaceStore = new FileSystemProjectWorkspaceStore(signedDocumentStore);
+
+        return new LocalWorkspaceService(AppEnvironment.GetWorkspaceRoot(), workspaceStore);
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static LocalWorkspaceSession CreateSession(
+        IIdentityService identityService,
+        LocalWorkspaceService workspaceService)
+    {
+        var identity = identityService.GetOrCreateDefaultIdentity("Local Admin");
+        return workspaceService.GetOrCreateDefaultWorkspace(identity);
+    }
 }

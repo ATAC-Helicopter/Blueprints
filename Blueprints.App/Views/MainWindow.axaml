@@ -85,10 +85,10 @@
                 BorderBrush="#D7CCB5"
                 BorderThickness="1">
           <StackPanel Spacing="6">
-            <TextBlock Text="Shared Sync Source"
+            <TextBlock Text="Local Workspace Root"
                        FontWeight="SemiBold"
                        Foreground="#17322C" />
-            <TextBlock Text="{Binding CurrentProject.SharedFolderPath}"
+            <TextBlock Text="{Binding WorkspacePath}"
                        TextWrapping="Wrap"
                        Foreground="#574E43" />
           </StackPanel>
@@ -98,13 +98,17 @@
                 CornerRadius="14"
                 Padding="14">
           <StackPanel Spacing="4">
-            <TextBlock Text="v1.0 Focus"
+            <TextBlock Text="Workspace Profile"
                        Foreground="#CFE2D8" />
-            <TextBlock Text="Local-first release planning with signed sync."
+            <TextBlock Text="{Binding VersioningScheme, StringFormat='Versioning: {0}'}"
                        TextWrapping="Wrap"
                        FontSize="18"
                        FontWeight="SemiBold"
                        Foreground="#F6F1E8" />
+            <TextBlock Text="{Binding ActiveMemberCount, StringFormat='Active members: {0}'}"
+                       Foreground="#CFE2D8" />
+            <TextBlock Text="{Binding MembershipRevision, StringFormat='Membership revision: {0}'}"
+                       Foreground="#CFE2D8" />
           </StackPanel>
         </Border>
       </StackPanel>
@@ -168,11 +172,11 @@
             BorderThickness="0,1,0,0">
       <Grid RowDefinitions="Auto,Auto,*" RowSpacing="18">
         <StackPanel Spacing="6">
-          <TextBlock Text="Implementation Starter"
+          <TextBlock Text="Live Workspace"
                      FontSize="28"
                      FontWeight="SemiBold"
                      Foreground="#17322C" />
-          <TextBlock Text="The solution is scaffolded for Core, Storage, Security, Collaboration, and an Avalonia desktop shell."
+          <TextBlock Text="{Binding TrustSummary}"
                      TextWrapping="Wrap"
                      Foreground="#574E43" />
         </StackPanel>
@@ -185,10 +189,10 @@
                   BorderBrush="#D7CCB5"
                   BorderThickness="1">
             <StackPanel Spacing="4">
-              <TextBlock Text="Project Model"
+              <TextBlock Text="Versions"
                          FontWeight="SemiBold"
                          Foreground="#17322C" />
-              <TextBlock Text="Signed configuration, version-centric planning, customizable project labels."
+              <TextBlock Text="{Binding VersionCount, StringFormat='Tracked versions: {0}'}"
                          TextWrapping="Wrap"
                          Foreground="#574E43" />
             </StackPanel>
@@ -201,10 +205,10 @@
                   BorderBrush="#D7CCB5"
                   BorderThickness="1">
             <StackPanel Spacing="4">
-              <TextBlock Text="Trust Layer"
+              <TextBlock Text="Items"
                          FontWeight="SemiBold"
                          Foreground="#17322C" />
-              <TextBlock Text="Detached signatures, membership revisions, trust-state evaluation."
+              <TextBlock Text="{Binding ItemCount, StringFormat='Total items: {0}'}"
                          TextWrapping="Wrap"
                          Foreground="#574E43" />
             </StackPanel>
@@ -216,10 +220,10 @@
                   BorderBrush="#D7CCB5"
                   BorderThickness="1">
             <StackPanel Spacing="4">
-              <TextBlock Text="Sync Layer"
+              <TextBlock Text="Identity"
                          FontWeight="SemiBold"
                          Foreground="#17322C" />
-              <TextBlock Text="Local workspaces, shared-folder sync, atomic batch publishing."
+              <TextBlock Text="{Binding Identity.DisplayName}"
                          TextWrapping="Wrap"
                          Foreground="#574E43" />
             </StackPanel>
@@ -231,17 +235,15 @@
                 CornerRadius="18"
                 Padding="20">
           <StackPanel Spacing="12">
-            <TextBlock Text="Next Steps"
+            <TextBlock Text="Current Trust State"
                        FontSize="18"
                        FontWeight="SemiBold"
                        Foreground="#F6F1E8" />
-            <TextBlock Text="1. Build domain entities and project configuration schema."
+            <TextBlock Text="{Binding TrustSummary}"
+                       TextWrapping="Wrap"
                        Foreground="#CFE2D8" />
-            <TextBlock Text="2. Implement canonical JSON serialization and signature services."
-                       Foreground="#CFE2D8" />
-            <TextBlock Text="3. Add workspace persistence and shared sync manifest handling."
-                       Foreground="#CFE2D8" />
-            <TextBlock Text="4. Replace sample dashboard data with live project state."
+            <TextBlock Text="Shared-folder sync is still pending, so this shell currently reflects the signed local workspace only."
+                       TextWrapping="Wrap"
                        Foreground="#CFE2D8" />
           </StackPanel>
         </Border>
