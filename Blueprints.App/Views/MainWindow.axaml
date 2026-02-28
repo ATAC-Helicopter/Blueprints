@@ -1,0 +1,247 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Blueprints.App.ViewModels"
+        xmlns:models="using:Blueprints.Core.Models"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        d:DesignWidth="1280"
+        d:DesignHeight="800"
+        x:Class="Blueprints.App.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="Blueprints">
+
+  <Design.DataContext>
+    <vm:MainWindowViewModel />
+  </Design.DataContext>
+
+  <Grid ColumnDefinitions="240,320,*" RowDefinitions="Auto,*" Background="#F4F1E8">
+    <Border Grid.ColumnSpan="3"
+            Background="#17322C"
+            Padding="24,18">
+      <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="16">
+        <StackPanel Spacing="2">
+          <TextBlock Text="Blueprints"
+                     FontSize="24"
+                     FontWeight="SemiBold"
+                     Foreground="#F6F1E8" />
+          <TextBlock Text="{Binding Title}"
+                     Foreground="#CFE2D8" />
+        </StackPanel>
+
+        <Border Grid.Column="1"
+                Background="#2D6B57"
+                CornerRadius="999"
+                Padding="12,6"
+                VerticalAlignment="Center">
+          <TextBlock Text="{Binding TrustBadge}"
+                     FontWeight="SemiBold"
+                     Foreground="#F6F1E8" />
+        </Border>
+
+        <Border Grid.Column="2"
+                Background="#C98339"
+                CornerRadius="999"
+                Padding="12,6"
+                VerticalAlignment="Center">
+          <TextBlock Text="{Binding SyncStatus}"
+                     FontWeight="SemiBold"
+                     Foreground="#1C1C1C" />
+        </Border>
+
+        <StackPanel Grid.Column="3"
+                    Spacing="2"
+                    HorizontalAlignment="Right">
+          <TextBlock Text="{Binding Identity.DisplayName}"
+                     FontWeight="SemiBold"
+                     Foreground="#F6F1E8"
+                     HorizontalAlignment="Right" />
+          <TextBlock Text="{Binding Identity.KeyStorageProvider}"
+                     Foreground="#CFE2D8"
+                     HorizontalAlignment="Right" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <Border Grid.Row="1"
+            Background="#EFE7D7"
+            Padding="20"
+            BorderBrush="#D7CCB5"
+            BorderThickness="0,1,1,0">
+      <StackPanel Spacing="18">
+        <TextBlock Text="Workspace"
+                   FontSize="18"
+                   FontWeight="SemiBold"
+                   Foreground="#17322C" />
+
+        <Border Background="#F9F5EC"
+                CornerRadius="14"
+                Padding="14"
+                BorderBrush="#D7CCB5"
+                BorderThickness="1">
+          <StackPanel Spacing="6">
+            <TextBlock Text="Shared Sync Source"
+                       FontWeight="SemiBold"
+                       Foreground="#17322C" />
+            <TextBlock Text="{Binding CurrentProject.SharedFolderPath}"
+                       TextWrapping="Wrap"
+                       Foreground="#574E43" />
+          </StackPanel>
+        </Border>
+
+        <Border Background="#17322C"
+                CornerRadius="14"
+                Padding="14">
+          <StackPanel Spacing="4">
+            <TextBlock Text="v1.0 Focus"
+                       Foreground="#CFE2D8" />
+            <TextBlock Text="Local-first release planning with signed sync."
+                       TextWrapping="Wrap"
+                       FontSize="18"
+                       FontWeight="SemiBold"
+                       Foreground="#F6F1E8" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </Border>
+
+    <Border Grid.Row="1"
+            Grid.Column="1"
+            Background="#FBF8F1"
+            Padding="20"
+            BorderBrush="#D7CCB5"
+            BorderThickness="0,1,1,0">
+      <StackPanel Spacing="16">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Text="Versions"
+                     FontSize="18"
+                     FontWeight="SemiBold"
+                     Foreground="#17322C" />
+          <Button Grid.Column="1"
+                  Content="New Version"
+                  Padding="12,6" />
+        </Grid>
+
+        <ItemsControl ItemsSource="{Binding Versions}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="models:VersionSummary">
+              <Border Margin="0,0,0,12"
+                      Background="#FFFFFF"
+                      CornerRadius="14"
+                      Padding="14"
+                      BorderBrush="#D7CCB5"
+                      BorderThickness="1">
+                <StackPanel Spacing="8">
+                  <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Text="{Binding Name}"
+                               FontFamily="Cascadia Mono"
+                               FontSize="18"
+                               FontWeight="SemiBold"
+                               Foreground="#17322C" />
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding Status}"
+                               Foreground="#7A6E5B"
+                               VerticalAlignment="Center" />
+                  </Grid>
+                  <TextBlock Text="{Binding CompletedItemCount, StringFormat='Completed items: {0}'}"
+                             Foreground="#574E43" />
+                  <TextBlock Text="{Binding ItemCount, StringFormat='Total items: {0}'}"
+                             Foreground="#574E43" />
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </Border>
+
+    <Border Grid.Row="1"
+            Grid.Column="2"
+            Background="#F6F1E8"
+            Padding="24"
+            BorderBrush="#D7CCB5"
+            BorderThickness="0,1,0,0">
+      <Grid RowDefinitions="Auto,Auto,*" RowSpacing="18">
+        <StackPanel Spacing="6">
+          <TextBlock Text="Implementation Starter"
+                     FontSize="28"
+                     FontWeight="SemiBold"
+                     Foreground="#17322C" />
+          <TextBlock Text="The solution is scaffolded for Core, Storage, Security, Collaboration, and an Avalonia desktop shell."
+                     TextWrapping="Wrap"
+                     Foreground="#574E43" />
+        </StackPanel>
+
+        <UniformGrid Grid.Row="1" Columns="3">
+          <Border Margin="0,0,12,0"
+                  Background="#FFFFFF"
+                  CornerRadius="14"
+                  Padding="16"
+                  BorderBrush="#D7CCB5"
+                  BorderThickness="1">
+            <StackPanel Spacing="4">
+              <TextBlock Text="Project Model"
+                         FontWeight="SemiBold"
+                         Foreground="#17322C" />
+              <TextBlock Text="Signed configuration, version-centric planning, customizable project labels."
+                         TextWrapping="Wrap"
+                         Foreground="#574E43" />
+            </StackPanel>
+          </Border>
+
+          <Border Margin="0,0,12,0"
+                  Background="#FFFFFF"
+                  CornerRadius="14"
+                  Padding="16"
+                  BorderBrush="#D7CCB5"
+                  BorderThickness="1">
+            <StackPanel Spacing="4">
+              <TextBlock Text="Trust Layer"
+                         FontWeight="SemiBold"
+                         Foreground="#17322C" />
+              <TextBlock Text="Detached signatures, membership revisions, trust-state evaluation."
+                         TextWrapping="Wrap"
+                         Foreground="#574E43" />
+            </StackPanel>
+          </Border>
+
+          <Border Background="#FFFFFF"
+                  CornerRadius="14"
+                  Padding="16"
+                  BorderBrush="#D7CCB5"
+                  BorderThickness="1">
+            <StackPanel Spacing="4">
+              <TextBlock Text="Sync Layer"
+                         FontWeight="SemiBold"
+                         Foreground="#17322C" />
+              <TextBlock Text="Local workspaces, shared-folder sync, atomic batch publishing."
+                         TextWrapping="Wrap"
+                         Foreground="#574E43" />
+            </StackPanel>
+          </Border>
+        </UniformGrid>
+
+        <Border Grid.Row="2"
+                Background="#17322C"
+                CornerRadius="18"
+                Padding="20">
+          <StackPanel Spacing="12">
+            <TextBlock Text="Next Steps"
+                       FontSize="18"
+                       FontWeight="SemiBold"
+                       Foreground="#F6F1E8" />
+            <TextBlock Text="1. Build domain entities and project configuration schema."
+                       Foreground="#CFE2D8" />
+            <TextBlock Text="2. Implement canonical JSON serialization and signature services."
+                       Foreground="#CFE2D8" />
+            <TextBlock Text="3. Add workspace persistence and shared sync manifest handling."
+                       Foreground="#CFE2D8" />
+            <TextBlock Text="4. Replace sample dashboard data with live project state."
+                       Foreground="#CFE2D8" />
+          </StackPanel>
+        </Border>
+      </Grid>
+    </Border>
+  </Grid>
+</Window>
