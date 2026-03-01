@@ -248,6 +248,84 @@ public sealed class ProjectWorkspaceCoordinatorServiceTests : IDisposable
         Assert.DoesNotContain("Deferred bugfix", export.Markdown, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void InviteMember_AddsSignedMemberAndIncrementsRevision()
+    {
+        var localRoot = Path.Combine(_rootDirectory, "member-local", "BP");
+        var sharedRoot = Path.Combine(_rootDirectory, "member-shared", "BP");
+        var service = CreateService();
+
+        var created = service.CreateProject(
+            new ProjectCreateRequest(
+                "Blueprints",
+                "BP",
+                "SemVer",
+                localRoot,
+                sharedRoot));
+
+        var invited = service.InviteMember(
+            localRoot,
+            sharedRoot,
+            new MemberInviteRequest(
+                Guid.NewGuid().ToString(),
+                "Editor One",
+                Convert.ToBase64String(Guid.NewGuid().ToByteArray()),
+                Blueprints.Core.Enums.MemberRole.Editor));
+
+        Assert.Equal(created.LoadResult.Workspace.Members.MembershipRevision + 1, invited.LoadResult.Workspace.Members.MembershipRevision);
+        Assert.Contains(invited.LoadResult.Workspace.Members.Members, static member => member.DisplayName == "Editor One" && member.Role == Blueprints.Core.Enums.MemberRole.Editor);
+    }
+
+    [Fact]
+    public void UpdateMember_CanDeactivateSecondaryAdminButRejectsRemovingLastAdmin()
+    {
+        var localRoot = Path.Combine(_rootDirectory, "member-update-local", "BP");
+        var sharedRoot = Path.Combine(_rootDirectory, "member-update-shared", "BP");
+        var service = CreateService();
+
+        service.CreateProject(
+            new ProjectCreateRequest(
+                "Blueprints",
+                "BP",
+                "SemVer",
+                localRoot,
+                sharedRoot));
+
+        var secondAdminId = Guid.NewGuid();
+        var invited = service.InviteMember(
+            localRoot,
+            sharedRoot,
+            new MemberInviteRequest(
+                secondAdminId.ToString(),
+                "Admin Two",
+                Convert.ToBase64String(Guid.NewGuid().ToByteArray()),
+                Blueprints.Core.Enums.MemberRole.Admin));
+
+        var deactivated = service.UpdateMember(
+            localRoot,
+            sharedRoot,
+            new MemberUpdateRequest(
+                secondAdminId,
+                "Admin Two",
+                Blueprints.Core.Enums.MemberRole.Admin,
+                false));
+
+        var updatedMember = deactivated.LoadResult.Workspace.Members.Members.Single(member => member.UserId == secondAdminId);
+        Assert.False(updatedMember.IsActive);
+
+        var currentAdminId = invited.Identity.Profile.UserId;
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => service.UpdateMember(
+                localRoot,
+                sharedRoot,
+                new MemberUpdateRequest(
+                    currentAdminId,
+                    invited.Identity.Profile.DisplayName,
+                    Blueprints.Core.Enums.MemberRole.Editor,
+                    true)));
+        Assert.Contains("active admin", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     private ProjectWorkspaceCoordinatorService CreateService()
     {
         var identityRoot = Path.Combine(_rootDirectory, "identities");

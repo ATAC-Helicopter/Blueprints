@@ -317,6 +317,101 @@ public sealed class ProjectWorkspaceCoordinatorService
             markdown);
     }
 
+    public LocalWorkspaceSession InviteMember(
+        string localWorkspaceRoot,
+        string sharedWorkspaceRoot,
+        MemberInviteRequest request)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(localWorkspaceRoot);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sharedWorkspaceRoot);
+        ArgumentNullException.ThrowIfNull(request);
+
+        var identity = _identityService.GetOrCreateDefaultIdentity("Local Admin");
+        var session = OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
+        EnsureTrustedWorkspace(session);
+        EnsureCurrentIdentityIsAdmin(session);
+
+        if (!Guid.TryParse(request.UserId.Trim(), out var invitedUserId))
+        {
+            throw new InvalidOperationException("Invitee user ID must be a valid GUID.");
+        }
+
+        var displayName = request.DisplayName.Trim();
+        var publicKey = request.PublicKey.Trim();
+        if (string.IsNullOrWhiteSpace(displayName))
+        {
+            throw new InvalidOperationException("Invitee display name is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(publicKey))
+        {
+            throw new InvalidOperationException("Invitee public key is required.");
+        }
+
+        ValidatePublicKey(publicKey);
+
+        var members = session.LoadResult.Workspace.Members.Members.ToList();
+        if (members.Any(member => member.UserId == invitedUserId))
+        {
+            throw new InvalidOperationException("A member with that user ID already exists.");
+        }
+
+        if (members.Any(member => string.Equals(member.PublicKey, publicKey, StringComparison.Ordinal)))
+        {
+            throw new InvalidOperationException("A member with that public key already exists.");
+        }
+
+        members.Add(
+            new ProjectMember(
+                invitedUserId,
+                displayName,
+                publicKey,
+                request.Role,
+                DateTimeOffset.UtcNow,
+                true));
+
+        return SaveMembers(localWorkspaceRoot, sharedWorkspaceRoot, identity, session.LoadResult.Workspace, members);
+    }
+
+    public LocalWorkspaceSession UpdateMember(
+        string localWorkspaceRoot,
+        string sharedWorkspaceRoot,
+        MemberUpdateRequest request)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(localWorkspaceRoot);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sharedWorkspaceRoot);
+        ArgumentNullException.ThrowIfNull(request);
+
+        var identity = _identityService.GetOrCreateDefaultIdentity("Local Admin");
+        var session = OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
+        EnsureTrustedWorkspace(session);
+        EnsureCurrentIdentityIsAdmin(session);
+
+        var displayName = request.DisplayName.Trim();
+        if (string.IsNullOrWhiteSpace(displayName))
+        {
+            throw new InvalidOperationException("Member display name is required.");
+        }
+
+        var members = session.LoadResult.Workspace.Members.Members.ToList();
+        var memberIndex = members.FindIndex(member => member.UserId == request.UserId);
+        if (memberIndex < 0)
+        {
+            throw new InvalidOperationException("The selected member was not found.");
+        }
+
+        var existing = members[memberIndex];
+        members[memberIndex] = existing with
+        {
+            DisplayName = displayName,
+            Role = request.Role,
+            IsActive = request.IsActive,
+        };
+
+        EnsureAdminCoverage(members);
+        return SaveMembers(localWorkspaceRoot, sharedWorkspaceRoot, identity, session.LoadResult.Workspace, members);
+    }
+
     public string GetSuggestedLocalWorkspaceRoot(string projectName, string projectCode) =>
         ResolveLocalWorkspaceRoot(projectName, projectCode, string.Empty);
 
@@ -418,6 +513,28 @@ public sealed class ProjectWorkspaceCoordinatorService
         return OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
     }
 
+    private LocalWorkspaceSession SaveMembers(
+        string localWorkspaceRoot,
+        string sharedWorkspaceRoot,
+        Security.Models.StoredIdentity identity,
+        ProjectWorkspaceSnapshot workspace,
+        IReadOnlyList<ProjectMember> members)
+    {
+        var nextRevision = workspace.Members.MembershipRevision + 1;
+        return SaveWorkspace(localWorkspaceRoot, sharedWorkspaceRoot, identity, workspace with
+        {
+            Members = workspace.Members with
+            {
+                MembershipRevision = nextRevision,
+                Members = members
+                    .OrderByDescending(static member => member.IsActive)
+                    .ThenByDescending(static member => member.Role)
+                    .ThenBy(static member => member.DisplayName, StringComparer.OrdinalIgnoreCase)
+                    .ToArray(),
+            },
+        });
+    }
+
     private static string GenerateItemKey(
         ProjectWorkspaceSnapshot workspace,
         VersionWorkspaceSnapshot version,
@@ -474,6 +591,46 @@ public sealed class ProjectWorkspaceCoordinatorService
         var major = parts.Length > 0 && int.TryParse(parts[0], out var parsedMajor) ? parsedMajor : 0;
         var minor = parts.Length > 1 && int.TryParse(parts[1], out var parsedMinor) ? parsedMinor : 0;
         return (major, minor);
+    }
+
+    private static void ValidatePublicKey(string publicKeyBase64)
+    {
+        try
+        {
+            _ = Convert.FromBase64String(publicKeyBase64);
+        }
+        catch (FormatException exception)
+        {
+            throw new InvalidOperationException("Invitee public key must be valid Base64.", exception);
+        }
+    }
+
+    private static void EnsureTrustedWorkspace(LocalWorkspaceSession session)
+    {
+        if (session.LoadResult.TrustReport.State != TrustState.Trusted)
+        {
+            throw new InvalidOperationException("Membership changes require a trusted workspace.");
+        }
+    }
+
+    private static void EnsureCurrentIdentityIsAdmin(LocalWorkspaceSession session)
+    {
+        var currentUserId = session.Identity.Profile.UserId;
+        var currentMember = session.LoadResult.Workspace.Members.Members
+            .FirstOrDefault(member => member.UserId == currentUserId && member.IsActive);
+
+        if (currentMember is null || currentMember.Role != MemberRole.Admin)
+        {
+            throw new InvalidOperationException("Only active admins can change project membership.");
+        }
+    }
+
+    private static void EnsureAdminCoverage(IReadOnlyCollection<ProjectMember> members)
+    {
+        if (!members.Any(member => member.IsActive && member.Role == MemberRole.Admin))
+        {
+            throw new InvalidOperationException("At least one active admin must remain in the project.");
+        }
     }
 
     private static string ResolveLocalWorkspaceRoot(string projectName, string projectCode, string configuredPath)
