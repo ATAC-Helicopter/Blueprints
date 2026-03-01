@@ -71,13 +71,17 @@ public sealed class ProjectWorkspaceCoordinatorService
         var loadResult = _workspaceStore.Load(paths.LocalWorkspaceRoot, identity.PublicKey);
         var syncState = _syncStateStore.Load(paths.LocalWorkspaceRoot);
         var analysis = _syncAnalyzer.Analyze(paths, syncState.TrackedEntries);
+        var conflictPaths = syncState.UnresolvedConflicts
+            .Union(analysis.PotentialConflictDocumentPaths, StringComparer.Ordinal)
+            .OrderBy(static path => path, StringComparer.Ordinal)
+            .ToArray();
         var sync = new SyncSummary(
-            DetermineHealth(analysis),
+            DetermineHealth(analysis, conflictPaths.Length),
             analysis.OutgoingDocumentPaths.Count,
             analysis.IncomingDocumentPaths.Count,
-            analysis.PotentialConflictDocumentPaths.Count);
+            conflictPaths.Length);
 
-        var session = new LocalWorkspaceSession(identity, paths, loadResult, sync);
+        var session = new LocalWorkspaceSession(identity, paths, loadResult, sync, conflictPaths);
         RecordRecentProject(session);
         return session;
     }
@@ -93,6 +97,7 @@ public sealed class ProjectWorkspaceCoordinatorService
 
         var identity = _identityService.GetOrCreateDefaultIdentity("Local Admin");
         var session = OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
+        EnsureWorkspaceMutable(session);
         var workspace = session.LoadResult.Workspace;
         var versions = workspace.Versions.ToList();
         var normalizedName = request.Name.Trim();
@@ -168,6 +173,7 @@ public sealed class ProjectWorkspaceCoordinatorService
 
         var identity = _identityService.GetOrCreateDefaultIdentity("Local Admin");
         var session = OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
+        EnsureWorkspaceMutable(session);
         var workspace = session.LoadResult.Workspace;
         var versions = workspace.Versions.ToList();
         var versionIndex = versions.FindIndex(snapshot => snapshot.Version.VersionId == request.VersionId);
@@ -257,6 +263,7 @@ public sealed class ProjectWorkspaceCoordinatorService
 
         var identity = _identityService.GetOrCreateDefaultIdentity("Local Admin");
         var session = OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
+        EnsureWorkspaceMutable(session);
         var workspace = session.LoadResult.Workspace;
         var versions = workspace.Versions.ToList();
         var versionIndex = versions.FindIndex(snapshot => snapshot.Version.VersionId == versionId);
@@ -295,6 +302,7 @@ public sealed class ProjectWorkspaceCoordinatorService
         ArgumentException.ThrowIfNullOrWhiteSpace(sharedWorkspaceRoot);
 
         var session = OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
+        EnsureTrustedWorkspace(session);
         var version = session.LoadResult.Workspace.Versions
             .FirstOrDefault(entry => entry.Version.VersionId == versionId);
         if (version is null)
@@ -330,6 +338,7 @@ public sealed class ProjectWorkspaceCoordinatorService
         var session = OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
         EnsureTrustedWorkspace(session);
         EnsureCurrentIdentityIsAdmin(session);
+        EnsureNoSyncConflicts(session);
 
         if (!Guid.TryParse(request.UserId.Trim(), out var invitedUserId))
         {
@@ -386,6 +395,7 @@ public sealed class ProjectWorkspaceCoordinatorService
         var session = OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
         EnsureTrustedWorkspace(session);
         EnsureCurrentIdentityIsAdmin(session);
+        EnsureNoSyncConflicts(session);
 
         var displayName = request.DisplayName.Trim();
         if (string.IsNullOrWhiteSpace(displayName))
@@ -412,6 +422,55 @@ public sealed class ProjectWorkspaceCoordinatorService
         return SaveMembers(localWorkspaceRoot, sharedWorkspaceRoot, identity, session.LoadResult.Workspace, members);
     }
 
+    public LocalWorkspaceSession RefreshProject(
+        string localWorkspaceRoot,
+        string sharedWorkspaceRoot) =>
+        OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
+
+    public ConflictResolutionResult ResolveConflict(
+        string localWorkspaceRoot,
+        string sharedWorkspaceRoot,
+        string documentPath,
+        ConflictResolutionChoice choice)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(localWorkspaceRoot);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sharedWorkspaceRoot);
+        ArgumentException.ThrowIfNullOrWhiteSpace(documentPath);
+
+        var session = OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
+        EnsureConflictExists(session, documentPath);
+
+        switch (choice)
+        {
+            case ConflictResolutionChoice.KeepLocal:
+                CopyDocumentPair(localWorkspaceRoot, sharedWorkspaceRoot, documentPath);
+                break;
+            case ConflictResolutionChoice.AcceptShared:
+                CopyDocumentPair(sharedWorkspaceRoot, localWorkspaceRoot, documentPath);
+                break;
+            default:
+                throw new InvalidOperationException("Unknown conflict resolution choice.");
+        }
+
+        var state = _syncStateStore.Load(localWorkspaceRoot);
+        var refreshedSession = OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
+        _syncStateStore.Save(
+            localWorkspaceRoot,
+            state with
+            {
+                UnresolvedConflicts = refreshedSession.ConflictPaths
+                    .Where(path => !string.Equals(path, documentPath, StringComparison.Ordinal))
+                    .ToArray(),
+            });
+
+        return new ConflictResolutionResult(
+            documentPath,
+            choice,
+            choice == ConflictResolutionChoice.KeepLocal
+                ? $"Kept local copy for {documentPath}."
+                : $"Accepted shared copy for {documentPath}.");
+    }
+
     public string GetSuggestedLocalWorkspaceRoot(string projectName, string projectCode) =>
         ResolveLocalWorkspaceRoot(projectName, projectCode, string.Empty);
 
@@ -435,9 +494,9 @@ public sealed class ProjectWorkspaceCoordinatorService
                 DateTimeOffset.UtcNow));
     }
 
-    private static SyncHealth DetermineHealth(WorkspaceSyncAnalysis analysis)
+    private static SyncHealth DetermineHealth(WorkspaceSyncAnalysis analysis, int conflictCount)
     {
-        if (analysis.HasConflicts)
+        if (conflictCount > 0)
         {
             return SyncHealth.NeedsAttention;
         }
@@ -609,7 +668,25 @@ public sealed class ProjectWorkspaceCoordinatorService
     {
         if (session.LoadResult.TrustReport.State != TrustState.Trusted)
         {
-            throw new InvalidOperationException("Membership changes require a trusted workspace.");
+            throw new InvalidOperationException("This action requires a trusted workspace.");
+        }
+    }
+
+    private static void EnsureWorkspaceMutable(LocalWorkspaceSession session)
+    {
+        if (session.LoadResult.TrustReport.State != TrustState.Trusted)
+        {
+            throw new InvalidOperationException("This workspace is read-only until trust issues are resolved.");
+        }
+
+        EnsureNoSyncConflicts(session);
+    }
+
+    private static void EnsureNoSyncConflicts(LocalWorkspaceSession session)
+    {
+        if (session.ConflictPaths.Count > 0)
+        {
+            throw new InvalidOperationException("Resolve sync conflicts before making more changes.");
         }
     }
 
@@ -630,6 +707,14 @@ public sealed class ProjectWorkspaceCoordinatorService
         if (!members.Any(member => member.IsActive && member.Role == MemberRole.Admin))
         {
             throw new InvalidOperationException("At least one active admin must remain in the project.");
+        }
+    }
+
+    private static void EnsureConflictExists(LocalWorkspaceSession session, string documentPath)
+    {
+        if (!session.ConflictPaths.Contains(documentPath, StringComparer.Ordinal))
+        {
+            throw new InvalidOperationException("The selected conflict was not found.");
         }
     }
 
@@ -666,5 +751,31 @@ public sealed class ProjectWorkspaceCoordinatorService
         var invalidChars = Path.GetInvalidFileNameChars();
         var sanitized = new string(value.Trim().Select(ch => invalidChars.Contains(ch) ? '-' : ch).ToArray());
         return string.IsNullOrWhiteSpace(sanitized) ? "version" : sanitized;
+    }
+
+    private static void CopyDocumentPair(string sourceRoot, string destinationRoot, string relativePath)
+    {
+        CopyFile(sourceRoot, destinationRoot, relativePath);
+        CopyFile(sourceRoot, destinationRoot, Path.ChangeExtension(relativePath, ".sig"));
+    }
+
+    private static void CopyFile(string sourceRoot, string destinationRoot, string relativePath)
+    {
+        var sourcePath = Path.Combine(sourceRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
+        var destinationPath = Path.Combine(destinationRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
+        var directory = Path.GetDirectoryName(destinationPath);
+        if (!string.IsNullOrWhiteSpace(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        var tempPath = destinationPath + ".tmp";
+        File.Copy(sourcePath, tempPath, overwrite: true);
+        if (File.Exists(destinationPath))
+        {
+            File.Delete(destinationPath);
+        }
+
+        File.Move(tempPath, destinationPath);
     }
 }

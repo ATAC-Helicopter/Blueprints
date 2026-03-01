@@ -8,4 +8,5 @@ public sealed record LocalWorkspaceSession(
     StoredIdentity Identity,
     WorkspacePaths Paths,
     ProjectWorkspaceLoadResult LoadResult,
-    SyncSummary Sync);
+    SyncSummary Sync,
+    IReadOnlyList<string> ConflictPaths);

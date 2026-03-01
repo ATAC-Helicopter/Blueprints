@@ -42,7 +42,8 @@ public sealed class LocalWorkspaceService
             identity,
             WorkspacePathResolver.Create(_workspaceRoot, _workspaceRoot),
             loadResult,
-            new SyncSummary(SyncHealth.Idle, 0, 0, 0));
+            new SyncSummary(SyncHealth.Idle, 0, 0, 0),
+            []);
     }
 
     private static ProjectWorkspaceSnapshot CreateStarterWorkspace(StoredIdentity identity)
