@@ -53,6 +53,15 @@ public partial class MainWindowViewModel : ViewModelBase
     private string _selectedCategoryId = "added";
     private string _changelogPreview = string.Empty;
     private string _lastChangelogExportPath = string.Empty;
+    private string _identityPublicKey = string.Empty;
+    private WorkspaceMemberCard? _selectedMember;
+    private string _inviteUserId = string.Empty;
+    private string _inviteDisplayName = string.Empty;
+    private string _invitePublicKey = string.Empty;
+    private MemberRole _inviteRole = MemberRole.Editor;
+    private string _memberEditorDisplayName = string.Empty;
+    private MemberRole _memberEditorRole = MemberRole.Editor;
+    private bool _memberEditorIsActive = true;
 
     public MainWindowViewModel()
     {
@@ -60,6 +69,7 @@ public partial class MainWindowViewModel : ViewModelBase
         AvailableItemTypes = new ObservableCollection<string>();
         AvailableCategories = new ObservableCollection<string>();
         RecentProjects = new ObservableCollection<RecentProjectReference>();
+        Members = new ObservableCollection<WorkspaceMemberCard>();
         ApplyDesignSession(CreateDesignSession());
     }
 
@@ -70,6 +80,7 @@ public partial class MainWindowViewModel : ViewModelBase
         AvailableItemTypes = new ObservableCollection<string>();
         AvailableCategories = new ObservableCollection<string>();
         RecentProjects = new ObservableCollection<RecentProjectReference>();
+        Members = new ObservableCollection<WorkspaceMemberCard>();
 
         RefreshRecentProjects();
         RefreshSuggestedPaths();
@@ -83,6 +94,8 @@ public partial class MainWindowViewModel : ViewModelBase
     public ObservableCollection<string> AvailableCategories { get; }
 
     public ObservableCollection<RecentProjectReference> RecentProjects { get; }
+
+    public ObservableCollection<WorkspaceMemberCard> Members { get; }
 
     public string Title
     {
@@ -103,6 +116,17 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     public string IdentityId => Identity.UserId;
+
+    public string IdentityPublicKey
+    {
+        get => _identityPublicKey;
+        private set => SetProperty(ref _identityPublicKey, value);
+    }
+
+    public string IdentityBundle =>
+        string.IsNullOrWhiteSpace(IdentityId) || string.IsNullOrWhiteSpace(IdentityPublicKey)
+            ? string.Empty
+            : $"{IdentityId}|{Identity.DisplayName}|{IdentityPublicKey}";
 
     public SyncSummary Sync
     {
@@ -347,8 +371,68 @@ public partial class MainWindowViewModel : ViewModelBase
         private set => SetProperty(ref _lastChangelogExportPath, value);
     }
 
+    public WorkspaceMemberCard? SelectedMember
+    {
+        get => _selectedMember;
+        set
+        {
+            if (SetProperty(ref _selectedMember, value))
+            {
+                PopulateMemberEditor();
+                OnPropertyChanged(nameof(CanManageMembers));
+                OnPropertyChanged(nameof(CanEditSelectedMember));
+                OnPropertyChanged(nameof(SelectedMemberStateSummary));
+            }
+        }
+    }
+
+    public string InviteUserId
+    {
+        get => _inviteUserId;
+        set => SetProperty(ref _inviteUserId, value);
+    }
+
+    public string InviteDisplayName
+    {
+        get => _inviteDisplayName;
+        set => SetProperty(ref _inviteDisplayName, value);
+    }
+
+    public string InvitePublicKey
+    {
+        get => _invitePublicKey;
+        set => SetProperty(ref _invitePublicKey, value);
+    }
+
+    public MemberRole InviteRole
+    {
+        get => _inviteRole;
+        set => SetProperty(ref _inviteRole, value);
+    }
+
+    public string MemberEditorDisplayName
+    {
+        get => _memberEditorDisplayName;
+        set => SetProperty(ref _memberEditorDisplayName, value);
+    }
+
+    public MemberRole MemberEditorRole
+    {
+        get => _memberEditorRole;
+        set => SetProperty(ref _memberEditorRole, value);
+    }
+
+    public bool MemberEditorIsActive
+    {
+        get => _memberEditorIsActive;
+        set => SetProperty(ref _memberEditorIsActive, value);
+    }
+
     public IReadOnlyList<ReleaseStatus> AvailableStatuses { get; } =
         [ReleaseStatus.Planned, ReleaseStatus.InProgress, ReleaseStatus.Frozen, ReleaseStatus.Released];
+
+    public IReadOnlyList<MemberRole> AvailableMemberRoles { get; } =
+        [MemberRole.Viewer, MemberRole.Editor, MemberRole.Admin];
 
     public string TrustBadge => TrustStatePresenter.ToDisplayText(CurrentProject.TrustState);
 
@@ -380,6 +464,21 @@ public partial class MainWindowViewModel : ViewModelBase
             ReleaseStatus.Released => "Released versions are immutable.",
             _ when SelectedVersion is not null => "This version can still be edited.",
             _ => "Select a version to manage release state.",
+        };
+
+    public bool CanManageMembers =>
+        _currentSession is not null &&
+        Members.Any(member => member.UserId == _currentSession.Identity.Profile.UserId && member.IsActive && member.Role == MemberRole.Admin);
+
+    public bool CanEditSelectedMember => CanManageMembers && SelectedMember is not null;
+
+    public string SelectedMemberStateSummary =>
+        SelectedMember switch
+        {
+            null => "Select a member to edit role and access.",
+            { IsCurrentIdentity: true } => "This is the current local identity.",
+            { IsActive: false } => "Inactive members keep history but cannot push future changes.",
+            _ => "Active member in the signed membership list.",
         };
 
     [RelayCommand]
@@ -576,6 +675,65 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    private void InviteMember()
+    {
+        if (_coordinatorService is null || _currentSession is null)
+        {
+            WorkspaceMessage = "Open a project first.";
+            return;
+        }
+
+        try
+        {
+            ApplySession(
+                _coordinatorService.InviteMember(
+                    _currentSession.Paths.LocalWorkspaceRoot,
+                    _currentSession.Paths.SharedProjectRoot,
+                    new MemberInviteRequest(
+                        InviteUserId,
+                        InviteDisplayName,
+                        InvitePublicKey,
+                        InviteRole)));
+            WorkspaceMessage = $"Invited member {InviteDisplayName.Trim()}.";
+            ClearInviteEditor();
+        }
+        catch (Exception exception)
+        {
+            WorkspaceMessage = exception.Message;
+        }
+    }
+
+    [RelayCommand]
+    private void SaveMemberDetails()
+    {
+        if (_coordinatorService is null || _currentSession is null || SelectedMember is null)
+        {
+            WorkspaceMessage = "Select a member first.";
+            return;
+        }
+
+        try
+        {
+            var selectedMemberId = SelectedMember.UserId;
+            ApplySession(
+                _coordinatorService.UpdateMember(
+                    _currentSession.Paths.LocalWorkspaceRoot,
+                    _currentSession.Paths.SharedProjectRoot,
+                    new MemberUpdateRequest(
+                        selectedMemberId,
+                        MemberEditorDisplayName,
+                        MemberEditorRole,
+                        MemberEditorIsActive)));
+            ReselectMember(selectedMemberId);
+            WorkspaceMessage = $"Updated member {MemberEditorDisplayName.Trim()}.";
+        }
+        catch (Exception exception)
+        {
+            WorkspaceMessage = exception.Message;
+        }
+    }
+
+    [RelayCommand]
     private void AddItem()
     {
         if (_coordinatorService is null || _currentSession is null || SelectedVersion is null)
@@ -668,6 +826,7 @@ public partial class MainWindowViewModel : ViewModelBase
             session.Identity.Profile.DisplayName,
             session.Identity.Profile.UserId.ToString(),
             session.Identity.Profile.KeyStorageProvider);
+        IdentityPublicKey = session.Identity.Profile.PublicKeyBase64;
 
         Versions.Clear();
         foreach (var version in workspace.Versions
@@ -687,6 +846,19 @@ public partial class MainWindowViewModel : ViewModelBase
         foreach (var categoryId in workspace.Project.DefaultCategories.Select(static category => category.Id))
         {
             AvailableCategories.Add(categoryId);
+        }
+
+        Members.Clear();
+        foreach (var member in workspace.Members.Members
+                     .Select(member => new WorkspaceMemberCard(
+                         member.UserId,
+                         member.DisplayName,
+                         member.PublicKey,
+                         member.Role,
+                         member.IsActive,
+                         member.UserId == session.Identity.Profile.UserId)))
+        {
+            Members.Add(member);
         }
 
         Title = $"{project.Name} ({project.ProjectCode})";
@@ -719,9 +891,19 @@ public partial class MainWindowViewModel : ViewModelBase
             ClearItemEditorForNewItem();
         }
 
+        SelectedMember = Members.FirstOrDefault(member => member.IsCurrentIdentity) ?? Members.FirstOrDefault();
+        if (SelectedMember is null)
+        {
+            ClearMemberEditor();
+        }
+
         NewVersionName = NextSuggestedVersionName();
         OnPropertyChanged(nameof(TrustBadge));
         OnPropertyChanged(nameof(IdentityId));
+        OnPropertyChanged(nameof(IdentityBundle));
+        OnPropertyChanged(nameof(CanManageMembers));
+        OnPropertyChanged(nameof(CanEditSelectedMember));
+        OnPropertyChanged(nameof(SelectedMemberStateSummary));
     }
 
     private void ApplySetupState(string message)
@@ -741,18 +923,27 @@ public partial class MainWindowViewModel : ViewModelBase
         Versions.Clear();
         AvailableItemTypes.Clear();
         AvailableCategories.Clear();
+        Members.Clear();
         SelectedVersion = null;
         SelectedItem = null;
+        SelectedMember = null;
         WorkspaceMessage = string.Empty;
         ChangelogPreview = string.Empty;
         LastChangelogExportPath = string.Empty;
+        IdentityPublicKey = string.Empty;
+        ClearInviteEditor();
+        ClearMemberEditor();
         HasActiveSession = false;
         OnPropertyChanged(nameof(TrustBadge));
         OnPropertyChanged(nameof(IdentityId));
+        OnPropertyChanged(nameof(IdentityBundle));
         OnPropertyChanged(nameof(CanEditSelectedVersion));
         OnPropertyChanged(nameof(CanEditItems));
         OnPropertyChanged(nameof(CanReleaseSelectedVersion));
         OnPropertyChanged(nameof(SelectedVersionStateSummary));
+        OnPropertyChanged(nameof(CanManageMembers));
+        OnPropertyChanged(nameof(CanEditSelectedMember));
+        OnPropertyChanged(nameof(SelectedMemberStateSummary));
     }
 
     private void ApplyDesignSession(LocalWorkspaceSession session)
@@ -835,6 +1026,34 @@ public partial class MainWindowViewModel : ViewModelBase
         SelectedCategoryId = AvailableCategories.FirstOrDefault() ?? "added";
     }
 
+    private void PopulateMemberEditor()
+    {
+        if (SelectedMember is null)
+        {
+            ClearMemberEditor();
+            return;
+        }
+
+        MemberEditorDisplayName = SelectedMember.DisplayName;
+        MemberEditorRole = SelectedMember.Role;
+        MemberEditorIsActive = SelectedMember.IsActive;
+    }
+
+    private void ClearInviteEditor()
+    {
+        InviteUserId = string.Empty;
+        InviteDisplayName = string.Empty;
+        InvitePublicKey = string.Empty;
+        InviteRole = MemberRole.Editor;
+    }
+
+    private void ClearMemberEditor()
+    {
+        MemberEditorDisplayName = string.Empty;
+        MemberEditorRole = MemberRole.Editor;
+        MemberEditorIsActive = true;
+    }
+
     private void ReselectVersion(Guid versionId)
     {
         SelectedVersion = Versions.FirstOrDefault(version => version.VersionId == versionId);
@@ -843,6 +1062,11 @@ public partial class MainWindowViewModel : ViewModelBase
     private void ReselectItem(Guid itemId)
     {
         SelectedItem = SelectedVersion?.Items.FirstOrDefault(item => item.ItemId == itemId);
+    }
+
+    private void ReselectMember(Guid userId)
+    {
+        SelectedMember = Members.FirstOrDefault(member => member.UserId == userId);
     }
 
     private string NextSuggestedVersionName()
