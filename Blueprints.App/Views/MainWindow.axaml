@@ -297,10 +297,12 @@
                       HorizontalAlignment="Right">
             <TextBox Width="130"
                      Watermark="1.0.0"
-                     Text="{Binding NewVersionName}" />
+                     Text="{Binding NewVersionName}"
+                     IsEnabled="{Binding CanMutateWorkspace}" />
             <Button Content="New Version"
                     Command="{Binding CreateVersionCommand}"
-                    Padding="12,6" />
+                    Padding="12,6"
+                    IsEnabled="{Binding CanMutateWorkspace}" />
           </StackPanel>
         </Grid>
 
@@ -515,6 +517,9 @@
                 <TextBlock Text="{Binding ItemCount, StringFormat='Items tracked: {0}'}"
                            TextWrapping="Wrap"
                            Foreground="#574E43" />
+                <TextBlock Text="{Binding WorkspaceModeSummary}"
+                           TextWrapping="Wrap"
+                           Foreground="#574E43" />
               </StackPanel>
             </Border>
 
@@ -572,7 +577,8 @@
                           Content="Export Changelog"
                           Command="{Binding ExportSelectedVersionChangelogCommand}"
                           Padding="14,8"
-                          HorizontalAlignment="Left" />
+                          HorizontalAlignment="Left"
+                          IsEnabled="{Binding IsWorkspaceTrusted}" />
                 </Grid>
 
                 <TextBlock Text="{Binding SelectedVersionStateSummary}"
@@ -592,6 +598,11 @@
                 <TextBlock Text="{Binding TrustSummary}"
                            TextWrapping="Wrap"
                            Foreground="#CFE2D8" />
+
+                <Button Content="Refresh Workspace"
+                        Command="{Binding RefreshWorkspaceCommand}"
+                        Padding="14,8"
+                        HorizontalAlignment="Left" />
               </StackPanel>
             </Border>
 
@@ -672,6 +683,39 @@
                     </DataTemplate>
                   </ListBox.ItemTemplate>
                 </ListBox>
+
+                <Border Grid.Row="2"
+                        Background="#FFF4E8"
+                        CornerRadius="12"
+                        Padding="12"
+                        BorderBrush="#D9B48C"
+                        BorderThickness="1"
+                        Margin="0,220,0,0"
+                        IsVisible="{Binding HasConflicts}">
+                  <StackPanel Spacing="8">
+                    <TextBlock Text="Conflict Resolution"
+                               FontWeight="SemiBold"
+                               Foreground="#17322C" />
+                    <TextBlock Text="{Binding WorkspaceModeSummary}"
+                               TextWrapping="Wrap"
+                               Foreground="#574E43" />
+                    <ListBox ItemsSource="{Binding Conflicts}"
+                             SelectedItem="{Binding SelectedConflictPath}"
+                             MaxHeight="120" />
+                    <Grid ColumnDefinitions="Auto,Auto"
+                          ColumnSpacing="10">
+                      <Button Content="Keep Local"
+                              Command="{Binding ResolveConflictKeepLocalCommand}"
+                              Padding="14,8"
+                              IsEnabled="{Binding CanResolveSelectedConflict}" />
+                      <Button Grid.Column="1"
+                              Content="Accept Shared"
+                              Command="{Binding ResolveConflictAcceptSharedCommand}"
+                              Padding="14,8"
+                              IsEnabled="{Binding CanResolveSelectedConflict}" />
+                    </Grid>
+                  </StackPanel>
+                </Border>
               </Grid>
             </Border>
           </Grid>

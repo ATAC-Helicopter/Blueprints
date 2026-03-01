@@ -62,6 +62,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private string _memberEditorDisplayName = string.Empty;
     private MemberRole _memberEditorRole = MemberRole.Editor;
     private bool _memberEditorIsActive = true;
+    private string? _selectedConflictPath;
 
     public MainWindowViewModel()
     {
@@ -70,6 +71,7 @@ public partial class MainWindowViewModel : ViewModelBase
         AvailableCategories = new ObservableCollection<string>();
         RecentProjects = new ObservableCollection<RecentProjectReference>();
         Members = new ObservableCollection<WorkspaceMemberCard>();
+        Conflicts = new ObservableCollection<string>();
         ApplyDesignSession(CreateDesignSession());
     }
 
@@ -81,6 +83,7 @@ public partial class MainWindowViewModel : ViewModelBase
         AvailableCategories = new ObservableCollection<string>();
         RecentProjects = new ObservableCollection<RecentProjectReference>();
         Members = new ObservableCollection<WorkspaceMemberCard>();
+        Conflicts = new ObservableCollection<string>();
 
         RefreshRecentProjects();
         RefreshSuggestedPaths();
@@ -96,6 +99,8 @@ public partial class MainWindowViewModel : ViewModelBase
     public ObservableCollection<RecentProjectReference> RecentProjects { get; }
 
     public ObservableCollection<WorkspaceMemberCard> Members { get; }
+
+    public ObservableCollection<string> Conflicts { get; }
 
     public string Title
     {
@@ -371,6 +376,18 @@ public partial class MainWindowViewModel : ViewModelBase
         private set => SetProperty(ref _lastChangelogExportPath, value);
     }
 
+    public string? SelectedConflictPath
+    {
+        get => _selectedConflictPath;
+        set
+        {
+            if (SetProperty(ref _selectedConflictPath, value))
+            {
+                OnPropertyChanged(nameof(CanResolveSelectedConflict));
+            }
+        }
+    }
+
     public WorkspaceMemberCard? SelectedMember
     {
         get => _selectedMember;
@@ -446,19 +463,26 @@ public partial class MainWindowViewModel : ViewModelBase
         };
 
     public bool CanEditSelectedVersion =>
+        CanMutateWorkspace &&
         SelectedVersion is not null &&
         SelectedVersion.Status is not ReleaseStatus.Frozen and not ReleaseStatus.Released;
 
     public bool CanEditItems =>
+        CanMutateWorkspace &&
         SelectedVersion is not null &&
         SelectedVersion.Status is not ReleaseStatus.Frozen and not ReleaseStatus.Released;
 
     public bool CanReleaseSelectedVersion =>
+        CanMutateWorkspace &&
         SelectedVersion is not null &&
         SelectedVersion.Status != ReleaseStatus.Released;
 
     public string SelectedVersionStateSummary =>
-        SelectedVersion?.Status switch
+        !IsWorkspaceTrusted
+            ? "This workspace is read-only because trust validation failed."
+            : HasConflicts
+                ? "Resolve sync conflicts before editing this version."
+                : SelectedVersion?.Status switch
         {
             ReleaseStatus.Frozen => "Frozen versions are read-only until they are explicitly released.",
             ReleaseStatus.Released => "Released versions are immutable.",
@@ -467,6 +491,7 @@ public partial class MainWindowViewModel : ViewModelBase
         };
 
     public bool CanManageMembers =>
+        CanMutateWorkspace &&
         _currentSession is not null &&
         Members.Any(member => member.UserId == _currentSession.Identity.Profile.UserId && member.IsActive && member.Role == MemberRole.Admin);
 
@@ -479,6 +504,27 @@ public partial class MainWindowViewModel : ViewModelBase
             { IsCurrentIdentity: true } => "This is the current local identity.",
             { IsActive: false } => "Inactive members keep history but cannot push future changes.",
             _ => "Active member in the signed membership list.",
+        };
+
+    public bool IsWorkspaceTrusted => CurrentProject.TrustState == TrustState.Trusted;
+
+    public bool IsWorkspaceReadOnly => !IsWorkspaceTrusted;
+
+    public bool HasConflicts => Conflicts.Count > 0;
+
+    public bool CanMutateWorkspace =>
+        IsWorkspaceTrusted && !HasConflicts;
+
+    public bool CanResolveSelectedConflict =>
+        HasConflicts && !string.IsNullOrWhiteSpace(SelectedConflictPath);
+
+    public string WorkspaceModeSummary =>
+        CurrentProject.TrustState switch
+        {
+            TrustState.Untrusted => "Workspace is untrusted. Editing is disabled until signed content is trusted again.",
+            TrustState.Corrupt => "Workspace is corrupt. Editing is disabled until the workspace is repaired.",
+            _ when HasConflicts => "Workspace has unresolved sync conflicts. Resolve them before editing.",
+            _ => "Workspace is trusted and editable.",
         };
 
     [RelayCommand]
@@ -675,6 +721,36 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    private void RefreshWorkspace()
+    {
+        if (_coordinatorService is null || _currentSession is null)
+        {
+            return;
+        }
+
+        try
+        {
+            ApplySession(
+                _coordinatorService.RefreshProject(
+                    _currentSession.Paths.LocalWorkspaceRoot,
+                    _currentSession.Paths.SharedProjectRoot));
+            WorkspaceMessage = "Workspace refreshed.";
+        }
+        catch (Exception exception)
+        {
+            WorkspaceMessage = exception.Message;
+        }
+    }
+
+    [RelayCommand]
+    private void ResolveConflictKeepLocal() =>
+        ResolveSelectedConflict(ConflictResolutionChoice.KeepLocal);
+
+    [RelayCommand]
+    private void ResolveConflictAcceptShared() =>
+        ResolveSelectedConflict(ConflictResolutionChoice.AcceptShared);
+
+    [RelayCommand]
     private void InviteMember()
     {
         if (_coordinatorService is null || _currentSession is null)
@@ -861,6 +937,12 @@ public partial class MainWindowViewModel : ViewModelBase
             Members.Add(member);
         }
 
+        Conflicts.Clear();
+        foreach (var conflictPath in session.ConflictPaths)
+        {
+            Conflicts.Add(conflictPath);
+        }
+
         Title = $"{project.Name} ({project.ProjectCode})";
         TrustSummary = session.LoadResult.TrustReport.Summary;
         WorkspacePath = session.Paths.LocalWorkspaceRoot;
@@ -897,6 +979,8 @@ public partial class MainWindowViewModel : ViewModelBase
             ClearMemberEditor();
         }
 
+        SelectedConflictPath = Conflicts.FirstOrDefault();
+
         NewVersionName = NextSuggestedVersionName();
         OnPropertyChanged(nameof(TrustBadge));
         OnPropertyChanged(nameof(IdentityId));
@@ -904,6 +988,12 @@ public partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(CanManageMembers));
         OnPropertyChanged(nameof(CanEditSelectedMember));
         OnPropertyChanged(nameof(SelectedMemberStateSummary));
+        OnPropertyChanged(nameof(IsWorkspaceTrusted));
+        OnPropertyChanged(nameof(IsWorkspaceReadOnly));
+        OnPropertyChanged(nameof(HasConflicts));
+        OnPropertyChanged(nameof(CanMutateWorkspace));
+        OnPropertyChanged(nameof(WorkspaceModeSummary));
+        OnPropertyChanged(nameof(CanResolveSelectedConflict));
     }
 
     private void ApplySetupState(string message)
@@ -924,9 +1014,11 @@ public partial class MainWindowViewModel : ViewModelBase
         AvailableItemTypes.Clear();
         AvailableCategories.Clear();
         Members.Clear();
+        Conflicts.Clear();
         SelectedVersion = null;
         SelectedItem = null;
         SelectedMember = null;
+        SelectedConflictPath = null;
         WorkspaceMessage = string.Empty;
         ChangelogPreview = string.Empty;
         LastChangelogExportPath = string.Empty;
@@ -944,6 +1036,12 @@ public partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(CanManageMembers));
         OnPropertyChanged(nameof(CanEditSelectedMember));
         OnPropertyChanged(nameof(SelectedMemberStateSummary));
+        OnPropertyChanged(nameof(IsWorkspaceTrusted));
+        OnPropertyChanged(nameof(IsWorkspaceReadOnly));
+        OnPropertyChanged(nameof(HasConflicts));
+        OnPropertyChanged(nameof(CanMutateWorkspace));
+        OnPropertyChanged(nameof(WorkspaceModeSummary));
+        OnPropertyChanged(nameof(CanResolveSelectedConflict));
     }
 
     private void ApplyDesignSession(LocalWorkspaceSession session)
@@ -1067,6 +1165,34 @@ public partial class MainWindowViewModel : ViewModelBase
     private void ReselectMember(Guid userId)
     {
         SelectedMember = Members.FirstOrDefault(member => member.UserId == userId);
+    }
+
+    private void ResolveSelectedConflict(ConflictResolutionChoice choice)
+    {
+        if (_coordinatorService is null || _currentSession is null || string.IsNullOrWhiteSpace(SelectedConflictPath))
+        {
+            WorkspaceMessage = "Select a conflict first.";
+            return;
+        }
+
+        try
+        {
+            var result = _coordinatorService.ResolveConflict(
+                _currentSession.Paths.LocalWorkspaceRoot,
+                _currentSession.Paths.SharedProjectRoot,
+                SelectedConflictPath,
+                choice);
+            ApplySession(
+                _coordinatorService.RefreshProject(
+                    _currentSession.Paths.LocalWorkspaceRoot,
+                    _currentSession.Paths.SharedProjectRoot));
+            SelectedConflictPath = Conflicts.FirstOrDefault();
+            WorkspaceMessage = result.Summary;
+        }
+        catch (Exception exception)
+        {
+            WorkspaceMessage = exception.Message;
+        }
     }
 
     private string NextSuggestedVersionName()
@@ -1201,6 +1327,7 @@ public partial class MainWindowViewModel : ViewModelBase
                             ]),
                     ]),
                 new TrustReport(TrustState.Trusted, "Validated 4 signed documents.", createdUtc)),
-            new SyncSummary(SyncHealth.Ready, 3, 0, 0));
+            new SyncSummary(SyncHealth.Ready, 3, 0, 0),
+            []);
     }
 }

@@ -1,6 +1,8 @@
 using System.Runtime.Versioning;
+using System.Text.Json;
 using Blueprints.App.Models;
 using Blueprints.App.Services;
+using Blueprints.Collaboration.Models;
 using Blueprints.Core.Enums;
 using Blueprints.Security.Services;
 using Blueprints.Storage.Services;
@@ -324,6 +326,114 @@ public sealed class ProjectWorkspaceCoordinatorServiceTests : IDisposable
                     Blueprints.Core.Enums.MemberRole.Editor,
                     true)));
         Assert.Contains("active admin", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SaveVersion_BlocksMutationWhenWorkspaceTrustIsBroken()
+    {
+        var localRoot = Path.Combine(_rootDirectory, "trust-local", "BP");
+        var sharedRoot = Path.Combine(_rootDirectory, "trust-shared", "BP");
+        var service = CreateService();
+
+        service.CreateProject(
+            new ProjectCreateRequest(
+                "Blueprints",
+                "BP",
+                "SemVer",
+                localRoot,
+                sharedRoot));
+
+        var projectPath = Path.Combine(localRoot, "project", "project.json");
+        var projectJson = File.ReadAllText(projectPath);
+        using var document = JsonDocument.Parse(projectJson);
+        var tamperedJson = document.RootElement.GetRawText().Replace("\"Blueprints\"", "\"Tampered\"", StringComparison.Ordinal);
+        File.WriteAllText(projectPath, tamperedJson);
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => service.SaveVersion(
+                localRoot,
+                sharedRoot,
+                new VersionEditRequest(
+                    null,
+                    "1.0.0",
+                    ReleaseStatus.InProgress,
+                    null)));
+
+        Assert.Contains("read-only", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ResolveConflict_CanKeepLocalCopyAndClearConflict()
+    {
+        var localRoot = Path.Combine(_rootDirectory, "conflict-local", "BP");
+        var sharedRoot = Path.Combine(_rootDirectory, "conflict-shared", "BP");
+        var service = CreateService();
+
+        service.CreateProject(
+            new ProjectCreateRequest(
+                "Blueprints",
+                "BP",
+                "SemVer",
+                localRoot,
+                sharedRoot));
+
+        var versionSession = service.SaveVersion(
+            localRoot,
+            sharedRoot,
+            new VersionEditRequest(
+                null,
+                "1.0.0",
+                ReleaseStatus.InProgress,
+                "Baseline"));
+        var versionId = versionSession.LoadResult.Workspace.Versions.Single().Version.VersionId;
+
+        var syncStateStore = new Blueprints.Collaboration.Services.FileSystemSyncStateStore();
+        var snapshotBuilder = new Blueprints.Collaboration.Services.WorkspaceExchangeSnapshotBuilder();
+        var state = syncStateStore.Load(localRoot);
+        syncStateStore.Save(
+            localRoot,
+            state with
+            {
+                TrackedEntries = snapshotBuilder.Build(localRoot)
+                    .Select(static entry => new SyncTrackedEntry(entry.DocumentPath, entry.DocumentHash, entry.SignatureHash))
+                    .ToArray(),
+            });
+
+        service.SaveVersion(
+            localRoot,
+            sharedRoot,
+            new VersionEditRequest(
+                versionId,
+                "1.0.0",
+                ReleaseStatus.InProgress,
+                "Local edit"));
+
+        var versionDirectory = Directory.EnumerateDirectories(Path.Combine(localRoot, "versions")).Single();
+        var localVersionPath = Path.Combine(versionDirectory, "version.json");
+        var sharedVersionDirectory = Path.Combine(sharedRoot, "versions", Path.GetFileName(versionDirectory));
+        Directory.CreateDirectory(sharedVersionDirectory);
+        File.Copy(localVersionPath, Path.Combine(sharedVersionDirectory, "version.json"), overwrite: true);
+        File.Copy(Path.ChangeExtension(localVersionPath, ".sig"), Path.Combine(sharedVersionDirectory, "version.sig"), overwrite: true);
+
+        var sharedVersionPath = Path.Combine(sharedVersionDirectory, "version.json");
+        var sharedJson = File.ReadAllText(sharedVersionPath).Replace("Local edit", "Shared edit", StringComparison.Ordinal);
+        File.WriteAllText(sharedVersionPath, sharedJson);
+
+        var opened = service.OpenProject(localRoot, sharedRoot);
+        var conflictPath = opened.ConflictPaths.Single();
+        Assert.Contains("version.json", conflictPath, StringComparison.Ordinal);
+
+        var resolution = service.ResolveConflict(
+            localRoot,
+            sharedRoot,
+            conflictPath,
+            ConflictResolutionChoice.KeepLocal);
+
+        Assert.Contains("Kept local", resolution.Summary, StringComparison.Ordinal);
+
+        var refreshed = service.OpenProject(localRoot, sharedRoot);
+        Assert.Empty(refreshed.ConflictPaths);
+        Assert.Equal(TrustState.Trusted, refreshed.LoadResult.TrustReport.State);
     }
 
     private ProjectWorkspaceCoordinatorService CreateService()
