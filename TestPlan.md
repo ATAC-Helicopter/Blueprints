@@ -1,156 +1,309 @@
 # Blueprints Test Plan
 
 Status: Working Draft
-Date: 2026-02-28
-Scope: Current `develop` branch versus `Plan.md` and `ImplementationPlan.md`
+Date: 2026-05-16
+Scope: Current repository state versus `ProductDirection.md`, `Roadmap.md`, `Plan.md`, and `ImplementationPlan.md`
 
 ## Purpose
 
-This document turns the product specification into a practical verification plan for the current application state.
+This document records what is testable now, what has coverage, and what still needs manual/product verification.
 
-It is not only a QA checklist. It also records what is already implemented, what is only partially implemented, and what is still missing.
-
-## Current Baseline
-
-The current app and codebase already provide:
-
-- Windows-first local identity creation and loading
-- DPAPI-backed private key protection
-- signed project, membership, version, and item persistence
-- trust-state evaluation during workspace load
-- shared-folder sync manifest and local sync state
-- baseline-aware push and pull logic
-- incoming signature validation before pull apply
-- an Avalonia shell that shows real local workspace and sync status
-
-The current app does not yet provide the full v1.0 user workflow described in the product plan.
-
-## Test Objectives
-
-The verification pass should answer these questions:
-
-1. Does the current app preserve the trust and signature guarantees already implemented?
-2. Does the current UI accurately reflect the real state of the local workspace and sync layer?
-3. Which planned v1.0 flows are fully implemented, partially implemented, or not implemented?
-4. Which missing areas need to become tracked product issues?
+It should be updated whenever a major product slice lands.
 
 ## How To Run
 
 From the repository root:
 
-```powershell
+```sh
 dotnet build Blueprints.sln
-dotnet test .\Blueprints.Tests\Blueprints.Tests.csproj
-dotnet run --project .\Blueprints.App\Blueprints.App.csproj
+dotnet test Blueprints.Tests/Blueprints.Tests.csproj
+dotnet run --project Blueprints.App/Blueprints.App.csproj
 ```
+
+Linux app launch helper:
+
+```sh
+scripts/run-app.sh
+```
+
+Wayland note:
+
+- the app can build/test on Linux
+- Avalonia app launch currently requires X11/XWayland display availability
+- `scripts/run-app.sh` reports missing `DISPLAY` clearly when running under Wayland
+- `scripts/diagnose-linux-display.sh` reports session variables, X sockets, tools, and display probe status
+
+Latest known verification:
+
+- build succeeded
+- tests passed: 45
+
+## Current Baseline
+
+The current app and codebase provide:
+
+- Windows identity/key storage through DPAPI
+- Linux/macOS development identity key storage through local AES-GCM protection
+- cross-platform-friendly tests through local/test key protectors
+- signed project, membership, version, item, manifest, and audit documents
+- trust-state evaluation during workspace load
+- read-only mutation lockout for untrusted/corrupt local workspaces
+- project create/open workflows
+- recent project tracking
+- version and item management
+- generated item keys
+- release workflow and changelog export
+- member invitation and update workflows
+- shared-folder sync manifest and local sync state
+- baseline-aware push and pull service logic
+- app-level push and pull commands in the Sync tab
+- path-level sync diagnostics with semantic summaries and raw local/shared conflict preview
+- provider-agnostic integration status cards for Local Git, GitHub, GitLab, and VaultSync
+- read-only Local Git detection for repository root, branch, remote URL, dirty state, and latest tag
+- recent Git changes since latest tag with item-key extraction
+- incoming signature validation before pull apply
+- manifest continuity validation during pull
+- basic conflict detection and keep-local/accept-shared resolution
+- audit log append and validation foundation
+- shared-folder path-overlap safety checks
+- Windows ACL broad-write warning foundation
+- Avalonia shell wired to live workspace state
+
+Important current limitation:
+
+- sync diagnostics include semantic summaries and raw local/shared previews; trust diagnostics include workspace, audit-chain, shared-folder, and conflict cards. Local Git change mapping exists, but release/changelog workflows do not consume it yet.
 
 ## Status Legend
 
-- `Implemented`: code path exists and is covered well enough to exercise meaningfully now
-- `Partial`: some of the foundation exists, but the end-user workflow is incomplete
-- `Missing`: not meaningfully testable through the app yet
+- `Implemented`: code path exists and has meaningful automated coverage
+- `Partial`: foundation exists, but user workflow or diagnostics are incomplete
+- `Missing`: not meaningfully implemented yet
 
 ## Verification Matrix
 
 | Area | Planned Behavior | Current Status | Notes |
 | --- | --- | --- | --- |
-| Identity bootstrap | User identity exists locally with protected private key storage | Implemented | Backed by DPAPI and covered by tests |
-| Signed local workspace | Project, members, version, and item files are signed and validated on load | Implemented | Trust state is surfaced in the app shell |
-| Local workspace bootstrap | First-run local project/workspace can be created automatically | Implemented | Current shell creates a starter workspace rather than showing a creation flow |
-| Shared sync manifest | Shared folder keeps signed manifest state for exchange | Implemented | Manifest exists in collaboration layer and has tests |
-| Push foundation | Local changes can be staged and copied to shared sync root | Implemented | Service-level implementation exists; no user command yet |
-| Pull foundation | Incoming shared changes can be imported into local workspace | Implemented | Service-level implementation exists; no user command yet |
-| Incoming signature validation | Pull must reject tampered incoming content before apply | Implemented | Covered by tests |
-| Sync status display | App shell shows real sync status from live workspace/session state | Implemented | Current shell reflects outgoing/incoming/conflict counts indirectly through summary |
-| Open project workflow | User can choose/open existing project from UI | Missing | Current app bootstraps a default workspace automatically |
-| Create project workflow | User can create a new project from UI | Missing | No create-project screen or flow yet |
-| Project overview workflow | User can meaningfully manage versions/items from the shell | Partial | Overview renders live data, but management actions are not wired |
-| Add version | User can create versions from UI | Missing | Button and view structure are not connected to domain commands |
-| Add/edit item | User can create and edit release items from UI | Missing | No editor workflow yet |
-| Release workflow | User can freeze/release a version and enforce immutability | Missing | Domain intent exists, but no command/UI flow yet |
-| Changelog export | User can export Markdown changelog from real data | Missing | Planned but not implemented |
-| Membership invitation | Admin can invite and manage members | Missing | Signed membership file exists, but no invitation UX or workflow exists |
-| Conflict handling | App can present conflict UI and allow explicit resolution | Missing | Conflict detection exists in sync logic, but there is no conflict resolution UI/workflow |
-| Shared-folder safety checks | App warns when shared folder permissions are too broad | Missing | Planned Windows ACL checks are not implemented |
-| Audit log | App records and verifies append-only tamper-evident change history | Missing | Planned in spec, not implemented in current code |
-| Read-only untrusted mode | App should degrade safely when trust is broken | Partial | Trust state exists, but there is no dedicated read-only mode UX |
+| Identity bootstrap | User identity exists locally with protected private key storage | Implemented | Windows uses DPAPI; Linux/macOS use local AES-GCM; DPAPI-specific tests stay Windows-specific |
+| Signed local workspace | Project, members, versions, and items are signed and validated | Implemented | Covered by storage/coordinator tests |
+| Project create/open | User can create and open real projects | Implemented | UI and coordinator exist |
+| Recent projects | Recent project references can be reopened | Implemented | Stored by app service |
+| Version workflow | User can create/edit versions | Implemented | Released versions block further edits |
+| Item workflow | User can add/edit items | Implemented | Keys generated from project rules |
+| Release workflow | User can release a version and enforce immutability | Implemented | Release timestamp set; future edits blocked |
+| Changelog export | User can export Markdown from real version data | Implemented | Default excludes incomplete items |
+| Membership invitation | Admin can invite/update members | Implemented | Last active admin protection exists |
+| Read-only untrusted mode | Mutations are blocked when trust is broken | Implemented | Coordinator tests cover broken trust mutation |
+| Shared sync manifest | Shared folder keeps signed manifest state | Implemented | Service-level tests cover manifest/state |
+| Push foundation | Local changes can be copied to shared sync root | Implemented | Service and app-level coordinator/UI tests exist |
+| Pull foundation | Shared changes can be copied to local workspace | Implemented | Service and app-level coordinator/UI tests exist |
+| Incoming signature validation | Pull rejects tampered incoming content | Implemented | Covered by sync tests |
+| Manifest continuity | Pull rejects shared content that no longer matches signed manifest | Implemented | Added in sync service |
+| Conflict handling | App can detect and resolve conflicts explicitly | Partial | Keep-local/accept-shared exists with semantic summaries plus raw local/shared preview; richer diff polish still missing |
+| Shared-folder safety checks | App evaluates unsafe shared-folder setup | Partial | Path overlap and Windows ACL warning foundation exists; Trust tab now surfaces findings |
+| Audit log | App records and validates tamper-evident history | Partial | Signed hash-linked entries exist; Trust tab surfaces audit-chain validation |
+| Sync status display | App shell shows real sync status | Implemented | Sync tab exposes Refresh, Push, Pull, pending counts, diagnostics, and raw previews |
+| Trust diagnostics | User can understand audit/safety/trust failures | Implemented | Trust tab shows structured cards with recovery guidance |
+| Navigation | App provides clear project sections | Partial | Initial tabbed shell exists; future pass should split views and polish spacing/empty states |
+| Conflict preview | User can compare mine/theirs/result | Partial | Semantic summaries and raw JSON/text local/shared preview exist; table-style diff is still missing |
+| Integration status | App shows source-control and VaultSync provider status | Partial | Provider-agnostic cards, read-only Local Git detection, and recent commit/item-key mapping exist; provider APIs not wired yet |
+| Packaging | User can install/run packaged Windows app | Missing | Future v1.0 readiness |
+
+## Automated Test Coverage To Preserve
+
+Core trust/security:
+
+- canonical JSON serialization
+- Ed25519 signing/verification
+- DPAPI protector on Windows
+- identity creation/loading
+- signed document read/write
+- workspace load/save trust state
+
+Collaboration:
+
+- sync manifest store
+- sync state store
+- sync analyzer
+- push copies outgoing docs
+- pull copies incoming docs
+- pull blocks invalid signatures
+- pull blocks conflicts
+- pull blocks invalid audit chain
+
+App coordinator:
+
+- create project
+- open project
+- save version
+- save item
+- release version
+- export changelog
+- invite/update member
+- block mutation when trust is broken
+- resolve conflict
+- app-level push workspace
+- app-level pull workspace
+- write audit entry on project create
+- block local/shared path overlap
+- mark workspace corrupt when audit chain is broken
+- expose structured audit/safety trust diagnostics
+- integration status service provider spine
+- read-only Local Git status mapping
 
 ## Manual Test Pass For Current Build
 
-These are the useful manual checks that can be performed now:
+### 1. Project Setup
 
-### 1. Startup and identity
+Steps:
 
-- Launch the app
-- Confirm the shell opens on Windows
-- Confirm a local identity is displayed
-- Confirm a local workspace is created under local app data
+- launch app on Windows
+- create a new project
+- close/reopen app
+- open from recent project
 
-Expected result:
+Expected:
 
-- app loads without setup prompts
-- identity display is populated
-- trust badge shows a valid state for the starter workspace
+- identity is shown
+- workspace paths are correct
+- project state persists
+- trust badge is trusted
 
-### 2. Local workspace rendering
+### 2. Release Planning
 
-- Confirm project name and project code render
-- Confirm versions render from persisted workspace data
-- Confirm member count and membership revision render
+Steps:
 
-Expected result:
+- create version
+- add feature item
+- add bug item
+- edit item
+- mark item done
+- release version
+- attempt another edit
 
-- shell is backed by persisted workspace state, not hardcoded sample data
+Expected:
 
-### 3. Sync state rendering
+- item keys are generated
+- counts update
+- release timestamp is set
+- released version is immutable
 
-- Confirm local workspace path and shared sync path are visible
-- Confirm sync summary changes depending on whether shared folder content exists
+### 3. Changelog Export
 
-Expected result:
+Steps:
 
-- sync status reflects actual analyzed state, not a fixed placeholder string
+- export changelog from a version with done and incomplete items
 
-### 4. Tamper resistance
+Expected:
 
-- Modify a signed file manually
-- Reload through the storage/services path or rerun tests
+- Markdown file is written
+- done items appear
+- incomplete items are excluded by default
+- item keys display
 
-Expected result:
+### 4. Membership
 
-- trust becomes untrusted or corrupt
-- tampered incoming sync content is rejected before apply
+Steps:
 
-### 5. Push/pull service behavior
+- copy local identity bundle
+- invite a second member
+- change role/status
+- attempt to remove/downgrade last active admin
 
-- Use the existing tests as the executable verification path for push/pull behavior
+Expected:
 
-Expected result:
+- membership revision increments
+- last active admin removal is blocked
 
-- manifest creation works
-- local sync state updates
-- incoming invalid signatures are blocked
-- overlapping local/shared changes surface as conflicts
+### 5. Trust Tampering
 
-## Recommended Next Test Gates
+Steps:
 
-The next full verification gates should happen after these missing product slices are built:
+- manually edit a signed JSON file
+- reopen/refresh project
+- try to mutate workspace
 
-1. project creation and open flows
-2. version and item editing flows
-3. changelog export and release workflow
-4. membership invitation and management
-5. conflict resolution UI
-6. shared-folder safety checks
-7. audit log implementation
+Expected:
+
+- trust becomes untrusted/corrupt
+- mutation is blocked with read-only messaging
+
+### 6. Audit Tampering
+
+Steps:
+
+- create project
+- create version to add a second audit entry
+- delete the first audit entry
+- reopen project
+
+Expected:
+
+- workspace trust becomes corrupt
+- audit log failure is explained
+
+### 7. Shared Folder Safety
+
+Steps:
+
+- attempt to create a project with shared sync folder inside local workspace
+
+Expected:
+
+- creation is blocked
+
+Windows-only follow-up:
+
+- configure a shared folder writable by broad principals such as Everyone or Authenticated Users
+
+Expected:
+
+- safety warning is produced once diagnostics UI exposes it
+
+### 8. Sync Foundation
+
+Use automated tests as the primary verification until app-level push/pull is exposed.
+
+Expected:
+
+- push/pull service tests pass
+- invalid signatures are rejected
+- manifest/audit continuity failures are rejected
+- conflicts are detected
+
+## Next Test Gates
+
+After app-level push/pull:
+
+- coordinator push/pull tests
+- manual two-workspace push/pull pass
+- pull invalid signature manual pass
+- pull invalid audit manual pass
+
+After navigation refactor:
+
+- manual UI pass across setup, releases, team, sync, trust
+- verify no commands are lost
+
+After trust diagnostics:
+
+- manual audit and shared-folder warning pass
+
+After packaging:
+
+- clean Windows machine install/run pass
 
 ## Readiness Summary
 
-Current readiness level:
+Current readiness:
 
-- Core trust and persistence foundation: usable
-- Shared sync foundation: usable at service level
-- Desktop shell: usable as a live status shell
-- End-user workflow completeness for v1.0: not yet complete
+- core trust and persistence: strong
+- release planning foundation: usable
+- changelog export: usable
+- membership foundation: usable
+- shared sync foundation: service-level usable
+- app-level collaboration workflow: not yet complete
+- UI/product clarity: needs focused refactor
 
-The app is ready for engineering validation of the foundation, but not yet for a true end-user acceptance pass against the full v1.0 product definition.
+Best next verification investment:
+
+- expose push/pull in app layer, then run a two-workspace manual collaboration test.
