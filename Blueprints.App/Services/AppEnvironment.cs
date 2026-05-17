@@ -13,6 +13,9 @@ public static class AppEnvironment
         return Path.Combine(GetAppRoot(), "Identities");
     }
 
+    public static string GetLocalPrivateKeyProtectionKeyPath() =>
+        Path.Combine(GetAppRoot(), "Security", "local-private-key-protector.key");
+
     public static string GetWorkspaceRoot() =>
         Path.Combine(GetAppRoot(), "Workspace", "default");
 
@@ -27,4 +30,7 @@ public static class AppEnvironment
 
     public static string GetRecentProjectsPath() =>
         Path.Combine(GetAppRoot(), "recent-projects.json");
+
+    public static string GetIntegrationSettingsPath() =>
+        Path.Combine(GetAppRoot(), "integration-settings.json");
 }

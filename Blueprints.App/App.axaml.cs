@@ -3,7 +3,6 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core;
 using Avalonia.Data.Core.Plugins;
 using System.Linq;
-using System.Runtime.Versioning;
 using Avalonia.Markup.Xaml;
 using Blueprints.App.Models;
 using Blueprints.App.Services;
@@ -32,17 +31,14 @@ public partial class App : Application
             // More info: https://docs.avaloniaui.net/docs/guides/development-guides/data-validation#manage-validationplugins
             DisableAvaloniaDataAnnotationValidation();
 
-            if (!OperatingSystem.IsWindows())
-            {
-                throw new PlatformNotSupportedException("Blueprints v1.0 currently supports Windows only.");
-            }
-
-            var identityService = CreateWindowsIdentityService();
-            var coordinatorService = CreateWindowsProjectCoordinator(identityService);
+            var identityService = CreateIdentityService();
+            var coordinatorService = CreateProjectCoordinator(identityService);
 
             desktop.MainWindow = new MainWindow
             {
-                DataContext = new MainWindowViewModel(coordinatorService),
+                DataContext = new MainWindowViewModel(
+                    coordinatorService,
+                    new IntegrationStatusService()),
             };
         }
 
@@ -62,21 +58,18 @@ public partial class App : Application
         }
     }
 
-    [SupportedOSPlatform("windows")]
-    private static IIdentityService CreateWindowsIdentityService() =>
+    private static IIdentityService CreateIdentityService() =>
         new IdentityService(
             AppEnvironment.GetIdentityRoot(),
             new FileSystemIdentityStore(
                 AppEnvironment.GetIdentityRoot(),
                 new Ed25519KeyPairGenerator(),
-                new DpapiPrivateKeyProtector()));
+                PrivateKeyProtectorFactory.Create()));
 
-    [SupportedOSPlatform("windows")]
-    private static LocalWorkspaceService CreateWindowsWorkspaceService(IProjectWorkspaceStore workspaceStore) =>
+    private static LocalWorkspaceService CreateWorkspaceService(IProjectWorkspaceStore workspaceStore) =>
         new(AppEnvironment.GetWorkspaceRoot(), workspaceStore);
 
-    [SupportedOSPlatform("windows")]
-    private static ProjectWorkspaceCoordinatorService CreateWindowsProjectCoordinator(
+    private static ProjectWorkspaceCoordinatorService CreateProjectCoordinator(
         IIdentityService identityService)
     {
         ISignedDocumentStore signedDocumentStore = new FileSystemSignedDocumentStore(
@@ -84,13 +77,25 @@ public partial class App : Application
             new Ed25519SignatureService());
         IProjectWorkspaceStore workspaceStore = new FileSystemProjectWorkspaceStore(signedDocumentStore);
         var snapshotBuilder = new WorkspaceExchangeSnapshotBuilder();
-        var workspaceService = CreateWindowsWorkspaceService(workspaceStore);
+        var syncStateStore = new FileSystemSyncStateStore();
+        var syncAnalyzer = new WorkspaceSyncAnalyzer(snapshotBuilder);
+        var auditLogService = new FileSystemAuditLogService(signedDocumentStore);
+        var workspaceSyncService = new FileSystemWorkspaceSyncService(
+            snapshotBuilder,
+            syncAnalyzer,
+            new FileSystemSyncManifestStore(signedDocumentStore, snapshotBuilder),
+            syncStateStore,
+            new WorkspaceExchangeValidator(new Ed25519SignatureService()),
+            auditLogService);
 
         return new ProjectWorkspaceCoordinatorService(
             identityService,
             workspaceStore,
-            new FileSystemSyncStateStore(),
-            new WorkspaceSyncAnalyzer(snapshotBuilder),
-            new RecentProjectsStore(AppEnvironment.GetRecentProjectsPath()));
+            syncStateStore,
+            syncAnalyzer,
+            workspaceSyncService,
+            new RecentProjectsStore(AppEnvironment.GetRecentProjectsPath()),
+            auditLogService,
+            new SharedFolderSafetyInspector());
     }
 }

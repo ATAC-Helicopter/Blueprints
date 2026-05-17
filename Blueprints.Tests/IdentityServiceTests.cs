@@ -1,9 +1,7 @@
-using System.Runtime.Versioning;
 using Blueprints.Security.Services;
 
 namespace Blueprints.Tests;
 
-[SupportedOSPlatform("windows")]
 public sealed class IdentityServiceTests : IDisposable
 {
     private readonly string _rootDirectory = Path.Combine(
@@ -15,17 +13,12 @@ public sealed class IdentityServiceTests : IDisposable
     [Fact]
     public void GetOrCreateDefaultIdentity_CreatesThenReloadsSameIdentity()
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            return;
-        }
-
         Directory.CreateDirectory(_rootDirectory);
 
         var store = new FileSystemIdentityStore(
             _rootDirectory,
             new Ed25519KeyPairGenerator(),
-            new DpapiPrivateKeyProtector());
+            new LocalFilePrivateKeyProtector(Path.Combine(_rootDirectory, "protector.key")));
 
         var service = new IdentityService(_rootDirectory, store);
 
