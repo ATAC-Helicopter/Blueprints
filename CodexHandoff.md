@@ -28,6 +28,14 @@ Expected branch:
 
 - `develop`
 
+GitHub default branch:
+
+- `develop`
+
+Branch note:
+
+- `main` is stale historical state; do not promote through it until it is intentionally rebuilt or retired.
+
 Important current work:
 
 - Shared-folder safety and audit-log foundations have been implemented locally.
@@ -295,7 +303,6 @@ Use this workflow unless there is a strong reason not to:
 
 Protected branches:
 
-- `main`
 - `develop`
 
 Repository posture:

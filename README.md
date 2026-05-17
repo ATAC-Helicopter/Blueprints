@@ -74,10 +74,10 @@ On Linux, `scripts/run-app.sh` prints a clearer diagnostic when running from a W
 
 ## Internal Branch Workflow
 
-- `main` is the stable branch
-- `develop` is the integration branch
-- issue work happens on `feature/<number>-<slug>` or `chore/<number>-<slug>`
-- work is merged into `develop` first, then promoted intentionally to `main`
+- `develop` is the default branch and current product line
+- `main` is stale historical state until it is intentionally retired or rebuilt from `develop`
+- issue work happens on `feature/<slug>` or `chore/<slug>`
+- work is merged or rebased into `develop` after verification
 
 ## Release Posture
 
