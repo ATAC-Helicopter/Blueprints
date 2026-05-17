@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Text.Json;
 using Blueprints.App.Models;
 using Blueprints.App.Services;
 using Blueprints.Collaboration.Enums;
@@ -16,6 +17,7 @@ namespace Blueprints.App.ViewModels;
 public partial class MainWindowViewModel : ViewModelBase
 {
     private readonly ProjectWorkspaceCoordinatorService? _coordinatorService;
+    private readonly IntegrationStatusService _integrationStatusService;
     private LocalWorkspaceSession? _currentSession;
     private string _title = "Blueprints Setup";
     private ProjectSummary _currentProject = new(string.Empty, string.Empty, TrustState.Corrupt, string.Empty);
@@ -63,6 +65,12 @@ public partial class MainWindowViewModel : ViewModelBase
     private MemberRole _memberEditorRole = MemberRole.Editor;
     private bool _memberEditorIsActive = true;
     private string? _selectedConflictPath;
+    private SyncDiagnosticCard? _selectedSyncDiagnostic;
+    private string _selectedConflictSemanticSummary = string.Empty;
+    private string _selectedConflictLocalPreview = string.Empty;
+    private string _selectedConflictSharedPreview = string.Empty;
+    private string _localGitRepositoryPath = string.Empty;
+    private string _integrationMessage = string.Empty;
 
     public MainWindowViewModel()
     {
@@ -72,21 +80,33 @@ public partial class MainWindowViewModel : ViewModelBase
         RecentProjects = new ObservableCollection<RecentProjectReference>();
         Members = new ObservableCollection<WorkspaceMemberCard>();
         Conflicts = new ObservableCollection<string>();
+        SyncDiagnostics = new ObservableCollection<SyncDiagnosticCard>();
+        TrustDiagnostics = new ObservableCollection<TrustDiagnosticCard>();
+        Integrations = new ObservableCollection<IntegrationStatusCard>();
+        _integrationStatusService = new IntegrationStatusService();
         ApplyDesignSession(CreateDesignSession());
+        RefreshIntegrations();
     }
 
-    public MainWindowViewModel(ProjectWorkspaceCoordinatorService coordinatorService)
+    public MainWindowViewModel(
+        ProjectWorkspaceCoordinatorService coordinatorService,
+        IntegrationStatusService integrationStatusService)
     {
         _coordinatorService = coordinatorService;
+        _integrationStatusService = integrationStatusService;
         Versions = new ObservableCollection<WorkspaceVersionCard>();
         AvailableItemTypes = new ObservableCollection<string>();
         AvailableCategories = new ObservableCollection<string>();
         RecentProjects = new ObservableCollection<RecentProjectReference>();
         Members = new ObservableCollection<WorkspaceMemberCard>();
         Conflicts = new ObservableCollection<string>();
+        SyncDiagnostics = new ObservableCollection<SyncDiagnosticCard>();
+        TrustDiagnostics = new ObservableCollection<TrustDiagnosticCard>();
+        Integrations = new ObservableCollection<IntegrationStatusCard>();
 
         RefreshRecentProjects();
         RefreshSuggestedPaths();
+        RefreshIntegrations();
         ApplySetupState("Create a new project or open an existing workspace.");
     }
 
@@ -101,6 +121,24 @@ public partial class MainWindowViewModel : ViewModelBase
     public ObservableCollection<WorkspaceMemberCard> Members { get; }
 
     public ObservableCollection<string> Conflicts { get; }
+
+    public ObservableCollection<SyncDiagnosticCard> SyncDiagnostics { get; }
+
+    public ObservableCollection<TrustDiagnosticCard> TrustDiagnostics { get; }
+
+    public ObservableCollection<IntegrationStatusCard> Integrations { get; }
+
+    public string LocalGitRepositoryPath
+    {
+        get => _localGitRepositoryPath;
+        set => SetProperty(ref _localGitRepositoryPath, value);
+    }
+
+    public string IntegrationMessage
+    {
+        get => _integrationMessage;
+        private set => SetProperty(ref _integrationMessage, value);
+    }
 
     public string Title
     {
@@ -383,9 +421,40 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             if (SetProperty(ref _selectedConflictPath, value))
             {
+                RefreshSelectedConflictPreview();
                 OnPropertyChanged(nameof(CanResolveSelectedConflict));
             }
         }
+    }
+
+    public SyncDiagnosticCard? SelectedSyncDiagnostic
+    {
+        get => _selectedSyncDiagnostic;
+        set
+        {
+            if (SetProperty(ref _selectedSyncDiagnostic, value) && value is not null)
+            {
+                SelectedConflictPath = value.Path;
+            }
+        }
+    }
+
+    public string SelectedConflictLocalPreview
+    {
+        get => _selectedConflictLocalPreview;
+        private set => SetProperty(ref _selectedConflictLocalPreview, value);
+    }
+
+    public string SelectedConflictSemanticSummary
+    {
+        get => _selectedConflictSemanticSummary;
+        private set => SetProperty(ref _selectedConflictSemanticSummary, value);
+    }
+
+    public string SelectedConflictSharedPreview
+    {
+        get => _selectedConflictSharedPreview;
+        private set => SetProperty(ref _selectedConflictSharedPreview, value);
     }
 
     public WorkspaceMemberCard? SelectedMember
@@ -517,6 +586,10 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public bool CanResolveSelectedConflict =>
         HasConflicts && !string.IsNullOrWhiteSpace(SelectedConflictPath);
+
+    public bool HasSyncDiagnostics => SyncDiagnostics.Count > 0;
+
+    public bool HasTrustDiagnostics => TrustDiagnostics.Count > 0;
 
     public string WorkspaceModeSummary =>
         CurrentProject.TrustState switch
@@ -743,6 +816,87 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    private void SaveLocalGitRepositoryPath()
+    {
+        try
+        {
+            var settings = _integrationStatusService.GetSettings();
+            _integrationStatusService.SaveSettings(settings with
+            {
+                LocalGitRepositoryPath = LocalGitRepositoryPath.Trim(),
+            });
+            RefreshIntegrations();
+            IntegrationMessage = string.IsNullOrWhiteSpace(LocalGitRepositoryPath)
+                ? "Local Git repository link cleared."
+                : "Local Git repository link saved.";
+        }
+        catch (Exception exception)
+        {
+            IntegrationMessage = exception.Message;
+        }
+    }
+
+    [RelayCommand]
+    private void RefreshIntegrationStatuses()
+    {
+        try
+        {
+            RefreshIntegrations();
+            IntegrationMessage = "Integration statuses refreshed.";
+        }
+        catch (Exception exception)
+        {
+            IntegrationMessage = exception.Message;
+        }
+    }
+
+    [RelayCommand]
+    private void PushWorkspace()
+    {
+        if (_coordinatorService is null || _currentSession is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var localRoot = _currentSession.Paths.LocalWorkspaceRoot;
+            var sharedRoot = _currentSession.Paths.SharedProjectRoot;
+            var result = _coordinatorService.PushWorkspace(localRoot, sharedRoot);
+            ApplySession(_coordinatorService.RefreshProject(localRoot, sharedRoot));
+            ApplySyncResultDiagnostics(result);
+            WorkspaceMessage = result.Summary;
+        }
+        catch (Exception exception)
+        {
+            WorkspaceMessage = exception.Message;
+        }
+    }
+
+    [RelayCommand]
+    private void PullWorkspace()
+    {
+        if (_coordinatorService is null || _currentSession is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var localRoot = _currentSession.Paths.LocalWorkspaceRoot;
+            var sharedRoot = _currentSession.Paths.SharedProjectRoot;
+            var result = _coordinatorService.PullWorkspace(localRoot, sharedRoot);
+            ApplySession(_coordinatorService.RefreshProject(localRoot, sharedRoot));
+            ApplySyncResultDiagnostics(result);
+            WorkspaceMessage = result.Summary;
+        }
+        catch (Exception exception)
+        {
+            WorkspaceMessage = exception.Message;
+        }
+    }
+
+    [RelayCommand]
     private void ResolveConflictKeepLocal() =>
         ResolveSelectedConflict(ConflictResolutionChoice.KeepLocal);
 
@@ -943,6 +1097,23 @@ public partial class MainWindowViewModel : ViewModelBase
             Conflicts.Add(conflictPath);
         }
 
+        SyncDiagnostics.Clear();
+        foreach (var conflictPath in session.ConflictPaths)
+        {
+            SyncDiagnostics.Add(
+                new SyncDiagnosticCard(
+                    "Conflict",
+                    "Workspace analysis",
+                    conflictPath,
+                    "Local and shared copies both changed since the last trusted sync baseline."));
+        }
+
+        TrustDiagnostics.Clear();
+        foreach (var diagnostic in BuildTrustDiagnostics(session))
+        {
+            TrustDiagnostics.Add(diagnostic);
+        }
+
         Title = $"{project.Name} ({project.ProjectCode})";
         TrustSummary = session.LoadResult.TrustReport.Summary;
         WorkspacePath = session.Paths.LocalWorkspaceRoot;
@@ -980,6 +1151,7 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         SelectedConflictPath = Conflicts.FirstOrDefault();
+        SelectedSyncDiagnostic = SyncDiagnostics.FirstOrDefault();
 
         NewVersionName = NextSuggestedVersionName();
         OnPropertyChanged(nameof(TrustBadge));
@@ -994,6 +1166,8 @@ public partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(CanMutateWorkspace));
         OnPropertyChanged(nameof(WorkspaceModeSummary));
         OnPropertyChanged(nameof(CanResolveSelectedConflict));
+        OnPropertyChanged(nameof(HasSyncDiagnostics));
+        OnPropertyChanged(nameof(HasTrustDiagnostics));
     }
 
     private void ApplySetupState(string message)
@@ -1015,10 +1189,16 @@ public partial class MainWindowViewModel : ViewModelBase
         AvailableCategories.Clear();
         Members.Clear();
         Conflicts.Clear();
+        SyncDiagnostics.Clear();
+        TrustDiagnostics.Clear();
         SelectedVersion = null;
         SelectedItem = null;
         SelectedMember = null;
         SelectedConflictPath = null;
+        SelectedSyncDiagnostic = null;
+        SelectedConflictSemanticSummary = string.Empty;
+        SelectedConflictLocalPreview = string.Empty;
+        SelectedConflictSharedPreview = string.Empty;
         WorkspaceMessage = string.Empty;
         ChangelogPreview = string.Empty;
         LastChangelogExportPath = string.Empty;
@@ -1042,6 +1222,8 @@ public partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(CanMutateWorkspace));
         OnPropertyChanged(nameof(WorkspaceModeSummary));
         OnPropertyChanged(nameof(CanResolveSelectedConflict));
+        OnPropertyChanged(nameof(HasSyncDiagnostics));
+        OnPropertyChanged(nameof(HasTrustDiagnostics));
     }
 
     private void ApplyDesignSession(LocalWorkspaceSession session)
@@ -1066,6 +1248,18 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         SelectedRecentProject = RecentProjects.FirstOrDefault();
+    }
+
+    private void RefreshIntegrations()
+    {
+        var settings = _integrationStatusService.GetSettings();
+        LocalGitRepositoryPath = settings.LocalGitRepositoryPath;
+
+        Integrations.Clear();
+        foreach (var integration in _integrationStatusService.GetIntegrationStatuses())
+        {
+            Integrations.Add(integration);
+        }
     }
 
     private void RefreshSuggestedPaths()
@@ -1195,6 +1389,347 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
+    private void ApplySyncResultDiagnostics(WorkspaceSyncResult result)
+    {
+        SyncDiagnostics.Clear();
+
+        foreach (var path in result.Conflicts)
+        {
+            SyncDiagnostics.Add(
+                new SyncDiagnosticCard(
+                    result.Success ? "Info" : "Blocked",
+                    result.Operation,
+                    path,
+                    result.Summary));
+        }
+
+        if (SyncDiagnostics.Count == 0)
+        {
+            foreach (var conflictPath in Conflicts)
+            {
+                SyncDiagnostics.Add(
+                    new SyncDiagnosticCard(
+                        "Conflict",
+                        "Workspace analysis",
+                        conflictPath,
+                        "Local and shared copies both changed since the last trusted sync baseline."));
+            }
+        }
+
+        SelectedSyncDiagnostic = SyncDiagnostics.FirstOrDefault(diagnostic =>
+            string.Equals(diagnostic.Path, SelectedConflictPath, StringComparison.Ordinal))
+            ?? SyncDiagnostics.FirstOrDefault();
+        OnPropertyChanged(nameof(HasSyncDiagnostics));
+    }
+
+    private void RefreshSelectedConflictPreview()
+    {
+        if (_currentSession is null || string.IsNullOrWhiteSpace(SelectedConflictPath))
+        {
+            SelectedConflictSemanticSummary = "Select a diagnostic path to see the document summary.";
+            SelectedConflictLocalPreview = "Select a diagnostic path to preview the local copy.";
+            SelectedConflictSharedPreview = "Select a diagnostic path to preview the shared copy.";
+            return;
+        }
+
+        var localPreview = ReadWorkspacePreview(
+            _currentSession.Paths.LocalWorkspaceRoot,
+            SelectedConflictPath,
+            "Local copy is missing.");
+        var sharedPreview = ReadWorkspacePreview(
+            _currentSession.Paths.SharedProjectRoot,
+            SelectedConflictPath,
+            "Shared copy is missing.");
+
+        SelectedConflictLocalPreview = localPreview;
+        SelectedConflictSharedPreview = sharedPreview;
+        SelectedConflictSemanticSummary = BuildSemanticConflictSummary(
+            SelectedConflictPath,
+            localPreview,
+            sharedPreview);
+    }
+
+    private static string ReadWorkspacePreview(
+        string root,
+        string relativePath,
+        string missingMessage)
+    {
+        var normalizedPath = relativePath.Replace('/', Path.DirectorySeparatorChar);
+        var fullPath = Path.GetFullPath(Path.Combine(root, normalizedPath));
+        var fullRoot = Path.GetFullPath(root);
+        var relativeToRoot = Path.GetRelativePath(fullRoot, fullPath);
+        if (relativeToRoot == ".." || relativeToRoot.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+        {
+            return "Preview blocked because the path is outside the workspace.";
+        }
+
+        if (!File.Exists(fullPath))
+        {
+            return missingMessage;
+        }
+
+        var text = File.ReadAllText(fullPath);
+        const int maxPreviewLength = 8000;
+        return text.Length <= maxPreviewLength
+            ? text
+            : text[..maxPreviewLength] + $"{Environment.NewLine}... preview truncated ...";
+    }
+
+    private static string BuildSemanticConflictSummary(
+        string relativePath,
+        string localJson,
+        string sharedJson)
+    {
+        using var localDocument = TryParseJson(localJson);
+        using var sharedDocument = TryParseJson(sharedJson);
+        if (localDocument is null || sharedDocument is null)
+        {
+            return "Document summary unavailable because one side is missing or is not valid JSON.";
+        }
+
+        var fields = GetSemanticFields(relativePath);
+        if (fields.Count == 0)
+        {
+            return "No semantic presenter exists for this document type yet. Use the raw local/shared previews below.";
+        }
+
+        var lines = new List<string>
+        {
+            $"Document: {GetDocumentKind(relativePath)}",
+        };
+
+        foreach (var (label, propertyPath) in fields)
+        {
+            var localValue = ReadJsonValue(localDocument.RootElement, propertyPath);
+            var sharedValue = ReadJsonValue(sharedDocument.RootElement, propertyPath);
+            var marker = string.Equals(localValue, sharedValue, StringComparison.Ordinal) ? "=" : "!=";
+            lines.Add($"{label}: local {marker} shared");
+            lines.Add($"  local: {localValue}");
+            lines.Add($"  shared: {sharedValue}");
+        }
+
+        return string.Join(Environment.NewLine, lines);
+    }
+
+    private static JsonDocument? TryParseJson(string text)
+    {
+        try
+        {
+            return JsonDocument.Parse(text);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static IReadOnlyList<(string Label, string PropertyPath)> GetSemanticFields(string relativePath)
+    {
+        var normalizedPath = relativePath.Replace('\\', '/');
+        if (string.Equals(normalizedPath, "project/project.json", StringComparison.Ordinal))
+        {
+            return
+            [
+                ("Name", "name"),
+                ("Project code", "projectCode"),
+                ("Versioning scheme", "versioningScheme"),
+                ("Categories", "defaultCategories"),
+                ("Item types", "itemTypes"),
+                ("Item key rules", "itemKeyRules"),
+            ];
+        }
+
+        if (string.Equals(normalizedPath, "project/members.json", StringComparison.Ordinal))
+        {
+            return
+            [
+                ("Membership revision", "membershipRevision"),
+                ("Members", "members"),
+            ];
+        }
+
+        if (normalizedPath.StartsWith("versions/", StringComparison.Ordinal) &&
+            normalizedPath.EndsWith("/version.json", StringComparison.Ordinal))
+        {
+            return
+            [
+                ("Name", "name"),
+                ("Status", "status"),
+                ("Released UTC", "releasedUtc"),
+                ("Notes", "notes"),
+                ("Manual order", "manualOrder"),
+            ];
+        }
+
+        if (normalizedPath.StartsWith("versions/", StringComparison.Ordinal) &&
+            normalizedPath.Contains("/items/", StringComparison.Ordinal) &&
+            normalizedPath.EndsWith(".json", StringComparison.Ordinal))
+        {
+            return
+            [
+                ("Key", "itemKey"),
+                ("Title", "title"),
+                ("Category", "categoryId"),
+                ("Type", "itemKeyTypeId"),
+                ("Done", "isDone"),
+                ("Description", "description"),
+                ("Tags", "tags"),
+                ("Last modified by", "lastModifiedByName"),
+            ];
+        }
+
+        if (normalizedPath.StartsWith("log/", StringComparison.Ordinal) &&
+            normalizedPath.EndsWith(".json", StringComparison.Ordinal))
+        {
+            return
+            [
+                ("Operation", "operation"),
+                ("Summary", "summary"),
+                ("Timestamp UTC", "timestampUtc"),
+                ("Author", "authorDisplayName"),
+                ("Membership revision seen", "membershipRevisionSeen"),
+                ("Previous entry hash", "previousEntryHash"),
+            ];
+        }
+
+        return [];
+    }
+
+    private static string GetDocumentKind(string relativePath)
+    {
+        var normalizedPath = relativePath.Replace('\\', '/');
+        if (string.Equals(normalizedPath, "project/project.json", StringComparison.Ordinal))
+        {
+            return "Project configuration";
+        }
+
+        if (string.Equals(normalizedPath, "project/members.json", StringComparison.Ordinal))
+        {
+            return "Membership";
+        }
+
+        if (normalizedPath.StartsWith("versions/", StringComparison.Ordinal) &&
+            normalizedPath.EndsWith("/version.json", StringComparison.Ordinal))
+        {
+            return "Version";
+        }
+
+        if (normalizedPath.StartsWith("versions/", StringComparison.Ordinal) &&
+            normalizedPath.Contains("/items/", StringComparison.Ordinal))
+        {
+            return "Release item";
+        }
+
+        if (normalizedPath.StartsWith("log/", StringComparison.Ordinal))
+        {
+            return "Audit log entry";
+        }
+
+        return "Signed document";
+    }
+
+    private static string ReadJsonValue(JsonElement root, string propertyPath)
+    {
+        var current = root;
+        foreach (var part in propertyPath.Split('.', StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (current.ValueKind != JsonValueKind.Object || !current.TryGetProperty(part, out current))
+            {
+                return "(missing)";
+            }
+        }
+
+        return current.ValueKind switch
+        {
+            JsonValueKind.Null => "(null)",
+            JsonValueKind.String => current.GetString() ?? string.Empty,
+            JsonValueKind.Number => current.GetRawText(),
+            JsonValueKind.True => "true",
+            JsonValueKind.False => "false",
+            JsonValueKind.Array => $"{current.GetArrayLength()} entries",
+            JsonValueKind.Object => $"{current.EnumerateObject().Count()} fields",
+            _ => current.GetRawText(),
+        };
+    }
+
+    private static IReadOnlyList<TrustDiagnosticCard> BuildTrustDiagnostics(LocalWorkspaceSession session)
+    {
+        var diagnostics = new List<TrustDiagnosticCard>
+        {
+            new(
+                session.LoadResult.TrustReport.State == TrustState.Trusted ? "Ok" : "Blocked",
+                "Workspace trust",
+                session.LoadResult.TrustReport.Summary,
+                session.LoadResult.TrustReport.State == TrustState.Trusted
+                    ? "Workspace mutations are allowed while signatures, audit continuity, and safety checks remain valid."
+                    : "Treat this workspace as read-only. Recheck trust after restoring signed files from a known-good local or shared copy."),
+        };
+
+        diagnostics.Add(
+            new TrustDiagnosticCard(
+                session.AuditLogValidation.IsValid ? "Ok" : "Blocked",
+                "Audit chain",
+                session.AuditLogValidation.Summary,
+                session.AuditLogValidation.IsValid
+                    ? $"Audit chain contains {session.AuditLogValidation.EntryCount} signed entries."
+                    : BuildAuditRecoveryGuidance(session.AuditLogValidation.InvalidEntryPaths)));
+
+        if (session.SharedFolderSafety.Findings.Count == 0)
+        {
+            diagnostics.Add(
+                new TrustDiagnosticCard(
+                    "Ok",
+                    "Shared folder",
+                    "No shared-folder safety findings.",
+                    "Keep the shared folder separate from the local workspace and limit write access to trusted collaborators."));
+        }
+        else
+        {
+            diagnostics.AddRange(
+                session.SharedFolderSafety.Findings.Select(finding =>
+                    new TrustDiagnosticCard(
+                        finding.Severity,
+                        $"Shared folder: {finding.Code}",
+                        finding.Message,
+                        BuildSharedFolderGuidance(finding))));
+        }
+
+        if (session.ConflictPaths.Count > 0)
+        {
+            diagnostics.Add(
+                new TrustDiagnosticCard(
+                    "Blocked",
+                    "Sync conflicts",
+                    $"{session.ConflictPaths.Count} sync conflicts require resolution.",
+                    "Open the Sync tab, inspect the semantic preview, then keep local or accept shared for each conflict."));
+        }
+
+        return diagnostics;
+    }
+
+    private static string BuildAuditRecoveryGuidance(IReadOnlyList<string> invalidEntryPaths)
+    {
+        if (invalidEntryPaths.Count == 0)
+        {
+            return "Audit validation failed without a specific path. Restore the log folder from a known-good copy before editing.";
+        }
+
+        return "Invalid entries: "
+            + string.Join(", ", invalidEntryPaths)
+            + ". Restore these entries and their signatures from a known-good copy, then recheck trust.";
+    }
+
+    private static string BuildSharedFolderGuidance(SharedFolderSafetyFinding finding) =>
+        finding.Code switch
+        {
+            "path-overlap" => "Choose a shared sync folder outside the local workspace. The shared folder is an exchange area, not the live editing workspace.",
+            "missing-folder" => "Create the shared folder or choose an existing sync location before relying on collaboration state.",
+            "acl-check-unavailable" => "On Linux/macOS this warning is expected. Keep filesystem permissions narrow and avoid public writable folders.",
+            "broad-write-acl" => "Restrict write permissions to trusted collaborators before using this folder for signed exchange.",
+            "acl-check-failed" => "Inspect folder permissions manually and rerun trust checks after access issues are fixed.",
+            _ => "Review this finding before pushing or pulling shared changes.",
+        };
+
     private string NextSuggestedVersionName()
     {
         if (!Versions.Any())
@@ -1248,7 +1783,7 @@ public partial class MainWindowViewModel : ViewModelBase
                     "Local Admin",
                     "design-key",
                     Convert.ToBase64String([4, 5, 6]),
-                    "Windows DPAPI",
+                    "Local key protector",
                     createdUtc),
                 new SignatureKeyMaterial("design-key", [1, 2, 3]),
                 new SignaturePublicKey("design-key", [4, 5, 6])),
@@ -1328,6 +1863,15 @@ public partial class MainWindowViewModel : ViewModelBase
                     ]),
                 new TrustReport(TrustState.Trusted, "Validated 4 signed documents.", createdUtc)),
             new SyncSummary(SyncHealth.Ready, 3, 0, 0),
-            []);
+            [],
+            new AuditLogValidationResult(true, 4, "design-hash", [], "Validated 4 audit entries."),
+            new SharedFolderSafetyReport(
+                true,
+                [
+                    new SharedFolderSafetyFinding(
+                        "acl-check-unavailable",
+                        "Warning",
+                        "Windows ACL safety checks are unavailable on this operating system."),
+                ]));
     }
 }

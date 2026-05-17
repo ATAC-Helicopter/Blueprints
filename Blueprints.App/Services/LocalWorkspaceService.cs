@@ -43,7 +43,9 @@ public sealed class LocalWorkspaceService
             WorkspacePathResolver.Create(_workspaceRoot, _workspaceRoot),
             loadResult,
             new SyncSummary(SyncHealth.Idle, 0, 0, 0),
-            []);
+            [],
+            new AuditLogValidationResult(true, 0, null, [], "Audit validation is not configured for the starter workspace service."),
+            SharedFolderSafetyReport.Safe());
     }
 
     private static ProjectWorkspaceSnapshot CreateStarterWorkspace(StoredIdentity identity)

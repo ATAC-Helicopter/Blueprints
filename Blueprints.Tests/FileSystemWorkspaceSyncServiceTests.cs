@@ -161,6 +161,55 @@ public sealed class FileSystemWorkspaceSyncServiceTests : IDisposable
         Assert.False(File.Exists(Path.Combine(localRoot, "project", "project.json")));
     }
 
+    [Fact]
+    public void Pull_BlocksWhenSharedAuditLogChainIsInvalid()
+    {
+        var localRoot = Path.Combine(_rootDirectory, "audit-local");
+        var sharedRoot = Path.Combine(_rootDirectory, "audit-shared");
+        Directory.CreateDirectory(localRoot);
+        Directory.CreateDirectory(sharedRoot);
+
+        var keyPair = new Ed25519KeyPairGenerator().Generate("sync-admin");
+        var signingKey = new SignatureKeyMaterial(keyPair.KeyId, keyPair.PrivateKeyBytes);
+        var publicKey = new SignaturePublicKey(keyPair.KeyId, keyPair.PublicKeyBytes);
+        var signedStore = new FileSystemSignedDocumentStore(new CanonicalJsonSerializer(), new Ed25519SignatureService());
+        var workspaceStore = new FileSystemProjectWorkspaceStore(signedStore);
+        var workspace = TestWorkspaceFactory.CreateWorkspaceSnapshot();
+        workspaceStore.Save(sharedRoot, workspace, signingKey);
+
+        var auditLog = new FileSystemAuditLogService(signedStore);
+        auditLog.Append(
+            sharedRoot,
+            workspace.Project.ProjectId,
+            "project.create",
+            "Created project.",
+            Guid.NewGuid(),
+            "Sync Admin",
+            workspace.Members.MembershipRevision,
+            signingKey);
+        auditLog.Append(
+            sharedRoot,
+            workspace.Project.ProjectId,
+            "version.save",
+            "Saved version.",
+            Guid.NewGuid(),
+            "Sync Admin",
+            workspace.Members.MembershipRevision,
+            signingKey);
+
+        File.Delete(FindGenesisAuditEntry(Path.Combine(sharedRoot, "log")));
+
+        var manifestStore = new FileSystemSyncManifestStore(signedStore, new WorkspaceExchangeSnapshotBuilder());
+        manifestStore.Write(sharedRoot, workspace.Project.ProjectId, 1, "batch-0001", signingKey);
+
+        var service = CreateService(signedStore);
+        var result = service.Pull(new WorkspacePaths(localRoot, sharedRoot), publicKey);
+
+        Assert.False(result.Success);
+        Assert.Contains("audit log", result.Summary, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("log/", result.Conflicts.Single(), StringComparison.Ordinal);
+    }
+
     private static FileSystemWorkspaceSyncService CreateService(FileSystemSignedDocumentStore signedStore)
     {
         var builder = new WorkspaceExchangeSnapshotBuilder();
@@ -168,8 +217,13 @@ public sealed class FileSystemWorkspaceSyncServiceTests : IDisposable
         var manifestStore = new FileSystemSyncManifestStore(signedStore, builder);
         var stateStore = new FileSystemSyncStateStore();
         var validator = new WorkspaceExchangeValidator(new Ed25519SignatureService());
-        return new FileSystemWorkspaceSyncService(builder, analyzer, manifestStore, stateStore, validator);
+        var auditLog = new FileSystemAuditLogService(signedStore);
+        return new FileSystemWorkspaceSyncService(builder, analyzer, manifestStore, stateStore, validator, auditLog);
     }
+
+    private static string FindGenesisAuditEntry(string logRoot) =>
+        Directory.EnumerateFiles(logRoot, "*.json")
+            .Single(path => File.ReadAllText(path).Contains("\"previousEntryHash\":null", StringComparison.Ordinal));
 
     public void Dispose()
     {

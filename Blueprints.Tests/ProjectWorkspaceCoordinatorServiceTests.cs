@@ -4,6 +4,7 @@ using Blueprints.App.Models;
 using Blueprints.App.Services;
 using Blueprints.Collaboration.Models;
 using Blueprints.Core.Enums;
+using Blueprints.Security.Abstractions;
 using Blueprints.Security.Services;
 using Blueprints.Storage.Services;
 
@@ -41,6 +42,79 @@ public sealed class ProjectWorkspaceCoordinatorServiceTests : IDisposable
 
         var recent = service.GetRecentProjects();
         Assert.Contains(recent, static project => project.Name == "Atlas Planner" && project.ProjectCode == "AP");
+    }
+
+    [Fact]
+    public void CreateProject_WritesSignedAuditEntry()
+    {
+        var localRoot = Path.Combine(_rootDirectory, "audit-create-local", "AP");
+        var sharedRoot = Path.Combine(_rootDirectory, "audit-create-shared", "AP");
+        var service = CreateService();
+
+        service.CreateProject(
+            new ProjectCreateRequest(
+                "Atlas Planner",
+                "AP",
+                "SemVer",
+                localRoot,
+                sharedRoot));
+
+        var auditEntries = Directory.EnumerateFiles(Path.Combine(localRoot, "log"), "*.json").ToArray();
+        Assert.Single(auditEntries);
+        Assert.True(File.Exists(Path.ChangeExtension(auditEntries.Single(), ".sig")));
+    }
+
+    [Fact]
+    public void CreateProject_BlocksSharedFolderInsideLocalWorkspace()
+    {
+        var localRoot = Path.Combine(_rootDirectory, "unsafe-local", "BP");
+        var sharedRoot = Path.Combine(localRoot, "shared");
+        var service = CreateService();
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => service.CreateProject(
+                new ProjectCreateRequest(
+                    "Blueprints",
+                    "BP",
+                    "SemVer",
+                    localRoot,
+                    sharedRoot)));
+
+        Assert.Contains("shared sync folder", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void OpenProject_MarksWorkspaceCorruptWhenAuditChainIsBroken()
+    {
+        var localRoot = Path.Combine(_rootDirectory, "audit-tamper-local", "BP");
+        var sharedRoot = Path.Combine(_rootDirectory, "audit-tamper-shared", "BP");
+        var service = CreateService();
+
+        service.CreateProject(
+            new ProjectCreateRequest(
+                "Blueprints",
+                "BP",
+                "SemVer",
+                localRoot,
+                sharedRoot));
+        service.SaveVersion(
+            localRoot,
+            sharedRoot,
+            new VersionEditRequest(
+                null,
+                "1.0.0",
+                ReleaseStatus.InProgress,
+                "Baseline"));
+
+        File.Delete(FindGenesisAuditEntry(Path.Combine(localRoot, "log")));
+
+        var opened = service.OpenProject(localRoot, sharedRoot);
+
+        Assert.Equal(TrustState.Corrupt, opened.LoadResult.TrustReport.State);
+        Assert.Contains("audit log", opened.LoadResult.TrustReport.Summary, StringComparison.OrdinalIgnoreCase);
+        Assert.False(opened.AuditLogValidation.IsValid);
+        Assert.NotEmpty(opened.AuditLogValidation.InvalidEntryPaths);
+        Assert.NotNull(opened.SharedFolderSafety);
     }
 
     [Fact]
@@ -133,6 +207,89 @@ public sealed class ProjectWorkspaceCoordinatorServiceTests : IDisposable
         var item = updated.LoadResult.Workspace.Versions[0].Items.Single();
         Assert.Equal("BP-151", item.ItemKey);
         Assert.Equal("Ship create and open workflow", item.Title);
+    }
+
+    [Fact]
+    public void PushWorkspace_PublishesLocalChangesAndRefreshesSyncState()
+    {
+        var localRoot = Path.Combine(_rootDirectory, "push-local", "BP");
+        var sharedRoot = Path.Combine(_rootDirectory, "push-shared", "BP");
+        var service = CreateService();
+
+        service.CreateProject(
+            new ProjectCreateRequest(
+                "Blueprints",
+                "BP",
+                "SemVer",
+                localRoot,
+                sharedRoot));
+        service.SaveVersion(
+            localRoot,
+            sharedRoot,
+            new VersionEditRequest(
+                null,
+                "1.0.0",
+                ReleaseStatus.InProgress,
+                "Baseline"));
+
+        var beforePush = service.OpenProject(localRoot, sharedRoot);
+        Assert.True(beforePush.Sync.PendingOutgoingChanges > 0);
+
+        var result = service.PushWorkspace(localRoot, sharedRoot);
+
+        Assert.True(result.Success);
+        Assert.Equal("push", result.Operation);
+        Assert.True(result.AppliedDocumentCount > 0);
+        Assert.True(File.Exists(Path.Combine(sharedRoot, "manifest", "sync-manifest.json")));
+        Assert.True(File.Exists(Path.Combine(sharedRoot, "project", "project.json")));
+
+        var refreshed = service.OpenProject(localRoot, sharedRoot);
+        Assert.Equal(0, refreshed.Sync.PendingOutgoingChanges);
+        Assert.Equal(0, refreshed.Sync.PendingIncomingChanges);
+    }
+
+    [Fact]
+    public void PullWorkspace_ImportsIncomingSharedChangesAndRefreshesSyncState()
+    {
+        var localRoot = Path.Combine(_rootDirectory, "pull-local", "BP");
+        var sharedRoot = Path.Combine(_rootDirectory, "pull-shared", "BP");
+        var peerRoot = Path.Combine(_rootDirectory, "pull-peer", "BP");
+        var service = CreateService();
+
+        service.CreateProject(
+            new ProjectCreateRequest(
+                "Blueprints",
+                "BP",
+                "SemVer",
+                localRoot,
+                sharedRoot));
+        service.PushWorkspace(localRoot, sharedRoot);
+        CopyDirectory(localRoot, peerRoot);
+
+        service.SaveVersion(
+            peerRoot,
+            sharedRoot,
+            new VersionEditRequest(
+                null,
+                "1.1.0",
+                ReleaseStatus.InProgress,
+                "Peer milestone"));
+        var pushResult = service.PushWorkspace(peerRoot, sharedRoot);
+        Assert.True(pushResult.Success);
+
+        var beforePull = service.OpenProject(localRoot, sharedRoot);
+        Assert.True(beforePull.Sync.PendingIncomingChanges > 0);
+
+        var pullResult = service.PullWorkspace(localRoot, sharedRoot);
+
+        Assert.True(pullResult.Success);
+        Assert.Equal("pull", pullResult.Operation);
+        Assert.True(pullResult.AppliedDocumentCount > 0);
+
+        var refreshed = service.OpenProject(localRoot, sharedRoot);
+        Assert.Contains(refreshed.LoadResult.Workspace.Versions, static version => version.Version.Name == "1.1.0");
+        Assert.Equal(0, refreshed.Sync.PendingIncomingChanges);
+        Assert.Equal(0, refreshed.Sync.PendingOutgoingChanges);
     }
 
     [Fact]
@@ -448,15 +605,52 @@ public sealed class ProjectWorkspaceCoordinatorServiceTests : IDisposable
             new FileSystemIdentityStore(
                 identityRoot,
                 new Ed25519KeyPairGenerator(),
-                new DpapiPrivateKeyProtector()));
+                new TestPrivateKeyProtector()));
         var snapshotBuilder = new Blueprints.Collaboration.Services.WorkspaceExchangeSnapshotBuilder();
+        var syncStateStore = new Blueprints.Collaboration.Services.FileSystemSyncStateStore();
+        var syncAnalyzer = new Blueprints.Collaboration.Services.WorkspaceSyncAnalyzer(snapshotBuilder);
+        var auditLogService = new Blueprints.Collaboration.Services.FileSystemAuditLogService(signedStore);
+        var workspaceSyncService = new Blueprints.Collaboration.Services.FileSystemWorkspaceSyncService(
+            snapshotBuilder,
+            syncAnalyzer,
+            new Blueprints.Collaboration.Services.FileSystemSyncManifestStore(signedStore, snapshotBuilder),
+            syncStateStore,
+            new Blueprints.Collaboration.Services.WorkspaceExchangeValidator(new Ed25519SignatureService()),
+            auditLogService);
 
         return new ProjectWorkspaceCoordinatorService(
             identityService,
             workspaceStore,
-            new Blueprints.Collaboration.Services.FileSystemSyncStateStore(),
-            new Blueprints.Collaboration.Services.WorkspaceSyncAnalyzer(snapshotBuilder),
-            new RecentProjectsStore(Path.Combine(_rootDirectory, "recent-projects.json")));
+            syncStateStore,
+            syncAnalyzer,
+            workspaceSyncService,
+            new RecentProjectsStore(Path.Combine(_rootDirectory, "recent-projects.json")),
+            auditLogService,
+            new Blueprints.Collaboration.Services.SharedFolderSafetyInspector());
+    }
+
+    private static string FindGenesisAuditEntry(string logRoot) =>
+        Directory.EnumerateFiles(logRoot, "*.json")
+            .Single(path => File.ReadAllText(path).Contains("\"previousEntryHash\":null", StringComparison.Ordinal));
+
+    private static void CopyDirectory(string sourceRoot, string destinationRoot)
+    {
+        foreach (var directory in Directory.EnumerateDirectories(sourceRoot, "*", SearchOption.AllDirectories))
+        {
+            Directory.CreateDirectory(Path.Combine(destinationRoot, Path.GetRelativePath(sourceRoot, directory)));
+        }
+
+        foreach (var filePath in Directory.EnumerateFiles(sourceRoot, "*", SearchOption.AllDirectories))
+        {
+            var destinationPath = Path.Combine(destinationRoot, Path.GetRelativePath(sourceRoot, filePath));
+            var destinationDirectory = Path.GetDirectoryName(destinationPath);
+            if (!string.IsNullOrWhiteSpace(destinationDirectory))
+            {
+                Directory.CreateDirectory(destinationDirectory);
+            }
+
+            File.Copy(filePath, destinationPath, overwrite: true);
+        }
     }
 
     public void Dispose()
@@ -465,5 +659,14 @@ public sealed class ProjectWorkspaceCoordinatorServiceTests : IDisposable
         {
             Directory.Delete(_rootDirectory, recursive: true);
         }
+    }
+
+    private sealed class TestPrivateKeyProtector : IPrivateKeyProtector
+    {
+        public string ProviderName => "Test";
+
+        public byte[] Protect(ReadOnlySpan<byte> privateKeyBytes) => privateKeyBytes.ToArray();
+
+        public byte[] Unprotect(ReadOnlySpan<byte> protectedPrivateKeyBytes) => protectedPrivateKeyBytes.ToArray();
     }
 }

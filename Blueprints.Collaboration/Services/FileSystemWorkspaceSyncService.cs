@@ -11,19 +11,22 @@ public sealed class FileSystemWorkspaceSyncService
     private readonly FileSystemSyncManifestStore _manifestStore;
     private readonly FileSystemSyncStateStore _syncStateStore;
     private readonly WorkspaceExchangeValidator _exchangeValidator;
+    private readonly FileSystemAuditLogService _auditLogService;
 
     public FileSystemWorkspaceSyncService(
         WorkspaceExchangeSnapshotBuilder snapshotBuilder,
         WorkspaceSyncAnalyzer analyzer,
         FileSystemSyncManifestStore manifestStore,
         FileSystemSyncStateStore syncStateStore,
-        WorkspaceExchangeValidator exchangeValidator)
+        WorkspaceExchangeValidator exchangeValidator,
+        FileSystemAuditLogService auditLogService)
     {
         _snapshotBuilder = snapshotBuilder;
         _analyzer = analyzer;
         _manifestStore = manifestStore;
         _syncStateStore = syncStateStore;
         _exchangeValidator = exchangeValidator;
+        _auditLogService = auditLogService;
     }
 
     public WorkspaceSyncResult Push(
@@ -147,6 +150,34 @@ public sealed class FileSystemWorkspaceSyncService
                 "Pull blocked because the shared manifest signature is invalid.");
         }
 
+        var manifestContinuityFailures = FindManifestContinuityFailures(
+            workspacePaths.SharedProjectRoot,
+            manifestResult.Document.Entries);
+        if (manifestContinuityFailures.Count > 0)
+        {
+            return new WorkspaceSyncResult(
+                false,
+                "pull",
+                0,
+                state.LastPulledManifestVersion,
+                manifestResult.Document.BatchId,
+                manifestContinuityFailures,
+                "Pull blocked because the shared manifest no longer matches the shared folder content.");
+        }
+
+        var auditValidation = _auditLogService.Validate(workspacePaths.SharedProjectRoot, publicKey);
+        if (!auditValidation.IsValid)
+        {
+            return new WorkspaceSyncResult(
+                false,
+                "pull",
+                0,
+                state.LastPulledManifestVersion,
+                manifestResult.Document.BatchId,
+                auditValidation.InvalidEntryPaths,
+                "Pull blocked because the shared audit log is invalid.");
+        }
+
         var analysis = _analyzer.Analyze(workspacePaths, state.TrackedEntries);
         if (analysis.HasConflicts)
         {
@@ -243,6 +274,30 @@ public sealed class FileSystemWorkspaceSyncService
             return 0;
         }
     }
+
+    private IReadOnlyList<string> FindManifestContinuityFailures(
+        string sharedProjectRoot,
+        IReadOnlyList<SyncManifestEntry> manifestEntries)
+    {
+        try
+        {
+            var sharedEntries = _snapshotBuilder.Build(sharedProjectRoot)
+                .ToDictionary(static entry => entry.DocumentPath, StringComparer.Ordinal);
+            return manifestEntries
+                .Where(entry => !sharedEntries.TryGetValue(entry.DocumentPath, out var sharedEntry) || !Matches(entry, sharedEntry))
+                .Select(static entry => entry.DocumentPath)
+                .OrderBy(static path => path, StringComparer.Ordinal)
+                .ToArray();
+        }
+        catch (FileNotFoundException exception)
+        {
+            return [Path.GetRelativePath(sharedProjectRoot, exception.FileName ?? sharedProjectRoot).Replace('\\', '/')];
+        }
+    }
+
+    private static bool Matches(SyncManifestEntry left, SyncManifestEntry right) =>
+        string.Equals(left.DocumentHash, right.DocumentHash, StringComparison.Ordinal)
+        && string.Equals(left.SignatureHash, right.SignatureHash, StringComparison.Ordinal);
 
     private static void CopyDocumentPair(string sourceRoot, string destinationRoot, string documentPath)
     {

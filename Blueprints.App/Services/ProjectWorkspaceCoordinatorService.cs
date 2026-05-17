@@ -6,6 +6,7 @@ using Blueprints.Core.Enums;
 using Blueprints.Core.Models;
 using Blueprints.Core.Services;
 using Blueprints.Security.Abstractions;
+using Blueprints.Security.Models;
 using Blueprints.Storage.Abstractions;
 using Blueprints.Storage.Models;
 using Blueprints.Storage.Services;
@@ -19,20 +20,29 @@ public sealed class ProjectWorkspaceCoordinatorService
     private readonly IProjectWorkspaceStore _workspaceStore;
     private readonly FileSystemSyncStateStore _syncStateStore;
     private readonly WorkspaceSyncAnalyzer _syncAnalyzer;
+    private readonly FileSystemWorkspaceSyncService _workspaceSyncService;
     private readonly RecentProjectsStore _recentProjectsStore;
+    private readonly FileSystemAuditLogService _auditLogService;
+    private readonly SharedFolderSafetyInspector _sharedFolderSafetyInspector;
 
     public ProjectWorkspaceCoordinatorService(
         IIdentityService identityService,
         IProjectWorkspaceStore workspaceStore,
         FileSystemSyncStateStore syncStateStore,
         WorkspaceSyncAnalyzer syncAnalyzer,
-        RecentProjectsStore recentProjectsStore)
+        FileSystemWorkspaceSyncService workspaceSyncService,
+        RecentProjectsStore recentProjectsStore,
+        FileSystemAuditLogService auditLogService,
+        SharedFolderSafetyInspector sharedFolderSafetyInspector)
     {
         _identityService = identityService;
         _workspaceStore = workspaceStore;
         _syncStateStore = syncStateStore;
         _syncAnalyzer = syncAnalyzer;
+        _workspaceSyncService = workspaceSyncService;
         _recentProjectsStore = recentProjectsStore;
+        _auditLogService = auditLogService;
+        _sharedFolderSafetyInspector = sharedFolderSafetyInspector;
     }
 
     public IReadOnlyList<RecentProjectReference> GetRecentProjects() =>
@@ -45,6 +55,7 @@ public sealed class ProjectWorkspaceCoordinatorService
         var identity = _identityService.GetOrCreateDefaultIdentity("Local Admin");
         var localRoot = ResolveLocalWorkspaceRoot(request.Name, request.ProjectCode, request.LocalWorkspaceRoot);
         var sharedRoot = ResolveSharedWorkspaceRoot(request.Name, request.ProjectCode, request.SharedWorkspaceRoot);
+        EnsureSharedFolderSafe(localRoot, sharedRoot);
 
         if (File.Exists(Path.Combine(localRoot, "project", "project.json")))
         {
@@ -53,6 +64,7 @@ public sealed class ProjectWorkspaceCoordinatorService
 
         var snapshot = CreateProjectSnapshot(identity, request);
         _workspaceStore.Save(localRoot, snapshot, identity.SigningKey);
+        AppendAuditEntry(localRoot, identity, snapshot, "project.create", $"Created project {snapshot.Project.Name}.");
         Directory.CreateDirectory(sharedRoot);
 
         var session = OpenProject(localRoot, sharedRoot);
@@ -67,8 +79,11 @@ public sealed class ProjectWorkspaceCoordinatorService
         var identity = _identityService.GetOrCreateDefaultIdentity("Local Admin");
         var paths = WorkspacePathResolver.Create(localWorkspaceRoot, sharedWorkspaceRoot);
         Directory.CreateDirectory(paths.SharedProjectRoot);
+        var safetyReport = _sharedFolderSafetyInspector.Inspect(paths.SharedProjectRoot, paths.LocalWorkspaceRoot);
 
         var loadResult = _workspaceStore.Load(paths.LocalWorkspaceRoot, identity.PublicKey);
+        var auditValidation = _auditLogService.Validate(paths.LocalWorkspaceRoot, identity.PublicKey);
+        loadResult = ApplyWorkspaceSafety(loadResult, safetyReport, auditValidation);
         var syncState = _syncStateStore.Load(paths.LocalWorkspaceRoot);
         var analysis = _syncAnalyzer.Analyze(paths, syncState.TrackedEntries);
         var conflictPaths = syncState.UnresolvedConflicts
@@ -81,7 +96,14 @@ public sealed class ProjectWorkspaceCoordinatorService
             analysis.IncomingDocumentPaths.Count,
             conflictPaths.Length);
 
-        var session = new LocalWorkspaceSession(identity, paths, loadResult, sync, conflictPaths);
+        var session = new LocalWorkspaceSession(
+            identity,
+            paths,
+            loadResult,
+            sync,
+            conflictPaths,
+            auditValidation,
+            safetyReport);
         RecordRecentProject(session);
         return session;
     }
@@ -159,7 +181,7 @@ public sealed class ProjectWorkspaceCoordinatorService
         return SaveWorkspace(localWorkspaceRoot, sharedWorkspaceRoot, identity, workspace with
         {
             Versions = versions.OrderByDescending(static version => version.Version.CreatedUtc).ToArray(),
-        });
+        }, "version.save", $"Saved version {normalizedName}.");
     }
 
     public LocalWorkspaceSession SaveItem(
@@ -250,7 +272,7 @@ public sealed class ProjectWorkspaceCoordinatorService
         return SaveWorkspace(localWorkspaceRoot, sharedWorkspaceRoot, identity, workspace with
         {
             Versions = versions.ToArray(),
-        });
+        }, "item.save", $"Saved item {normalizedTitle}.");
     }
 
     public LocalWorkspaceSession ReleaseVersion(
@@ -290,7 +312,7 @@ public sealed class ProjectWorkspaceCoordinatorService
         return SaveWorkspace(localWorkspaceRoot, sharedWorkspaceRoot, identity, workspace with
         {
             Versions = versions.ToArray(),
-        });
+        }, "version.release", $"Released version {existing.Version.Name}.");
     }
 
     public ChangelogExportResult ExportVersionChangelog(
@@ -426,6 +448,38 @@ public sealed class ProjectWorkspaceCoordinatorService
         string localWorkspaceRoot,
         string sharedWorkspaceRoot) =>
         OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
+
+    public WorkspaceSyncResult PushWorkspace(
+        string localWorkspaceRoot,
+        string sharedWorkspaceRoot)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(localWorkspaceRoot);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sharedWorkspaceRoot);
+
+        var identity = _identityService.GetOrCreateDefaultIdentity("Local Admin");
+        var session = OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
+        EnsureTrustedWorkspace(session);
+
+        return _workspaceSyncService.Push(
+            session.Paths,
+            session.LoadResult.Workspace.Project.ProjectId,
+            identity.SigningKey,
+            identity.PublicKey);
+    }
+
+    public WorkspaceSyncResult PullWorkspace(
+        string localWorkspaceRoot,
+        string sharedWorkspaceRoot)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(localWorkspaceRoot);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sharedWorkspaceRoot);
+
+        var identity = _identityService.GetOrCreateDefaultIdentity("Local Admin");
+        var session = OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
+        EnsureTrustedWorkspace(session);
+
+        return _workspaceSyncService.Pull(session.Paths, identity.PublicKey);
+    }
 
     public ConflictResolutionResult ResolveConflict(
         string localWorkspaceRoot,
@@ -566,9 +620,12 @@ public sealed class ProjectWorkspaceCoordinatorService
         string localWorkspaceRoot,
         string sharedWorkspaceRoot,
         Security.Models.StoredIdentity identity,
-        ProjectWorkspaceSnapshot workspace)
+        ProjectWorkspaceSnapshot workspace,
+        string operation,
+        string summary)
     {
         _workspaceStore.Save(localWorkspaceRoot, workspace, identity.SigningKey);
+        AppendAuditEntry(localWorkspaceRoot, identity, workspace, operation, summary);
         return OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
     }
 
@@ -591,7 +648,7 @@ public sealed class ProjectWorkspaceCoordinatorService
                     .ThenBy(static member => member.DisplayName, StringComparer.OrdinalIgnoreCase)
                     .ToArray(),
             },
-        });
+        }, "members.save", $"Saved membership revision {nextRevision}.");
     }
 
     private static string GenerateItemKey(
@@ -616,6 +673,78 @@ public sealed class ProjectWorkspaceCoordinatorService
         var (major, minor) = ParseVersion(version.Version.Name);
         var versionSequence = version.Items.Count(item => string.Equals(item.ItemKeyTypeId, itemTypeId, StringComparison.Ordinal)) + 1;
         return ItemKeyFormatter.FormatVersionScoped(rule.Prefix, major, minor, versionSequence);
+    }
+
+    private void AppendAuditEntry(
+        string localWorkspaceRoot,
+        Security.Models.StoredIdentity identity,
+        ProjectWorkspaceSnapshot workspace,
+        string operation,
+        string summary)
+    {
+        _auditLogService.Append(
+            localWorkspaceRoot,
+            workspace.Project.ProjectId,
+            operation,
+            summary,
+            identity.Profile.UserId,
+            identity.Profile.DisplayName,
+            workspace.Members.MembershipRevision,
+            identity.SigningKey);
+    }
+
+    private void EnsureSharedFolderSafe(string localWorkspaceRoot, string sharedWorkspaceRoot)
+    {
+        var safetyReport = _sharedFolderSafetyInspector.Inspect(sharedWorkspaceRoot, localWorkspaceRoot);
+        var blockingFinding = safetyReport.Findings.FirstOrDefault(static finding => string.Equals(finding.Severity, "Error", StringComparison.Ordinal));
+        if (blockingFinding is not null)
+        {
+            throw new InvalidOperationException(blockingFinding.Message);
+        }
+    }
+
+    private ProjectWorkspaceLoadResult ApplyWorkspaceSafety(
+        ProjectWorkspaceLoadResult loadResult,
+        SharedFolderSafetyReport safetyReport,
+        AuditLogValidationResult auditValidation)
+    {
+        if (loadResult.TrustReport.State != TrustState.Trusted)
+        {
+            return loadResult;
+        }
+
+        if (!safetyReport.IsSafe)
+        {
+            return loadResult with
+            {
+                TrustReport = new TrustReport(
+                    TrustState.Corrupt,
+                    string.Join(" ", safetyReport.Findings.Select(static finding => finding.Message)),
+                    DateTimeOffset.UtcNow),
+            };
+        }
+
+        if (!auditValidation.IsValid)
+        {
+            return loadResult with
+            {
+                TrustReport = new TrustReport(
+                    TrustState.Corrupt,
+                    auditValidation.Summary,
+                    DateTimeOffset.UtcNow),
+            };
+        }
+
+        var warningSummary = safetyReport.Findings.Count == 0
+            ? string.Empty
+            : " " + string.Join(" ", safetyReport.Findings.Select(static finding => finding.Message));
+        return loadResult with
+        {
+            TrustReport = loadResult.TrustReport with
+            {
+                Summary = $"{loadResult.TrustReport.Summary} {auditValidation.Summary}{warningSummary}",
+            },
+        };
     }
 
     private static void EnsureVersionEditable(ReleaseStatus status)

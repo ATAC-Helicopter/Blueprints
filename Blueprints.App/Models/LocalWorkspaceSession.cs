@@ -9,4 +9,6 @@ public sealed record LocalWorkspaceSession(
     WorkspacePaths Paths,
     ProjectWorkspaceLoadResult LoadResult,
     SyncSummary Sync,
-    IReadOnlyList<string> ConflictPaths);
+    IReadOnlyList<string> ConflictPaths,
+    AuditLogValidationResult AuditLogValidation,
+    SharedFolderSafetyReport SharedFolderSafety);
