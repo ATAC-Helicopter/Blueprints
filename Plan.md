@@ -86,7 +86,7 @@ Blueprints addresses this by treating versions, membership, signatures, and chan
 
 - Solo developers
 - Indie game developers
-- Small open-source teams of 2 to 5 members
+- Small software teams of 2 to 5 members
 
 ### Secondary users
 

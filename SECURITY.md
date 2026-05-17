@@ -1,10 +1,10 @@
 # Security Policy
 
-## Reporting
+## Private Reporting
 
-Do not open public issues for security vulnerabilities.
+Do not create public reports or external issues for security vulnerabilities.
 
-For now, report security concerns privately to the repository owner through GitHub security reporting if enabled, or through a private direct channel.
+This is a private, closed-source repository. Report security concerns only through a private direct channel with the repository owner.
 
 ## Project sensitivity
 
