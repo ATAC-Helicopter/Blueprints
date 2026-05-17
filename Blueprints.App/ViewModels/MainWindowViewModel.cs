@@ -55,6 +55,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private string _selectedCategoryId = "added";
     private string _changelogPreview = string.Empty;
     private string _lastChangelogExportPath = string.Empty;
+    private string _gitChangelogSummary = string.Empty;
     private string _identityPublicKey = string.Empty;
     private WorkspaceMemberCard? _selectedMember;
     private string _inviteUserId = string.Empty;
@@ -327,6 +328,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 PopulateVersionEditor();
                 ChangelogPreview = string.Empty;
                 LastChangelogExportPath = string.Empty;
+                GitChangelogSummary = string.Empty;
                 SelectedItem = value?.Items.FirstOrDefault();
                 OnPropertyChanged(nameof(CanEditSelectedVersion));
                 OnPropertyChanged(nameof(CanEditItems));
@@ -412,6 +414,12 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         get => _lastChangelogExportPath;
         private set => SetProperty(ref _lastChangelogExportPath, value);
+    }
+
+    public string GitChangelogSummary
+    {
+        get => _gitChangelogSummary;
+        private set => SetProperty(ref _gitChangelogSummary, value);
     }
 
     public string? SelectedConflictPath
@@ -779,12 +787,17 @@ public partial class MainWindowViewModel : ViewModelBase
 
         try
         {
+            var sourceChanges = GetLocalGitRecentChanges();
             var export = _coordinatorService.ExportVersionChangelog(
                 _currentSession.Paths.LocalWorkspaceRoot,
                 _currentSession.Paths.SharedProjectRoot,
-                SelectedVersion.VersionId);
+                SelectedVersion.VersionId,
+                sourceChanges);
             ChangelogPreview = export.Markdown;
             LastChangelogExportPath = export.FilePath;
+            GitChangelogSummary = sourceChanges.Count == 0
+                ? "No Local Git changes were available for this changelog."
+                : $"{sourceChanges.Count} Local Git changes considered for this changelog.";
             WorkspaceMessage = $"Exported changelog for {export.VersionName}.";
         }
         catch (Exception exception)
@@ -1128,6 +1141,7 @@ public partial class MainWindowViewModel : ViewModelBase
         WorkspaceMessage = string.Empty;
         ChangelogPreview = string.Empty;
         LastChangelogExportPath = string.Empty;
+        GitChangelogSummary = string.Empty;
 
         if (previousSelectedVersionId is Guid selectedVersionId)
         {
@@ -1202,6 +1216,7 @@ public partial class MainWindowViewModel : ViewModelBase
         WorkspaceMessage = string.Empty;
         ChangelogPreview = string.Empty;
         LastChangelogExportPath = string.Empty;
+        GitChangelogSummary = string.Empty;
         IdentityPublicKey = string.Empty;
         ClearInviteEditor();
         ClearMemberEditor();
@@ -1261,6 +1276,11 @@ public partial class MainWindowViewModel : ViewModelBase
             Integrations.Add(integration);
         }
     }
+
+    private IReadOnlyList<SourceChangeSummary> GetLocalGitRecentChanges() =>
+        Integrations.FirstOrDefault(static integration => integration.Provider == IntegrationProviderType.LocalGit)
+            ?.RecentChanges
+        ?? [];
 
     private void RefreshSuggestedPaths()
     {

@@ -36,7 +36,7 @@ Solution projects:
 
 ## Highest-Value Next Slice
 
-Wire Git change intelligence into release/changelog views.
+Polish the version/release workflow around the new Git-aware changelog export.
 
 Why:
 
@@ -47,7 +47,8 @@ Why:
 - the Integrations tab now has provider-agnostic status cards for Local Git, GitHub, GitLab, and VaultSync
 - Local Git repository detection now reads branch, remote URL, dirty state, and latest tag without cloud credentials
 - recent commits since the latest tag now appear in the Local Git card with matched item keys
-- the next product jump is using those changes inside version and changelog workflows
+- changelog export now includes matched and unmatched Local Git changes when available
+- the next product jump is making those Git-backed release diagnostics easier to review before export
 
 Likely files:
 
@@ -89,6 +90,7 @@ Implemented:
 - provider-agnostic integration status cards in the Integrations tab
 - local Git repository path setting and read-only detection
 - recent Git changes with item-key extraction in the Local Git card
+- Git-aware changelog export with matched/unmatched source changes
 - incoming signature validation
 - audit log append/validation foundation
 - shared-folder path-overlap and Windows ACL warning foundation
@@ -97,7 +99,7 @@ Implemented:
 Not yet coherent enough:
 
 - richer semantic conflict preview polish
-- Git change intelligence in release/changelog workflows
+- release diagnostics for commits without Blueprints item keys
 - provider API adapters
 - splitting the main shell into smaller view files
 - polished release-item workflow

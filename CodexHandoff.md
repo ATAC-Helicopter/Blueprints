@@ -16,7 +16,7 @@ Read these files first:
 
 One-line state:
 
-> Blueprints is now a real signed local-first Avalonia release planner with version/item/release/changelog/member/conflict foundations, app-level push/pull, sync/trust diagnostics, and read-only local Git status; the next highest-value slice is mapping Git history to Blueprints releases.
+> Blueprints is now a real signed local-first Avalonia release planner with version/item/release/changelog/member/conflict foundations, app-level push/pull, sync/trust diagnostics, read-only local Git status, and Git-aware changelog export; the next highest-value slice is polishing release diagnostics around unmatched source changes.
 
 ## 2. Repository State At This Handoff
 
@@ -182,7 +182,7 @@ Tests to expand first:
 
 ## 7. Recommended Next Slice
 
-Wire Git change intelligence into release/changelog views.
+Polish the version/release workflow around Git-aware changelog export.
 
 Why:
 
@@ -193,7 +193,8 @@ Why:
 - the Integrations tab now lists Local Git, GitHub, GitLab, and VaultSync provider status cards
 - Local Git now detects configured repository root, branch, origin remote, dirty state, and latest tag without cloud credentials
 - recent commits since the latest tag now appear in the Local Git card with matched item keys
-- the next useful release-planning layer is using that Git intelligence in versions and changelogs
+- changelog export now includes matched and unmatched Local Git changes when available
+- the next useful release-planning layer is making unmatched source changes visible before release/export
 
 Recently completed:
 
@@ -228,12 +229,16 @@ Recently completed:
    - commits since latest tag
    - item-key extraction from commit subjects
    - recent changes rendered in the Local Git card
+16. Changelog export consumes Local Git changes:
+   - matched commits appear under `Source Changes`
+   - commits without selected-version item matches are listed as unmatched recent changes
+   - the preview panel shows how many Local Git changes were considered
 
 Suggested implementation:
 
-1. Surface matched Git commits inside the selected version workflow.
-2. Let changelog preview optionally include commit references for matched item keys.
-3. Add unmatched commit diagnostics so release notes do not silently miss work.
+1. Surface matched/unmatched Git commits inside the selected version workflow before export.
+2. Add release diagnostics for commits without Blueprints item keys.
+3. Add changelog export options for including or suppressing source changes.
 4. Keep provider state read-only; no commits/tags/releases yet.
 
 ## 7.1 Strategic Integration Direction
@@ -359,4 +364,4 @@ Security cautions:
 
 ## 12. One-Line Summary For Another Agent
 
-Blueprints has a solid signed local-first release planning foundation; app-level push/pull, sync/trust diagnostics, provider-agnostic integration cards, and read-only local Git change mapping are now in place, and the next best move is using Git intelligence in release and changelog workflows.
+Blueprints has a solid signed local-first release planning foundation; app-level push/pull, sync/trust diagnostics, provider-agnostic integration cards, read-only local Git change mapping, and Git-aware changelog export are now in place, and the next best move is polishing release diagnostics before provider publishing.

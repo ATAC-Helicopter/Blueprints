@@ -318,7 +318,8 @@ public sealed class ProjectWorkspaceCoordinatorService
     public ChangelogExportResult ExportVersionChangelog(
         string localWorkspaceRoot,
         string sharedWorkspaceRoot,
-        Guid versionId)
+        Guid versionId,
+        IReadOnlyList<SourceChangeSummary>? sourceChanges = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(localWorkspaceRoot);
         ArgumentException.ThrowIfNullOrWhiteSpace(sharedWorkspaceRoot);
@@ -332,7 +333,7 @@ public sealed class ProjectWorkspaceCoordinatorService
             throw new InvalidOperationException("The selected version was not found.");
         }
 
-        var markdown = MarkdownChangelogBuilder.Build(session.LoadResult.Workspace, version);
+        var markdown = MarkdownChangelogBuilder.Build(session.LoadResult.Workspace, version, sourceChanges);
         var exportsRoot = Path.Combine(localWorkspaceRoot, "exports");
         Directory.CreateDirectory(exportsRoot);
 

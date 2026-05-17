@@ -236,7 +236,8 @@ Status:
 - branch, origin remote, dirty state, and latest tag detection exists
 - commits since latest tag are read and shown in the Local Git card
 - item keys are extracted from commit subjects
-- consuming matched/unmatched commits in release and changelog workflows is next
+- changelog export consumes matched and unmatched recent commits when Local Git data is available
+- selected-version release diagnostics for unmatched commits are next
 
 ### Phase C - GitHub Adapter
 

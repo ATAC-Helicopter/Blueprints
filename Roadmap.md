@@ -141,10 +141,11 @@ Implemented:
 - tests cover clean and dirty Local Git status mapping
 - `SourceChangeSummary` captures commits since latest tag
 - Local Git card renders recent commits and item-key matches
+- changelog export includes matched and unmatched Local Git changes
 
 Next follow-up:
 
-- surface matched/unmatched commits in version and changelog workflows
+- surface matched/unmatched commits in the selected version workflow before export
 - add release diagnostics for commits without Blueprints item keys
 - keep Git detection read-only until release publishing workflows are explicit
 
