@@ -74,10 +74,12 @@ On Linux, `scripts/run-app.sh` prints a clearer diagnostic when running from a W
 
 ## Internal Branch Workflow
 
-- `develop` is the default branch and current product line
-- `main` is stale historical state until it is intentionally retired or rebuilt from `develop`
+- `main` is the shippable/stable branch
+- `develop` is the default branch and active development line
+- `main` and `develop` are currently aligned
 - issue work happens on `feature/<slug>` or `chore/<slug>`
 - work is merged or rebased into `develop` after verification
+- verified shippable states are promoted from `develop` to `main`
 
 ## Release Posture
 

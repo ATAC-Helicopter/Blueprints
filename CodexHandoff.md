@@ -34,7 +34,9 @@ GitHub default branch:
 
 Branch note:
 
-- `main` is stale historical state; do not promote through it until it is intentionally rebuilt or retired.
+- `main` is the shippable/stable branch.
+- `develop` is the default branch and active development line.
+- `main` and `develop` are currently aligned.
 
 Important current work:
 

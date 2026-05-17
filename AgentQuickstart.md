@@ -158,12 +158,14 @@ If GitHub work is requested:
 
 - use the GitHub plugin/skills when available
 - work from `develop`
-- treat `develop` as the default branch and current product line
-- do not promote through `main`; it is stale historical state until intentionally rebuilt or retired
+- treat `develop` as the default branch and active development line
+- treat `main` as the shippable/stable branch
+- `main` and `develop` are currently aligned
 - use `feature/<slug>` or `chore/<slug>` for product slices
 - commit intentionally
 - push only when the private remote is ready
 - merge/rebase into `develop` after verification
+- promote verified shippable states from `develop` to `main`
 - update internal planning docs
 
 Do not perform destructive git commands.
