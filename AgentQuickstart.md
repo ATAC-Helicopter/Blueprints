@@ -36,7 +36,7 @@ Solution projects:
 
 ## Highest-Value Next Slice
 
-Polish the version/release workflow around the new Git-aware changelog export.
+Add release-readiness actions around the Git-aware version diagnostics.
 
 Why:
 
@@ -48,7 +48,8 @@ Why:
 - Local Git repository detection now reads branch, remote URL, dirty state, and latest tag without cloud credentials
 - recent commits since the latest tag now appear in the Local Git card with matched item keys
 - changelog export now includes matched and unmatched Local Git changes when available
-- the next product jump is making those Git-backed release diagnostics easier to review before export
+- selected-version source diagnostics now show matched and unmatched Git changes before export
+- the next product jump is turning those diagnostics into release-readiness actions
 
 Likely files:
 
@@ -91,6 +92,7 @@ Implemented:
 - local Git repository path setting and read-only detection
 - recent Git changes with item-key extraction in the Local Git card
 - Git-aware changelog export with matched/unmatched source changes
+- selected-version source change diagnostics before export
 - incoming signature validation
 - audit log append/validation foundation
 - shared-folder path-overlap and Windows ACL warning foundation
@@ -99,7 +101,7 @@ Implemented:
 Not yet coherent enough:
 
 - richer semantic conflict preview polish
-- release diagnostics for commits without Blueprints item keys
+- release-readiness actions for commits without Blueprints item keys
 - provider API adapters
 - splitting the main shell into smaller view files
 - polished release-item workflow

@@ -84,6 +84,7 @@ public partial class MainWindowViewModel : ViewModelBase
         SyncDiagnostics = new ObservableCollection<SyncDiagnosticCard>();
         TrustDiagnostics = new ObservableCollection<TrustDiagnosticCard>();
         Integrations = new ObservableCollection<IntegrationStatusCard>();
+        VersionSourceChangeDiagnostics = new ObservableCollection<VersionSourceChangeDiagnostic>();
         _integrationStatusService = new IntegrationStatusService();
         ApplyDesignSession(CreateDesignSession());
         RefreshIntegrations();
@@ -104,6 +105,7 @@ public partial class MainWindowViewModel : ViewModelBase
         SyncDiagnostics = new ObservableCollection<SyncDiagnosticCard>();
         TrustDiagnostics = new ObservableCollection<TrustDiagnosticCard>();
         Integrations = new ObservableCollection<IntegrationStatusCard>();
+        VersionSourceChangeDiagnostics = new ObservableCollection<VersionSourceChangeDiagnostic>();
 
         RefreshRecentProjects();
         RefreshSuggestedPaths();
@@ -128,6 +130,8 @@ public partial class MainWindowViewModel : ViewModelBase
     public ObservableCollection<TrustDiagnosticCard> TrustDiagnostics { get; }
 
     public ObservableCollection<IntegrationStatusCard> Integrations { get; }
+
+    public ObservableCollection<VersionSourceChangeDiagnostic> VersionSourceChangeDiagnostics { get; }
 
     public string LocalGitRepositoryPath
     {
@@ -334,6 +338,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 OnPropertyChanged(nameof(CanEditItems));
                 OnPropertyChanged(nameof(CanReleaseSelectedVersion));
                 OnPropertyChanged(nameof(SelectedVersionStateSummary));
+                RefreshVersionSourceChangeDiagnostics();
             }
         }
     }
@@ -566,6 +571,28 @@ public partial class MainWindowViewModel : ViewModelBase
             _ when SelectedVersion is not null => "This version can still be edited.",
             _ => "Select a version to manage release state.",
         };
+
+    public string VersionSourceChangeSummary
+    {
+        get
+        {
+            if (SelectedVersion is null)
+            {
+                return "Select a version to review source changes.";
+            }
+
+            var sourceChanges = GetLocalGitRecentChanges();
+            if (sourceChanges.Count == 0)
+            {
+                return "No Local Git changes are available for this version.";
+            }
+
+            var matchedCount = VersionSourceChangeDiagnostics.Count(static diagnostic => diagnostic.MatchesSelectedVersion);
+            var unmatchedCount = VersionSourceChangeDiagnostics.Count - matchedCount;
+
+            return $"{matchedCount} matched source changes, {unmatchedCount} unmatched recent changes.";
+        }
+    }
 
     public bool CanManageMembers =>
         CanMutateWorkspace &&
@@ -1127,6 +1154,8 @@ public partial class MainWindowViewModel : ViewModelBase
             TrustDiagnostics.Add(diagnostic);
         }
 
+        VersionSourceChangeDiagnostics.Clear();
+
         Title = $"{project.Name} ({project.ProjectCode})";
         TrustSummary = session.LoadResult.TrustReport.Summary;
         WorkspacePath = session.Paths.LocalWorkspaceRoot;
@@ -1182,6 +1211,7 @@ public partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(CanResolveSelectedConflict));
         OnPropertyChanged(nameof(HasSyncDiagnostics));
         OnPropertyChanged(nameof(HasTrustDiagnostics));
+        RefreshVersionSourceChangeDiagnostics();
     }
 
     private void ApplySetupState(string message)
@@ -1205,6 +1235,7 @@ public partial class MainWindowViewModel : ViewModelBase
         Conflicts.Clear();
         SyncDiagnostics.Clear();
         TrustDiagnostics.Clear();
+        VersionSourceChangeDiagnostics.Clear();
         SelectedVersion = null;
         SelectedItem = null;
         SelectedMember = null;
@@ -1239,6 +1270,7 @@ public partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(CanResolveSelectedConflict));
         OnPropertyChanged(nameof(HasSyncDiagnostics));
         OnPropertyChanged(nameof(HasTrustDiagnostics));
+        OnPropertyChanged(nameof(VersionSourceChangeSummary));
     }
 
     private void ApplyDesignSession(LocalWorkspaceSession session)
@@ -1275,12 +1307,26 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             Integrations.Add(integration);
         }
+
+        RefreshVersionSourceChangeDiagnostics();
     }
 
     private IReadOnlyList<SourceChangeSummary> GetLocalGitRecentChanges() =>
         Integrations.FirstOrDefault(static integration => integration.Provider == IntegrationProviderType.LocalGit)
             ?.RecentChanges
         ?? [];
+
+    private void RefreshVersionSourceChangeDiagnostics()
+    {
+        VersionSourceChangeDiagnostics.Clear();
+
+        foreach (var diagnostic in VersionSourceChangeDiagnosticBuilder.Build(SelectedVersion, GetLocalGitRecentChanges()))
+        {
+            VersionSourceChangeDiagnostics.Add(diagnostic);
+        }
+
+        OnPropertyChanged(nameof(VersionSourceChangeSummary));
+    }
 
     private void RefreshSuggestedPaths()
     {

@@ -16,7 +16,7 @@ Read these files first:
 
 One-line state:
 
-> Blueprints is now a real signed local-first Avalonia release planner with version/item/release/changelog/member/conflict foundations, app-level push/pull, sync/trust diagnostics, read-only local Git status, and Git-aware changelog export; the next highest-value slice is polishing release diagnostics around unmatched source changes.
+> Blueprints is now a real signed local-first Avalonia release planner with version/item/release/changelog/member/conflict foundations, app-level push/pull, sync/trust diagnostics, read-only local Git status, Git-aware changelog export, and selected-version source diagnostics; the next highest-value slice is adding release-readiness actions around unmatched source changes.
 
 ## 2. Repository State At This Handoff
 
@@ -182,7 +182,7 @@ Tests to expand first:
 
 ## 7. Recommended Next Slice
 
-Polish the version/release workflow around Git-aware changelog export.
+Add release-readiness actions around Git-aware version diagnostics.
 
 Why:
 
@@ -194,7 +194,8 @@ Why:
 - Local Git now detects configured repository root, branch, origin remote, dirty state, and latest tag without cloud credentials
 - recent commits since the latest tag now appear in the Local Git card with matched item keys
 - changelog export now includes matched and unmatched Local Git changes when available
-- the next useful release-planning layer is making unmatched source changes visible before release/export
+- selected-version source diagnostics now show matched and unmatched Git changes before export
+- the next useful release-planning layer is turning unmatched source changes into release-readiness actions
 
 Recently completed:
 
@@ -233,11 +234,16 @@ Recently completed:
    - matched commits appear under `Source Changes`
    - commits without selected-version item matches are listed as unmatched recent changes
    - the preview panel shows how many Local Git changes were considered
+17. Selected-version source diagnostics exist:
+   - `VersionSourceChangeDiagnostic`
+   - `VersionSourceChangeDiagnosticBuilder`
+   - version editor shows matched/unmatched Local Git changes before export
+   - tests cover matching only completed selected-version items
 
 Suggested implementation:
 
-1. Surface matched/unmatched Git commits inside the selected version workflow before export.
-2. Add release diagnostics for commits without Blueprints item keys.
+1. Add release-readiness actions for commits without Blueprints item keys.
+2. Add a command to create a Blueprints item from an unmatched commit.
 3. Add changelog export options for including or suppressing source changes.
 4. Keep provider state read-only; no commits/tags/releases yet.
 
@@ -364,4 +370,4 @@ Security cautions:
 
 ## 12. One-Line Summary For Another Agent
 
-Blueprints has a solid signed local-first release planning foundation; app-level push/pull, sync/trust diagnostics, provider-agnostic integration cards, read-only local Git change mapping, and Git-aware changelog export are now in place, and the next best move is polishing release diagnostics before provider publishing.
+Blueprints has a solid signed local-first release planning foundation; app-level push/pull, sync/trust diagnostics, provider-agnostic integration cards, read-only local Git change mapping, Git-aware changelog export, and selected-version source diagnostics are now in place, and the next best move is adding release-readiness actions before provider publishing.

@@ -142,11 +142,12 @@ Implemented:
 - `SourceChangeSummary` captures commits since latest tag
 - Local Git card renders recent commits and item-key matches
 - changelog export includes matched and unmatched Local Git changes
+- selected-version source diagnostics show matched and unmatched Local Git changes before export
 
 Next follow-up:
 
-- surface matched/unmatched commits in the selected version workflow before export
-- add release diagnostics for commits without Blueprints item keys
+- add release-readiness actions for commits without Blueprints item keys
+- create Blueprints items from unmatched commits
 - keep Git detection read-only until release publishing workflows are explicit
 
 ### Priority 2.5 - Linux Development Support
