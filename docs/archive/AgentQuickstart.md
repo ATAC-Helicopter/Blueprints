@@ -1,4 +1,6 @@
-# Agent Quickstart
+# Archived: Agent Quickstart
+
+> Historical handoff material. For current setup and repository guidance, use [the development guide](../development.md).
 
 Purpose: let a future Codex/chat instance become useful quickly without rediscovering the repo.
 
@@ -36,7 +38,7 @@ Solution projects:
 
 ## Highest-Value Next Slice
 
-Wire Git change intelligence into release/changelog views.
+Add release-readiness actions around the Git-aware version diagnostics.
 
 Why:
 
@@ -47,7 +49,9 @@ Why:
 - the Integrations tab now has provider-agnostic status cards for Local Git, GitHub, GitLab, and VaultSync
 - Local Git repository detection now reads branch, remote URL, dirty state, and latest tag without cloud credentials
 - recent commits since the latest tag now appear in the Local Git card with matched item keys
-- the next product jump is using those changes inside version and changelog workflows
+- changelog export now includes matched and unmatched Local Git changes when available
+- selected-version source diagnostics now show matched and unmatched Git changes before export
+- the next product jump is turning those diagnostics into release-readiness actions
 
 Likely files:
 
@@ -89,6 +93,8 @@ Implemented:
 - provider-agnostic integration status cards in the Integrations tab
 - local Git repository path setting and read-only detection
 - recent Git changes with item-key extraction in the Local Git card
+- Git-aware changelog export with matched/unmatched source changes
+- selected-version source change diagnostics before export
 - incoming signature validation
 - audit log append/validation foundation
 - shared-folder path-overlap and Windows ACL warning foundation
@@ -97,7 +103,7 @@ Implemented:
 Not yet coherent enough:
 
 - richer semantic conflict preview polish
-- Git change intelligence in release/changelog workflows
+- release-readiness actions for commits without Blueprints item keys
 - provider API adapters
 - splitting the main shell into smaller view files
 - polished release-item workflow

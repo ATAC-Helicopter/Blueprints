@@ -1,0 +1,85 @@
+# Workspace format
+
+This document describes the current schema-1 layout. The format is pre-release and may change before v1.0.
+
+## Local workspace
+
+```text
+<workspace>/
+├── project/
+│   ├── project.json
+│   ├── project.sig
+│   ├── members.json
+│   └── members.sig
+├── versions/
+│   └── <version-id-without-dashes>/
+│       ├── version.json
+│       ├── version.sig
+│       └── items/
+│           ├── <item-id-without-dashes>.json
+│           └── <item-id-without-dashes>.sig
+├── log/
+│   ├── <change-id>.json
+│   └── <change-id>.sig
+└── .blueprints/
+    └── sync-state.json
+```
+
+The collaboration layer also writes a signed manifest in the shared project root. `.blueprints/sync-state.json` is local bookkeeping and is not signed project truth.
+
+## Serialization
+
+- JSON uses camel-case property names.
+- Objects are recursively ordered by property name before writing.
+- Output is compact UTF-8 without a byte-order mark.
+- Each signed `.json` file has a sibling `.sig`.
+
+Signature files contain:
+
+```json
+{
+  "algorithm": "Ed25519",
+  "keyId": "<identity key id>",
+  "signatureBase64": "<detached signature>"
+}
+```
+
+The signature covers the exact canonical UTF-8 JSON bytes.
+
+## Documents
+
+### `project.json`
+
+Contains the schema version, project identity, name, code, versioning scheme, creation time, categories, item types, item-key rules, and changelog defaults.
+
+### `members.json`
+
+Contains the membership revision and members. A member has a user ID, display name, public key, role, join time, and active flag.
+
+Roles are Viewer, Editor, and Admin.
+
+### `version.json`
+
+Contains a version ID, name, lifecycle status, creation/release times, notes, and manual item ordering.
+
+Statuses are Planned, In Progress, Frozen, and Released.
+
+### item document
+
+Contains project/version/item IDs, stable item key, type, category, title, optional description, completion state, tags, timestamps, and last-modifier identity.
+
+### audit entry
+
+Contains a unique change ID, operation, human summary, author, membership revision observed, timestamp, and SHA-256 hash of the previous audit JSON file. The entry and its link are signed.
+
+## Compatibility
+
+There is no migration engine yet. Do not manually change `schemaVersion`. Before adopting a future schema, preserve a complete copy of the workspace and identity data.
+
+## Files that must never be shared as project data
+
+- private signing keys;
+- the local AES-GCM protection key;
+- provider access tokens;
+- machine-specific integration settings;
+- arbitrary repository content.

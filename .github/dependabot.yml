@@ -1,21 +1,35 @@
 version: 2
-updates:
-  - package-ecosystem: "nuget"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
-    groups:
-      nuget-all:
-        patterns:
-          - "*"
 
-  - package-ecosystem: "github-actions"
-    directory: "/"
+updates:
+  - package-ecosystem: nuget
+    directory: /
+    target-branch: develop
     schedule:
-      interval: "weekly"
+      interval: weekly
+      day: saturday
+      time: "08:00"
+      timezone: Europe/Rome
     open-pull-requests-limit: 5
+    commit-message:
+      prefix: deps
     groups:
-      github-actions-all:
-        patterns:
-          - "*"
+      nuget-minor-patch:
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: "Avalonia*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: saturday
+      time: "08:30"
+      timezone: Europe/Rome
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: ci
+    groups:
+      actions-minor-patch:
+        update-types: [minor, patch]

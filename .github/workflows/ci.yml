@@ -2,23 +2,63 @@ name: CI
 
 on:
   push:
-    branches:
-      - main
-      - develop
+    branches: [main, develop]
   pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
-  build-and-test:
-    runs-on: windows-latest
-
+  format:
+    name: Format
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 8.0.x
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            global.json
+
+      - name: Restore
+        run: dotnet restore Blueprints.sln
+
+      - name: Verify formatting
+        run: dotnet format Blueprints.sln --verify-no-changes --no-restore
+
+  build-and-test:
+    name: ${{ matrix.os }}
+    needs: format
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 8.0.x
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            global.json
 
       - name: Restore
         run: dotnet restore Blueprints.sln
@@ -27,4 +67,19 @@ jobs:
         run: dotnet build Blueprints.sln --configuration Release --no-restore
 
       - name: Test
-        run: dotnet test Blueprints.sln --configuration Release --no-build
+        run: >-
+          dotnet test Blueprints.Tests/Blueprints.Tests.csproj
+          --configuration Release
+          --no-build
+          --logger "trx;LogFileName=tests.trx"
+          --results-directory TestResults
+          --collect "XPlat Code Coverage"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results-${{ matrix.os }}
+          path: TestResults
+          if-no-files-found: warn
+          retention-days: 14

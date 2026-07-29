@@ -1,4 +1,6 @@
-# Blueprints Test Plan
+# Archived: Blueprints Test Plan
+
+> Historical verification snapshot. Current commands are in [the development guide](../development.md); current CI is authoritative.
 
 Status: Working Draft
 Date: 2026-05-16
@@ -71,7 +73,7 @@ The current app and codebase provide:
 
 Important current limitation:
 
-- sync diagnostics include semantic summaries and raw local/shared previews; trust diagnostics include workspace, audit-chain, shared-folder, and conflict cards. Local Git change mapping exists, but release/changelog workflows do not consume it yet.
+- sync diagnostics include semantic summaries and raw local/shared previews; trust diagnostics include workspace, audit-chain, shared-folder, and conflict cards. Local Git change mapping now feeds changelog export and selected-version pre-export diagnostics, but release-readiness actions are not built yet.
 
 ## Status Legend
 
@@ -105,7 +107,7 @@ Important current limitation:
 | Trust diagnostics | User can understand audit/safety/trust failures | Implemented | Trust tab shows structured cards with recovery guidance |
 | Navigation | App provides clear project sections | Partial | Initial tabbed shell exists; future pass should split views and polish spacing/empty states |
 | Conflict preview | User can compare mine/theirs/result | Partial | Semantic summaries and raw JSON/text local/shared preview exist; table-style diff is still missing |
-| Integration status | App shows source-control and VaultSync provider status | Partial | Provider-agnostic cards, read-only Local Git detection, and recent commit/item-key mapping exist; provider APIs not wired yet |
+| Integration status | App shows source-control and VaultSync provider status | Partial | Provider-agnostic cards, read-only Local Git detection, recent commit/item-key mapping, Git-aware changelog export, and selected-version source diagnostics exist; provider APIs not wired yet |
 | Packaging | User can install/run packaged Windows app | Missing | Future v1.0 readiness |
 
 ## Automated Test Coverage To Preserve

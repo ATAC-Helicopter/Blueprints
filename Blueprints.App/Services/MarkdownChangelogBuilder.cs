@@ -1,4 +1,6 @@
 using System.Text;
+using Blueprints.App.Models;
+using Blueprints.Core.Models;
 using Blueprints.Storage.Models;
 
 namespace Blueprints.App.Services;
@@ -7,7 +9,8 @@ public static class MarkdownChangelogBuilder
 {
     public static string Build(
         ProjectWorkspaceSnapshot workspace,
-        VersionWorkspaceSnapshot versionSnapshot)
+        VersionWorkspaceSnapshot versionSnapshot,
+        IReadOnlyList<SourceChangeSummary>? sourceChanges = null)
     {
         ArgumentNullException.ThrowIfNull(workspace);
         ArgumentNullException.ThrowIfNull(versionSnapshot);
@@ -93,6 +96,66 @@ public static class MarkdownChangelogBuilder
             }
         }
 
+        AppendSourceChanges(builder, includedItems, sourceChanges ?? []);
+
         return builder.ToString().TrimEnd();
+    }
+
+    private static void AppendSourceChanges(
+        StringBuilder builder,
+        IReadOnlyList<ItemDocument> includedItems,
+        IReadOnlyList<SourceChangeSummary> sourceChanges)
+    {
+        if (sourceChanges.Count == 0)
+        {
+            return;
+        }
+
+        var includedItemKeys = includedItems
+            .Select(static item => item.ItemKey)
+            .Where(static key => !string.IsNullOrWhiteSpace(key))
+            .ToHashSet(StringComparer.Ordinal);
+        var matchedChanges = sourceChanges
+            .Where(change => change.MatchedItemKeys.Any(includedItemKeys.Contains))
+            .ToArray();
+        var unmatchedChanges = sourceChanges
+            .Where(change => !change.MatchedItemKeys.Any(includedItemKeys.Contains))
+            .ToArray();
+
+        builder.AppendLine();
+        builder.AppendLine("## Source Changes");
+        builder.AppendLine();
+
+        if (matchedChanges.Length > 0)
+        {
+            builder.AppendLine("Matched to this version:");
+            foreach (var change in matchedChanges)
+            {
+                builder.Append("- `")
+                    .Append(change.ShortHash)
+                    .Append("` ")
+                    .Append(change.Subject)
+                    .Append(" (")
+                    .Append(string.Join(", ", change.MatchedItemKeys.Where(includedItemKeys.Contains)))
+                    .AppendLine(")");
+            }
+        }
+
+        if (unmatchedChanges.Length > 0)
+        {
+            if (matchedChanges.Length > 0)
+            {
+                builder.AppendLine();
+            }
+
+            builder.AppendLine("Unmatched recent changes:");
+            foreach (var change in unmatchedChanges)
+            {
+                builder.Append("- `")
+                    .Append(change.ShortHash)
+                    .Append("` ")
+                    .AppendLine(change.Subject);
+            }
+        }
     }
 }

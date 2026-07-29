@@ -1,0 +1,8 @@
+* @ATAC-Helicopter
+
+/Blueprints.Security/ @ATAC-Helicopter
+/Blueprints.Storage/ @ATAC-Helicopter
+/Blueprints.Collaboration/ @ATAC-Helicopter
+/.github/workflows/ @ATAC-Helicopter
+/SECURITY.md @ATAC-Helicopter
+/docs/security-model.md @ATAC-Helicopter

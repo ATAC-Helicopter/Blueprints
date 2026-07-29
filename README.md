@@ -1,106 +1,106 @@
-# Blueprints
+<p align="center">
+  <img src="docs/assets/blueprints-mark.png" alt="Blueprints logo" width="152">
+</p>
 
-Blueprints is a local-first, version-centric release planning desktop application for developers and small teams.
+<h1 align="center">Blueprints</h1>
 
-This is a private, closed-source repository. All rights are reserved; see `LICENSE`.
+<p align="center">
+  A local-first release planner for developers and small teams.
+  Plan versions, produce changelogs, and trust the files.
+</p>
 
-It is built around a simple product promise:
+<p align="center">
+  <a href="https://github.com/ATAC-Helicopter/Blueprints/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/ATAC-Helicopter/Blueprints/actions/workflows/ci.yml/badge.svg?branch=develop"></a>
+  <a href="https://github.com/ATAC-Helicopter/Blueprints/actions/workflows/codeql.yml"><img alt="CodeQL" src="https://github.com/ATAC-Helicopter/Blueprints/actions/workflows/codeql.yml/badge.svg?branch=develop"></a>
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-2f6f5e"></a>
+  <img alt=".NET 8" src="https://img.shields.io/badge/.NET-8.0-512BD4">
+</p>
 
-> Plan releases. Produce changelogs. Trust the files.
+> [!IMPORTANT]
+> Blueprints is pre-release software. The local planning workflow is functional, but packaging, recovery tooling, and multi-user collaboration still need hardening before production use.
 
-## What It Does
+## Why Blueprints?
 
-Blueprints is being built around a safety-first workflow:
+Release notes often live in scattered issues, commit messages, and private documents. Blueprints keeps release intent in a portable workspace that remains readable without a server:
 
-- local signed project workspaces
-- platform-aware local identity storage
-- detached-signature validation for project files
-- shared-folder sync with signed manifest tracking
-- version-centric release planning with human-readable item keys
+- plan versions and categorized release items;
+- generate stable human-readable item keys;
+- freeze and release versions with immutable released content;
+- export Markdown changelogs, optionally enriched by local Git history;
+- validate signed project files and enter read-only mode when trust breaks;
+- exchange signed changes through a shared folder with explicit push, pull, and conflict resolution;
+- inspect membership, audit history, sync state, and integration boundaries in one desktop app.
 
-## Stack
+## Current status
 
-- .NET 8
-- Avalonia UI
-- MVVM
+| Area | Status |
+| --- | --- |
+| Local project, version, and item workflow | Working |
+| Signed persistence and trust validation | Working |
+| Markdown changelog export | Working |
+| Shared-folder push/pull | Working foundation |
+| Conflict and audit diagnostics | Functional, needs UX polish |
+| Local Git awareness | Read-only integration available |
+| GitHub, GitLab, and VaultSync adapters | Planned |
+| Installers and supported releases | Not ready |
 
-## Platform Support
+The canonical delivery plan is [ROADMAP.md](Roadmap.md). Older planning files remain as design history and are not the active backlog.
 
-- Windows uses DPAPI-backed local private key protection.
-- Linux and macOS use a local AES-GCM key protector stored under the app data directory with user-only file permissions where supported.
-- Windows remains the primary release target for now, but Linux development and test runs are supported.
+## Quick start
 
-## Current State
+Prerequisites:
 
-The repository currently includes:
+- the .NET 8 SDK, or a newer SDK allowed by `global.json`;
+- Git, if you want local source-change diagnostics.
 
-- product and implementation planning documents
-- local identity management
-- signed workspace persistence
-- shared-folder sync foundation
-- project create/open workflows
-- version and item management
-- release workflow and Markdown changelog export
-- membership invitation/update workflows
-- basic conflict resolution
-- audit log and shared-folder safety foundations
-- Avalonia desktop shell wired to live workspace and sync state
-
-The next major product direction is to make sync/trust/audit operations visible and coherent in the app UI, then polish the release planning workflow.
-
-## Direction And Handoff
-
-Start here if you are returning to the project after time away:
-
-- `AgentQuickstart.md`
-- `CodexHandoff.md`
-- `ProductDirection.md`
-- `Roadmap.md`
-- `IntegrationsStrategy.md`
-- `VaultSyncContext.md`
-- `TestPlan.md`
-
-## Run Locally
-
-From the repository root:
-
-```powershell
-dotnet build Blueprints.sln
-dotnet test .\Blueprints.Tests\Blueprints.Tests.csproj
-dotnet run --project .\Blueprints.App\Blueprints.App.csproj
+```sh
+git clone https://github.com/ATAC-Helicopter/Blueprints.git
+cd Blueprints
+./scripts/verify.sh
+./scripts/run-app.sh
 ```
 
-On Linux, `scripts/run-app.sh` prints a clearer diagnostic when running from a Wayland session without an XWayland `DISPLAY`.
+Equivalent commands on any platform:
 
-## Internal Branch Workflow
+```sh
+dotnet restore Blueprints.sln
+dotnet build Blueprints.sln --configuration Release --no-restore
+dotnet test Blueprints.Tests/Blueprints.Tests.csproj --configuration Release --no-build
+dotnet run --project Blueprints.App/Blueprints.App.csproj
+```
 
-- `main` is the shippable/stable branch
-- `develop` is the default branch and active development line
-- `main` and `develop` are currently aligned
-- issue work happens on `feature/<slug>` or `chore/<slug>`
-- work is merged or rebased into `develop` after verification
-- verified shippable states are promoted from `develop` to `main`
+See the [development guide](docs/development.md) for platform notes and troubleshooting.
 
-## Release Posture
+## Architecture at a glance
 
-- the repository is private and proprietary
-- draft prereleases are preferred before anything is published as final
-- security-sensitive changes should be reviewed conservatively
-- admin bypass remains enabled on protected branches until there is enough maintainer coverage to remove it safely
+| Project | Responsibility |
+| --- | --- |
+| `Blueprints.Core` | Domain models, enums, item-key rules |
+| `Blueprints.Security` | Identity, key protection, Ed25519 signatures |
+| `Blueprints.Storage` | Canonical JSON and signed workspace persistence |
+| `Blueprints.Collaboration` | Sync analysis, manifests, audit chain, shared-folder safety |
+| `Blueprints.App` | Avalonia UI, workflows, changelog and Git integration |
+| `Blueprints.Tests` | Unit and integration coverage |
 
-## Repository Posture
+Blueprints uses a local workspace as the editable source of truth and a separate shared directory as an exchange layer. See [architecture](docs/architecture.md), [workspace format](docs/workspace-format.md), and [security model](docs/security-model.md).
 
-- closed source
-- no public contribution process
-- no public issue templates
-- no public code-of-conduct workflow
-- CI and dependency update automation may remain enabled for private maintenance
+## Documentation
 
-## Projects
+- [Documentation index](docs/README.md)
+- [User guide](docs/user-guide.md)
+- [Architecture](docs/architecture.md)
+- [Workspace format](docs/workspace-format.md)
+- [Security model](docs/security-model.md)
+- [Development guide](docs/development.md)
+- [Release process](docs/releasing.md)
+- [Roadmap](Roadmap.md)
+- [Contributing](CONTRIBUTING.md)
+- [Security policy](SECURITY.md)
 
-- `Blueprints.App`
-- `Blueprints.Core`
-- `Blueprints.Storage`
-- `Blueprints.Security`
-- `Blueprints.Collaboration`
-- `Blueprints.Tests`
+## Contributing
+
+Issues and pull requests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md), use `develop` as the pull-request base, and keep security reports out of public issues.
+
+## License
+
+Blueprints is available under the [MIT License](LICENSE).

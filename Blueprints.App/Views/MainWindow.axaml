@@ -10,6 +10,7 @@
         x:Class="Blueprints.App.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Title="Blueprints"
+        Icon="/Assets/blueprints.ico"
         MinWidth="1180"
         MinHeight="760"
         Background="#F6F4EF">
@@ -72,7 +73,7 @@
                     Margin="18,0,0,0"
                     VerticalAlignment="Center"
                     IsVisible="{Binding HasActiveSession}">
-          <Button Content="Project Setup"
+          <Button Content="Switch Project"
                   Command="{Binding ReturnToProjectSetupCommand}"
                   Background="#F8F2E8"
                   Foreground="#17211D" />
@@ -101,8 +102,9 @@
         <Border Background="#FFFFFF" BorderBrush="#D8D5CB" BorderThickness="1" CornerRadius="8" Padding="22">
           <Grid RowDefinitions="Auto,*" RowSpacing="18">
             <StackPanel Spacing="6">
-              <TextBlock Text="Release Planning With Signed Local Workspaces" FontSize="30" FontWeight="Black" />
+              <TextBlock Text="Plan the release. Trust the files." FontSize="30" FontWeight="Black" />
               <TextBlock Text="{Binding SetupMessage}" FontSize="15" TextWrapping="Wrap" Foreground="#5B625D" />
+              <TextBlock Text="Technical preview · Choose an editable local workspace and a separate shared exchange folder." FontSize="13" TextWrapping="Wrap" Foreground="#8A5A25" />
             </StackPanel>
 
             <Grid Grid.Row="1" ColumnDefinitions="*,*" ColumnSpacing="18">
@@ -124,11 +126,11 @@
                     <TextBox Text="{Binding CreateVersioningScheme}" />
                   </StackPanel>
                   <StackPanel Spacing="5">
-                    <TextBlock Text="Local Workspace Root" FontWeight="SemiBold" Foreground="#5B625D" />
+                    <TextBlock Text="Local Workspace · your editable copy" FontWeight="SemiBold" Foreground="#5B625D" />
                     <TextBox Text="{Binding CreateLocalWorkspaceRoot}" />
                   </StackPanel>
                   <StackPanel Spacing="5">
-                    <TextBlock Text="Shared Sync Root" FontWeight="SemiBold" Foreground="#5B625D" />
+                    <TextBlock Text="Shared Exchange · the team handoff copy" FontWeight="SemiBold" Foreground="#5B625D" />
                     <TextBox Text="{Binding CreateSharedWorkspaceRoot}" />
                   </StackPanel>
                   <Button Content="Create Signed Project"
@@ -143,11 +145,11 @@
                 <StackPanel Spacing="12">
                   <TextBlock Text="Open Project" FontSize="20" FontWeight="Bold" />
                   <StackPanel Spacing="5">
-                    <TextBlock Text="Local Workspace Root" FontWeight="SemiBold" Foreground="#5B625D" />
+                    <TextBlock Text="Local Workspace · your editable copy" FontWeight="SemiBold" Foreground="#5B625D" />
                     <TextBox Text="{Binding OpenLocalWorkspaceRoot}" />
                   </StackPanel>
                   <StackPanel Spacing="5">
-                    <TextBlock Text="Shared Sync Root" FontWeight="SemiBold" Foreground="#5B625D" />
+                    <TextBlock Text="Shared Exchange · the team handoff copy" FontWeight="SemiBold" Foreground="#5B625D" />
                     <TextBox Text="{Binding OpenSharedWorkspaceRoot}" />
                   </StackPanel>
                   <Button Content="Open Existing Workspace"
@@ -195,7 +197,7 @@
         </Border>
       </Grid>
 
-      <Grid IsVisible="{Binding HasActiveSession}" RowDefinitions="Auto,*" RowSpacing="14">
+      <Grid IsVisible="{Binding HasActiveSession}" RowDefinitions="Auto,Auto,*" RowSpacing="12">
         <UniformGrid Columns="4">
           <Border Margin="0,0,10,0" Padding="14" CornerRadius="8" Background="#FFFFFF" BorderBrush="#D8D5CB" BorderThickness="1">
             <StackPanel Spacing="3">
@@ -227,7 +229,18 @@
           </Border>
         </UniformGrid>
 
-        <TabControl Grid.Row="1">
+        <Border Grid.Row="1"
+                Background="#EEF3F0"
+                BorderBrush="#CDD8D1"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="12,9">
+          <TextBlock Text="{Binding WorkspaceMessage}"
+                     TextWrapping="Wrap"
+                     Foreground="#33423B" />
+        </Border>
+
+        <TabControl Grid.Row="2">
           <TabItem Header="Releases">
             <Grid ColumnDefinitions="320,*" ColumnSpacing="14" Margin="0,12,0,0">
               <Border Background="#FFFFFF" BorderBrush="#D8D5CB" BorderThickness="1" CornerRadius="8" Padding="16">
@@ -282,11 +295,27 @@
                         <Button Content="Release" Command="{Binding ReleaseSelectedVersionCommand}" IsEnabled="{Binding CanReleaseSelectedVersion}" Background="#A85332" Foreground="#FFFFFF" />
                         <Button Content="Export Changelog" Command="{Binding ExportSelectedVersionChangelogCommand}" IsEnabled="{Binding IsWorkspaceTrusted}" Background="#2D4B72" Foreground="#FFFFFF" />
                       </StackPanel>
+                      <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="6">
+                        <TextBlock Text="Source Changes" FontWeight="Bold" />
+                        <TextBlock Grid.Row="1" Text="{Binding VersionSourceChangeSummary}" TextWrapping="Wrap" Foreground="#5B625D" />
+                        <ItemsControl Grid.Row="2" ItemsSource="{Binding VersionSourceChangeDiagnostics}">
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="appModels:VersionSourceChangeDiagnostic">
+                              <Grid ColumnDefinitions="72,*,140" ColumnSpacing="8" Margin="0,3,0,0">
+                                <TextBlock Text="{Binding Change.ShortHash}" FontFamily="Cascadia Mono, Consolas, monospace" Foreground="#5B625D" />
+                                <TextBlock Grid.Column="1" Text="{Binding Change.Subject}" TextWrapping="Wrap" />
+                                <TextBlock Grid.Column="2" Text="{Binding MatchSummary}" TextWrapping="Wrap" Foreground="#5B625D" />
+                              </Grid>
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                      </Grid>
                     </StackPanel>
 
                     <StackPanel Grid.Column="1" Spacing="8">
                       <TextBlock Text="Changelog Preview" FontWeight="Bold" />
                       <TextBlock Text="{Binding LastChangelogExportPath}" FontSize="12" TextWrapping="Wrap" Foreground="#5B625D" />
+                      <TextBlock Text="{Binding GitChangelogSummary}" FontSize="12" TextWrapping="Wrap" Foreground="#5B625D" />
                       <TextBox Text="{Binding ChangelogPreview}" AcceptsReturn="True" IsReadOnly="True" Height="180" TextWrapping="Wrap" />
                     </StackPanel>
                   </Grid>

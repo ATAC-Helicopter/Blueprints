@@ -55,6 +55,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private string _selectedCategoryId = "added";
     private string _changelogPreview = string.Empty;
     private string _lastChangelogExportPath = string.Empty;
+    private string _gitChangelogSummary = string.Empty;
     private string _identityPublicKey = string.Empty;
     private WorkspaceMemberCard? _selectedMember;
     private string _inviteUserId = string.Empty;
@@ -83,6 +84,7 @@ public partial class MainWindowViewModel : ViewModelBase
         SyncDiagnostics = new ObservableCollection<SyncDiagnosticCard>();
         TrustDiagnostics = new ObservableCollection<TrustDiagnosticCard>();
         Integrations = new ObservableCollection<IntegrationStatusCard>();
+        VersionSourceChangeDiagnostics = new ObservableCollection<VersionSourceChangeDiagnostic>();
         _integrationStatusService = new IntegrationStatusService();
         ApplyDesignSession(CreateDesignSession());
         RefreshIntegrations();
@@ -103,6 +105,7 @@ public partial class MainWindowViewModel : ViewModelBase
         SyncDiagnostics = new ObservableCollection<SyncDiagnosticCard>();
         TrustDiagnostics = new ObservableCollection<TrustDiagnosticCard>();
         Integrations = new ObservableCollection<IntegrationStatusCard>();
+        VersionSourceChangeDiagnostics = new ObservableCollection<VersionSourceChangeDiagnostic>();
 
         RefreshRecentProjects();
         RefreshSuggestedPaths();
@@ -127,6 +130,8 @@ public partial class MainWindowViewModel : ViewModelBase
     public ObservableCollection<TrustDiagnosticCard> TrustDiagnostics { get; }
 
     public ObservableCollection<IntegrationStatusCard> Integrations { get; }
+
+    public ObservableCollection<VersionSourceChangeDiagnostic> VersionSourceChangeDiagnostics { get; }
 
     public string LocalGitRepositoryPath
     {
@@ -327,11 +332,13 @@ public partial class MainWindowViewModel : ViewModelBase
                 PopulateVersionEditor();
                 ChangelogPreview = string.Empty;
                 LastChangelogExportPath = string.Empty;
+                GitChangelogSummary = string.Empty;
                 SelectedItem = value?.Items.FirstOrDefault();
                 OnPropertyChanged(nameof(CanEditSelectedVersion));
                 OnPropertyChanged(nameof(CanEditItems));
                 OnPropertyChanged(nameof(CanReleaseSelectedVersion));
                 OnPropertyChanged(nameof(SelectedVersionStateSummary));
+                RefreshVersionSourceChangeDiagnostics();
             }
         }
     }
@@ -412,6 +419,12 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         get => _lastChangelogExportPath;
         private set => SetProperty(ref _lastChangelogExportPath, value);
+    }
+
+    public string GitChangelogSummary
+    {
+        get => _gitChangelogSummary;
+        private set => SetProperty(ref _gitChangelogSummary, value);
     }
 
     public string? SelectedConflictPath
@@ -552,12 +565,34 @@ public partial class MainWindowViewModel : ViewModelBase
             : HasConflicts
                 ? "Resolve sync conflicts before editing this version."
                 : SelectedVersion?.Status switch
+                {
+                    ReleaseStatus.Frozen => "Frozen versions are read-only until they are explicitly released.",
+                    ReleaseStatus.Released => "Released versions are immutable.",
+                    _ when SelectedVersion is not null => "This version can still be edited.",
+                    _ => "Select a version to manage release state.",
+                };
+
+    public string VersionSourceChangeSummary
+    {
+        get
         {
-            ReleaseStatus.Frozen => "Frozen versions are read-only until they are explicitly released.",
-            ReleaseStatus.Released => "Released versions are immutable.",
-            _ when SelectedVersion is not null => "This version can still be edited.",
-            _ => "Select a version to manage release state.",
-        };
+            if (SelectedVersion is null)
+            {
+                return "Select a version to review source changes.";
+            }
+
+            var sourceChanges = GetLocalGitRecentChanges();
+            if (sourceChanges.Count == 0)
+            {
+                return "No Local Git changes are available for this version.";
+            }
+
+            var matchedCount = VersionSourceChangeDiagnostics.Count(static diagnostic => diagnostic.MatchesSelectedVersion);
+            var unmatchedCount = VersionSourceChangeDiagnostics.Count - matchedCount;
+
+            return $"{matchedCount} matched source changes, {unmatchedCount} unmatched recent changes.";
+        }
+    }
 
     public bool CanManageMembers =>
         CanMutateWorkspace &&
@@ -779,12 +814,17 @@ public partial class MainWindowViewModel : ViewModelBase
 
         try
         {
+            var sourceChanges = GetLocalGitRecentChanges();
             var export = _coordinatorService.ExportVersionChangelog(
                 _currentSession.Paths.LocalWorkspaceRoot,
                 _currentSession.Paths.SharedProjectRoot,
-                SelectedVersion.VersionId);
+                SelectedVersion.VersionId,
+                sourceChanges);
             ChangelogPreview = export.Markdown;
             LastChangelogExportPath = export.FilePath;
+            GitChangelogSummary = sourceChanges.Count == 0
+                ? "No Local Git changes were available for this changelog."
+                : $"{sourceChanges.Count} Local Git changes considered for this changelog.";
             WorkspaceMessage = $"Exported changelog for {export.VersionName}.";
         }
         catch (Exception exception)
@@ -1114,6 +1154,8 @@ public partial class MainWindowViewModel : ViewModelBase
             TrustDiagnostics.Add(diagnostic);
         }
 
+        VersionSourceChangeDiagnostics.Clear();
+
         Title = $"{project.Name} ({project.ProjectCode})";
         TrustSummary = session.LoadResult.TrustReport.Summary;
         WorkspacePath = session.Paths.LocalWorkspaceRoot;
@@ -1128,6 +1170,7 @@ public partial class MainWindowViewModel : ViewModelBase
         WorkspaceMessage = string.Empty;
         ChangelogPreview = string.Empty;
         LastChangelogExportPath = string.Empty;
+        GitChangelogSummary = string.Empty;
 
         if (previousSelectedVersionId is Guid selectedVersionId)
         {
@@ -1168,6 +1211,7 @@ public partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(CanResolveSelectedConflict));
         OnPropertyChanged(nameof(HasSyncDiagnostics));
         OnPropertyChanged(nameof(HasTrustDiagnostics));
+        RefreshVersionSourceChangeDiagnostics();
     }
 
     private void ApplySetupState(string message)
@@ -1191,6 +1235,7 @@ public partial class MainWindowViewModel : ViewModelBase
         Conflicts.Clear();
         SyncDiagnostics.Clear();
         TrustDiagnostics.Clear();
+        VersionSourceChangeDiagnostics.Clear();
         SelectedVersion = null;
         SelectedItem = null;
         SelectedMember = null;
@@ -1202,6 +1247,7 @@ public partial class MainWindowViewModel : ViewModelBase
         WorkspaceMessage = string.Empty;
         ChangelogPreview = string.Empty;
         LastChangelogExportPath = string.Empty;
+        GitChangelogSummary = string.Empty;
         IdentityPublicKey = string.Empty;
         ClearInviteEditor();
         ClearMemberEditor();
@@ -1224,6 +1270,7 @@ public partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(CanResolveSelectedConflict));
         OnPropertyChanged(nameof(HasSyncDiagnostics));
         OnPropertyChanged(nameof(HasTrustDiagnostics));
+        OnPropertyChanged(nameof(VersionSourceChangeSummary));
     }
 
     private void ApplyDesignSession(LocalWorkspaceSession session)
@@ -1260,6 +1307,25 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             Integrations.Add(integration);
         }
+
+        RefreshVersionSourceChangeDiagnostics();
+    }
+
+    private IReadOnlyList<SourceChangeSummary> GetLocalGitRecentChanges() =>
+        Integrations.FirstOrDefault(static integration => integration.Provider == IntegrationProviderType.LocalGit)
+            ?.RecentChanges
+        ?? [];
+
+    private void RefreshVersionSourceChangeDiagnostics()
+    {
+        VersionSourceChangeDiagnostics.Clear();
+
+        foreach (var diagnostic in VersionSourceChangeDiagnosticBuilder.Build(SelectedVersion, GetLocalGitRecentChanges()))
+        {
+            VersionSourceChangeDiagnostics.Add(diagnostic);
+        }
+
+        OnPropertyChanged(nameof(VersionSourceChangeSummary));
     }
 
     private void RefreshSuggestedPaths()

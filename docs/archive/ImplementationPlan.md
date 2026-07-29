@@ -1,4 +1,6 @@
-# Blueprints Implementation Plan
+# Archived: Blueprints Implementation Plan
+
+> Historical design material. It is not the active delivery plan; use [the roadmap](../../Roadmap.md).
 
 Execution Blueprint for v1.0
 

@@ -408,6 +408,70 @@ public sealed class ProjectWorkspaceCoordinatorServiceTests : IDisposable
     }
 
     [Fact]
+    public void ExportVersionChangelog_IncludesMatchedAndUnmatchedSourceChanges()
+    {
+        var localRoot = Path.Combine(_rootDirectory, "source-changelog-local", "BP");
+        var sharedRoot = Path.Combine(_rootDirectory, "source-changelog-shared", "BP");
+        var service = CreateService();
+
+        service.CreateProject(
+            new ProjectCreateRequest(
+                "Blueprints",
+                "BP",
+                "SemVer",
+                localRoot,
+                sharedRoot));
+
+        var versionSession = service.SaveVersion(
+            localRoot,
+            sharedRoot,
+            new VersionEditRequest(
+                null,
+                "1.5.0",
+                ReleaseStatus.InProgress,
+                "Release candidate"));
+        var versionId = versionSession.LoadResult.Workspace.Versions[0].Version.VersionId;
+
+        service.SaveItem(
+            localRoot,
+            sharedRoot,
+            new ItemEditRequest(
+                versionId,
+                null,
+                "feature",
+                "added",
+                "Ship project workflow",
+                "Create and open real workspaces.",
+                true));
+
+        var sourceChanges = new[]
+        {
+            new SourceChangeSummary(
+                "abcdef1234567890",
+                "abcdef1",
+                "BP-151 Ship project workflow",
+                "Flavio",
+                DateTimeOffset.Parse("2026-05-17T12:00:00Z"),
+                ["BP-151"]),
+            new SourceChangeSummary(
+                "1111111111111111",
+                "1111111",
+                "Tidy unmatched change",
+                "Flavio",
+                DateTimeOffset.Parse("2026-05-17T12:30:00Z"),
+                []),
+        };
+
+        var export = service.ExportVersionChangelog(localRoot, sharedRoot, versionId, sourceChanges);
+
+        Assert.Contains("## Source Changes", export.Markdown, StringComparison.Ordinal);
+        Assert.Contains("Matched to this version:", export.Markdown, StringComparison.Ordinal);
+        Assert.Contains("`abcdef1` BP-151 Ship project workflow (BP-151)", export.Markdown, StringComparison.Ordinal);
+        Assert.Contains("Unmatched recent changes:", export.Markdown, StringComparison.Ordinal);
+        Assert.Contains("`1111111` Tidy unmatched change", export.Markdown, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void InviteMember_AddsSignedMemberAndIncrementsRevision()
     {
         var localRoot = Path.Combine(_rootDirectory, "member-local", "BP");

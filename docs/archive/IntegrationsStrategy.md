@@ -1,4 +1,6 @@
-# Blueprints Integrations Strategy
+# Archived: Blueprints Integrations Strategy
+
+> Historical design material. Current integration sequencing is maintained in [the roadmap](../../Roadmap.md).
 
 Status: Working Direction
 Date: 2026-05-16
@@ -236,7 +238,9 @@ Status:
 - branch, origin remote, dirty state, and latest tag detection exists
 - commits since latest tag are read and shown in the Local Git card
 - item keys are extracted from commit subjects
-- consuming matched/unmatched commits in release and changelog workflows is next
+- changelog export consumes matched and unmatched recent commits when Local Git data is available
+- selected-version source diagnostics show matched and unmatched commits before export
+- release-readiness actions for unmatched commits are next
 
 ### Phase C - GitHub Adapter
 
