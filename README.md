@@ -13,7 +13,7 @@
   <a href="https://github.com/ATAC-Helicopter/Blueprints/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/ATAC-Helicopter/Blueprints/actions/workflows/ci.yml/badge.svg?branch=develop"></a>
   <a href="https://github.com/ATAC-Helicopter/Blueprints/actions/workflows/codeql.yml"><img alt="CodeQL" src="https://github.com/ATAC-Helicopter/Blueprints/actions/workflows/codeql.yml/badge.svg?branch=develop"></a>
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-2f6f5e"></a>
-  <img alt=".NET 8" src="https://img.shields.io/badge/.NET-8.0-512BD4">
+  <img alt=".NET 10" src="https://img.shields.io/badge/.NET-10.0-512BD4">
 </p>
 
 > [!IMPORTANT]
@@ -50,7 +50,7 @@ The canonical delivery plan is [ROADMAP.md](Roadmap.md). Older planning files re
 
 Prerequisites:
 
-- the .NET 8 SDK, or a newer SDK allowed by `global.json`;
+- the .NET 10 SDK (`10.0.300` or a newer patch);
 - Git, if you want local source-change diagnostics.
 
 ```sh

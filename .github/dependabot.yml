@@ -15,10 +15,6 @@ updates:
     groups:
       nuget-minor-patch:
         update-types: [minor, patch]
-    ignore:
-      - dependency-name: "Avalonia*"
-        update-types: ["version-update:semver-major"]
-
   - package-ecosystem: github-actions
     directory: /
     target-branch: develop

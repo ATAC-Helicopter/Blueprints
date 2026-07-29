@@ -2,7 +2,7 @@
 
 ## System shape
 
-Blueprints is a layered .NET 8 desktop application.
+Blueprints is a layered .NET 10 desktop application.
 
 ```text
 Blueprints.App

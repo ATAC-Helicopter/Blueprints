@@ -10,10 +10,11 @@ Notable changes to Blueprints are documented here. The project follows semantic 
 - A milestone-based product roadmap.
 - Blueprints visual identity and application icon.
 - Cross-platform CI, CodeQL, dependency review, release packaging, PR labels, and community templates.
+- Build-provenance attestations for tagged release packages.
 
 ### Changed
 
-- Restored the Avalonia dependency family to the consistent 11.3.15 line for reproducible builds.
+- Upgraded the application to .NET 10 LTS, Avalonia 12.1.1, and the latest stable direct dependencies.
 - Made command feedback visible across the active workspace.
 - Clarified local-workspace and shared-exchange terminology.
 - Moved superseded planning and handoff documents into `docs/archive`.

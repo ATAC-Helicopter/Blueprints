@@ -28,7 +28,13 @@ git tag -s v0.2.0-alpha.1 -m "Blueprints v0.2.0-alpha.1"
 git push origin v0.2.0-alpha.1
 ```
 
-The release workflow publishes platform archives and generates checksums for `v*` tags. It can also be started manually for packaging verification without creating a public release.
+The release workflow publishes platform archives, generates SHA-256 checksums, and records signed build-provenance attestations for `v*` tags. It can also be started manually for packaging verification without creating a public release.
+
+Verify a downloaded archive against the repository’s GitHub attestation:
+
+```sh
+gh attestation verify Blueprints-<runtime>.zip --repo ATAC-Helicopter/Blueprints
+```
 
 ## Release notes
 
