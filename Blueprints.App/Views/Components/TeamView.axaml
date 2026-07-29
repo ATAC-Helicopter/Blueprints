@@ -1,0 +1,114 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Blueprints.App.ViewModels"
+             xmlns:models="using:Blueprints.App.Models"
+             x:Class="Blueprints.App.Views.Components.TeamView"
+             x:DataType="vm:MainWindowViewModel">
+  <Grid ColumnDefinitions="0.72*,1.28*" ColumnSpacing="16">
+    <ScrollViewer>
+      <StackPanel Spacing="16">
+        <Border Classes="dark-card">
+          <StackPanel Spacing="10">
+            <TextBlock Classes="eyebrow" Text="LOCAL SIGNING IDENTITY" Foreground="#62D3F0" />
+            <TextBlock Text="{Binding Identity.DisplayName}" FontSize="22" FontWeight="Bold" Foreground="White" />
+            <TextBlock Text="{Binding Identity.UserId}" Classes="mono" FontSize="11" Foreground="#A9C8DC" TextWrapping="Wrap" />
+            <Border Height="1" Background="#245A7D" />
+            <TextBlock Text="{Binding Identity.KeyStorageProvider, StringFormat='Protected by {0}'}" Foreground="#A9C8DC" />
+            <TextBlock Text="Share the bundle only with an administrator who is intentionally inviting this identity."
+                       Foreground="#A9C8DC"
+                       TextWrapping="Wrap"
+                       FontSize="12" />
+            <TextBox Text="{Binding IdentityBundle}"
+                     AcceptsReturn="True"
+                     IsReadOnly="True"
+                     Height="90"
+                     TextWrapping="Wrap"
+                     FontFamily="Cascadia Mono, SFMono-Regular, Consolas, monospace"
+                     FontSize="11" />
+          </StackPanel>
+        </Border>
+
+        <Border Classes="card">
+          <StackPanel Spacing="10">
+            <StackPanel Spacing="3">
+              <TextBlock Classes="eyebrow" Text="INVITATION NODE" />
+              <TextBlock Text="Add a signed member" FontSize="19" FontWeight="Bold" />
+            </StackPanel>
+            <TextBox PlaceholderText="User ID" Text="{Binding InviteUserId}" IsEnabled="{Binding CanManageMembers}" />
+            <TextBox PlaceholderText="Display name" Text="{Binding InviteDisplayName}" IsEnabled="{Binding CanManageMembers}" />
+            <ComboBox ItemsSource="{Binding AvailableMemberRoles}" SelectedItem="{Binding InviteRole}" IsEnabled="{Binding CanManageMembers}" />
+            <TextBox PlaceholderText="Public key (Base64)"
+                     Text="{Binding InvitePublicKey}"
+                     AcceptsReturn="True"
+                     Height="88"
+                     TextWrapping="Wrap"
+                     IsEnabled="{Binding CanManageMembers}"
+                     FontFamily="Cascadia Mono, SFMono-Regular, Consolas, monospace"
+                     FontSize="11" />
+            <Button Classes="primary"
+                    Content="Invite member"
+                    Command="{Binding InviteMemberCommand}"
+                    IsEnabled="{Binding CanManageMembers}"
+                    HorizontalAlignment="Left" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+
+    <Grid Grid.Column="1" RowDefinitions="*,Auto" RowSpacing="16">
+      <Border Classes="card">
+        <Grid RowDefinitions="Auto,*" RowSpacing="12">
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Spacing="3">
+              <TextBlock Classes="eyebrow" Text="MEMBERSHIP MAP" />
+              <TextBlock Text="Signed project participants" FontSize="21" FontWeight="Bold" />
+            </StackPanel>
+            <TextBlock Grid.Column="1"
+                       Text="{Binding MembershipRevision, StringFormat='REV {0:000}'}"
+                       Classes="mono"
+                       Foreground="#168AD0"
+                       VerticalAlignment="Center" />
+          </Grid>
+          <ListBox Grid.Row="1" ItemsSource="{Binding Members}" SelectedItem="{Binding SelectedMember}">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="models:WorkspaceMemberCard">
+                <Border Classes="blueprint-card" Margin="0,0,0,9">
+                  <Grid ColumnDefinitions="42,*,120,92" ColumnSpacing="12">
+                    <Border Width="34" Height="34" CornerRadius="17" Background="#168AD0" VerticalAlignment="Center">
+                      <TextBlock Text="ID" Foreground="White" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <StackPanel Grid.Column="1" Spacing="2">
+                      <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" />
+                      <TextBlock Text="{Binding UserId}" Classes="mono muted" FontSize="11" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <TextBlock Grid.Column="2" Text="{Binding Role}" Foreground="#0B4F8A" VerticalAlignment="Center" FontWeight="SemiBold" />
+                    <TextBlock Grid.Column="3" Text="{Binding IsActive, StringFormat='Active: {0}'}" Classes="muted" VerticalAlignment="Center" />
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+      </Border>
+
+      <Border Grid.Row="1" Classes="card">
+        <Grid ColumnDefinitions="1.2*,1*,1*,Auto" ColumnSpacing="10">
+          <StackPanel Spacing="3">
+            <TextBlock Classes="eyebrow" Text="SELECTED MEMBER" />
+            <TextBlock Text="{Binding SelectedMemberStateSummary}" Classes="muted" TextWrapping="Wrap" />
+          </StackPanel>
+          <TextBox Grid.Column="1" PlaceholderText="Display name" Text="{Binding MemberEditorDisplayName}" IsEnabled="{Binding CanEditSelectedMember}" />
+          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+            <ComboBox Width="130" ItemsSource="{Binding AvailableMemberRoles}" SelectedItem="{Binding MemberEditorRole}" IsEnabled="{Binding CanEditSelectedMember}" />
+            <CheckBox Content="Active" IsChecked="{Binding MemberEditorIsActive}" IsEnabled="{Binding CanEditSelectedMember}" />
+          </StackPanel>
+          <Button Grid.Column="3"
+                  Classes="primary"
+                  Content="Save member"
+                  Command="{Binding SaveMemberDetailsCommand}"
+                  IsEnabled="{Binding CanEditSelectedMember}" />
+        </Grid>
+      </Border>
+    </Grid>
+  </Grid>
+</UserControl>

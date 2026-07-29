@@ -1,6 +1,6 @@
 # User guide
 
-Blueprints is a desktop application for planning releases in signed local files. It currently targets technical preview users who are comfortable choosing local directories.
+Blueprints is a desktop application for planning releases in signed local files. Its interface is organized as an interactive project blueprint: the left project map moves between the workspaces responsible for planning, evidence, trust, and exchange.
 
 ## Concepts
 
@@ -16,26 +16,26 @@ Blueprints is a desktop application for planning releases in signed local files.
 1. Start Blueprints.
 2. Enter a project name and short code.
 3. Keep `SemVer` or enter the versioning scheme your project uses.
-4. Choose different local and shared roots. Neither may contain the other.
-5. Select **Create Signed Project**.
+4. Use **Browse** to choose different local and shared roots. Neither may contain the other.
+5. Select **Create signed project**.
 
 Blueprints creates the first local identity automatically in the current preview. Identity onboarding is planned.
 
 ## Plan a release
 
-1. Open the **Releases** tab.
-2. Enter a version name and select **New**.
+1. Select **Releases** on the project map.
+2. Enter a version name in the version index and select **Add**.
 3. Select the version and edit its name, status, and notes.
-4. Select an item type and changelog category, enter a title, then select **Add Item**.
-5. Mark completed items as **Done**.
+4. Select an item type and changelog group, enter a title, then select **Add item**.
+5. Mark completed items as ready for release notes.
 
 Item keys are generated from project rules. Released versions are immutable.
 
 ## Export a changelog
 
 1. Select a version.
-2. Select **Export Changelog**.
-3. Review the preview and saved path shown in the version editor.
+2. Select **Export notes**.
+3. Review the changelog preview and saved path in the version node.
 
 Incomplete items are excluded by the current default rules. When a local Git repository is linked, recent commit subjects and matching item keys are added as source context.
 
@@ -43,7 +43,7 @@ Incomplete items are excluded by the current default rules. When a local Git rep
 
 1. Open **Integrations**.
 2. Enter the path to a Git worktree.
-3. Select **Save**, then **Refresh**.
+3. Select **Save connection**, then **Refresh all**.
 
 This integration is read-only. It reads repository status and recent commit metadata; it does not commit, push, or modify the repository.
 
@@ -51,7 +51,7 @@ This integration is read-only. It reads repository status and recent commit meta
 
 The shared root is an exchange layer, not the editable workspace.
 
-- **Refresh Analysis** compares local, shared, and last-synced baselines.
+- **Refresh comparison** compares local, shared, and last-synced baselines.
 - **Push** copies valid outgoing signed documents and updates the signed manifest.
 - **Pull** validates incoming signatures and manifest continuity before applying changes.
 - If both copies changed, Blueprints blocks mutation until you choose **Keep Local** or **Accept Shared**.

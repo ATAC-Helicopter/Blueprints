@@ -20,21 +20,21 @@ Goal: a new contributor can build the app, and a developer can plan and export a
 - [x] Restore a reproducible local build and executable helper scripts.
 - [x] Establish public-project documentation, templates, automation, and visual identity.
 - [x] Move the supported runtime to .NET 10 LTS and Avalonia 12.
-- [ ] Split the main window and view model into feature-sized components.
-- [ ] Add folder pickers and validation instead of requiring raw paths.
+- [x] Split the main window into feature-sized views with project-map navigation.
+- [x] Add native folder pickers instead of requiring raw paths.
 - [ ] Add first-run identity setup instead of silently creating a default identity.
 - [ ] Add delete/archive flows for draft versions and items.
 - [ ] Group items by changelog category and improve empty states.
 - [ ] Preview changelogs before writing a file; expose current changelog options.
 - [ ] Add view-model workflow tests for create, edit, freeze, release, and export.
-- [ ] Publish signed preview packages for Windows, macOS, and Linux.
+- [x] Establish lightweight milestone tags and accomplishment records without binary packaging.
 
 Exit criteria:
 
 - clean clone builds with one documented command;
 - create, close, reopen, plan, release, and export work end to end;
 - all destructive or immutable actions explain their consequences;
-- a preview release is downloadable from GitHub.
+- the v0.2 milestone is recorded by a tag, changelog section, release-history entry, and lightweight GitHub prerelease.
 
 ## Next — v0.3: understandable collaboration
 
@@ -119,7 +119,7 @@ Security work is a release requirement across every milestone, not a one-time fe
 - [ ] define key rotation, revocation, recovery, and platform keystore integration;
 - [ ] make workspace updates atomic and recoverable;
 - [ ] generate an SBOM for every published package;
-- [x] generate a provenance attestation for every tagged release package;
+- [ ] generate provenance attestations when downloadable packages are introduced;
 - [ ] commission an independent security review before a stable release;
 - [ ] publish supported-version and vulnerability-response targets;
 - [ ] never describe a release as audited unless its exact source and artifacts were reviewed.
