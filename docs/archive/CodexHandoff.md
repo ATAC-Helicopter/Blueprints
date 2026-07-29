@@ -1,4 +1,6 @@
-# Codex Handoff
+# Archived: Codex Handoff
+
+> Historical handoff material. For current project status, use [the roadmap](../../Roadmap.md) and [documentation index](../README.md).
 
 This document is the primary handoff for future Codex/chat sessions. It should let another agent continue work with minimal rediscovery.
 

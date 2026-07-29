@@ -1,0 +1,38 @@
+area/app:
+  - changed-files:
+      - any-glob-to-any-file: Blueprints.App/**
+
+area/core:
+  - changed-files:
+      - any-glob-to-any-file: Blueprints.Core/**
+
+area/security:
+  - changed-files:
+      - any-glob-to-any-file:
+          - Blueprints.Security/**
+          - SECURITY.md
+          - docs/security-model.md
+
+area/storage:
+  - changed-files:
+      - any-glob-to-any-file: Blueprints.Storage/**
+
+area/collaboration:
+  - changed-files:
+      - any-glob-to-any-file: Blueprints.Collaboration/**
+
+area/tests:
+  - changed-files:
+      - any-glob-to-any-file: Blueprints.Tests/**
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/*.md"
+          - docs/**
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - .github/workflows/**
+          - .github/dependabot.yml

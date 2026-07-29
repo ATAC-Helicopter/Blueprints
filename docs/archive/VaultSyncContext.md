@@ -1,4 +1,6 @@
-# VaultSync Context For Blueprints
+# Archived: VaultSync Context For Blueprints
+
+> Historical integration research. Current sequencing is maintained in [the roadmap](../../Roadmap.md).
 
 Status: GitHub-derived context
 Date: 2026-05-16

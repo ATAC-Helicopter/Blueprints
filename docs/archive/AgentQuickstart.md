@@ -1,4 +1,6 @@
-# Agent Quickstart
+# Archived: Agent Quickstart
+
+> Historical handoff material. For current setup and repository guidance, use [the development guide](../development.md).
 
 Purpose: let a future Codex/chat instance become useful quickly without rediscovering the repo.
 
