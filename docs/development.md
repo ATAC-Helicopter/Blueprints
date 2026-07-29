@@ -3,10 +3,10 @@
 ## Prerequisites
 
 - Git
-- .NET 8 SDK or a newer compatible SDK
+- .NET 10 SDK `10.0.300` or a newer patch
 - Windows, macOS, or Linux for build and tests
 
-`global.json` prefers SDK `8.0.413` and permits newer major SDKs. CI always installs .NET 8.
+`global.json` selects the .NET 10 `10.0.3xx` feature band and accepts its latest installed patch. CI installs the latest .NET 10 SDK.
 
 ## Build and test
 
@@ -78,6 +78,6 @@ dotnet --list-sdks
 dotnet --version
 ```
 
-Install .NET 8 or a newer stable SDK. Do not edit a parent-directory `global.json`; this repository has its own pin.
+Install .NET 10 SDK `10.0.300` or a newer patch in the same feature band. Do not edit a parent-directory `global.json`; this repository has its own pin.
 
 If restore is slow on first use, let NuGet finish populating its cache. Subsequent builds should be much faster.
