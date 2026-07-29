@@ -565,12 +565,12 @@ public partial class MainWindowViewModel : ViewModelBase
             : HasConflicts
                 ? "Resolve sync conflicts before editing this version."
                 : SelectedVersion?.Status switch
-        {
-            ReleaseStatus.Frozen => "Frozen versions are read-only until they are explicitly released.",
-            ReleaseStatus.Released => "Released versions are immutable.",
-            _ when SelectedVersion is not null => "This version can still be edited.",
-            _ => "Select a version to manage release state.",
-        };
+                {
+                    ReleaseStatus.Frozen => "Frozen versions are read-only until they are explicitly released.",
+                    ReleaseStatus.Released => "Released versions are immutable.",
+                    _ when SelectedVersion is not null => "This version can still be edited.",
+                    _ => "Select a version to manage release state.",
+                };
 
     public string VersionSourceChangeSummary
     {
