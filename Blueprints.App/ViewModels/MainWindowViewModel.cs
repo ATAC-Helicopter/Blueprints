@@ -276,6 +276,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 OnPropertyChanged(nameof(IsSyncSelected));
                 OnPropertyChanged(nameof(IsTrustSelected));
                 OnPropertyChanged(nameof(IsIntegrationsSelected));
+                OnPropertyChanged(nameof(IsDetailsWorkspaceSelected));
                 OnPropertyChanged(nameof(SelectedWorkspaceSectionTitle));
                 OnPropertyChanged(nameof(SelectedWorkspaceSectionDescription));
             }
@@ -293,6 +294,8 @@ public partial class MainWindowViewModel : ViewModelBase
     public bool IsTrustSelected => SelectedWorkspaceSection == WorkspaceSection.Trust;
 
     public bool IsIntegrationsSelected => SelectedWorkspaceSection == WorkspaceSection.Integrations;
+
+    public bool IsDetailsWorkspaceSelected => !IsOverviewSelected;
 
     public string SelectedWorkspaceSectionTitle =>
         SelectedWorkspaceSection switch
@@ -394,6 +397,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 OnPropertyChanged(nameof(CanEditItems));
                 OnPropertyChanged(nameof(CanReleaseSelectedVersion));
                 OnPropertyChanged(nameof(SelectedVersionStateSummary));
+                OnPropertyChanged(nameof(InspectorSelectionSummary));
                 RefreshVersionSourceChangeDiagnostics();
             }
         }
@@ -407,9 +411,20 @@ public partial class MainWindowViewModel : ViewModelBase
             if (SetProperty(ref _selectedItem, value))
             {
                 PopulateItemEditor();
+                OnPropertyChanged(nameof(HasSelectedItem));
+                OnPropertyChanged(nameof(InspectorSelectionSummary));
             }
         }
     }
+
+    public bool HasSelectedItem => SelectedItem is not null;
+
+    public string InspectorSelectionSummary =>
+        SelectedItem is not null
+            ? $"{SelectedItem.ItemKey} / {SelectedItem.ItemTypeId}"
+            : SelectedVersion is not null
+                ? $"VERSION / {SelectedVersion.Name}"
+                : "SELECT A NODE";
 
     public string NewVersionName
     {
@@ -714,6 +729,50 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     private void NavigateToIntegrations() =>
         SelectedWorkspaceSection = WorkspaceSection.Integrations;
+
+    [RelayCommand]
+    private void SelectVersionNode(WorkspaceVersionCard? version)
+    {
+        if (version is null)
+        {
+            return;
+        }
+
+        SelectedVersion = version;
+        SelectedItem = null;
+        OnPropertyChanged(nameof(InspectorSelectionSummary));
+    }
+
+    [RelayCommand]
+    private void SelectItemNode(WorkspaceItemCard? item)
+    {
+        if (item is null)
+        {
+            return;
+        }
+
+        var owningVersion = Versions.FirstOrDefault(version => version.Items.Any(candidate => candidate.ItemId == item.ItemId));
+        if (owningVersion is not null && SelectedVersion?.VersionId != owningVersion.VersionId)
+        {
+            SelectedVersion = owningVersion;
+        }
+
+        SelectedItem = item;
+        OnPropertyChanged(nameof(InspectorSelectionSummary));
+    }
+
+    [RelayCommand]
+    private void BeginNewItem()
+    {
+        if (SelectedVersion is null)
+        {
+            WorkspaceMessage = "Select a version node before connecting a work item.";
+            return;
+        }
+
+        ClearItemEditorForNewItem();
+        WorkspaceMessage = $"Ready to connect a new item to {SelectedVersion.Name}.";
+    }
 
     [RelayCommand]
     private void CreateProject()

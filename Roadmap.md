@@ -20,7 +20,8 @@ Goal: a new contributor can build the app, and a developer can plan and export a
 - [x] Restore a reproducible local build and executable helper scripts.
 - [x] Establish public-project documentation, templates, automation, and visual identity.
 - [x] Move the supported runtime to .NET 10 LTS and Avalonia 12.
-- [x] Split the main window into feature-sized views with project-map navigation.
+- [x] Make the primary workspace a draggable, diagram-first blueprint canvas backed by real version and item relationships.
+- [x] Keep release, team, sync, trust, and integration operations in focused secondary tools.
 - [x] Add native folder pickers instead of requiring raw paths.
 - [ ] Add first-run identity setup instead of silently creating a default identity.
 - [ ] Add delete/archive flows for draft versions and items.

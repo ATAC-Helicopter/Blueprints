@@ -11,13 +11,13 @@ Notable changes to Blueprints are documented here. The project follows semantic 
 - Blueprints visual identity and application icon.
 - Cross-platform CI, CodeQL, dependency review, milestone automation, PR labels, and community templates.
 - Lightweight milestone-release records generated from the changelog without binary builds.
-- An interactive blueprint-map application shell with focused release, team, sync, trust, and integration workspaces.
+- A diagram-first blueprint canvas with draggable version and work-item nodes, live relationship connectors, zoom controls, and direct node inspection.
 - Native folder pickers for project creation and opening.
 
 ### Changed
 
 - Upgraded the application to .NET 10 LTS, Avalonia 12.1.1, and the latest stable direct dependencies.
-- Reworked the desktop interface into reusable feature views with explicit navigation and clearer action hierarchy.
+- Replaced the dashboard-style overview and wide navigation sidebar with a hands-on canvas, contextual inspector, compact tool rail, and focused secondary workspaces.
 - Made command feedback visible across the active workspace.
 - Clarified local-workspace and shared-exchange terminology.
 - Moved superseded planning and handoff documents into `docs/archive`.
