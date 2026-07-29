@@ -1,0 +1,38 @@
+name: Feature request
+description: Propose a scoped improvement to Blueprints.
+title: "[Feature]: "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user problem should Blueprints solve?
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: Describe the behavior, not only the implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [Release planning, Collaboration, Trust and security, Integrations, Packaging, Documentation, Other]
+    validations:
+      required: true
+  - type: checkboxes
+    id: impact
+    attributes:
+      label: Potential impact
+      options:
+        - label: This may change the workspace format.
+        - label: This may change a security or trust boundary.
+        - label: This may add a dependency or hosted integration.

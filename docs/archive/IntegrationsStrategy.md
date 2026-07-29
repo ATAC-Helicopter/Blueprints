@@ -1,4 +1,6 @@
-# Blueprints Integrations Strategy
+# Archived: Blueprints Integrations Strategy
+
+> Historical design material. Current integration sequencing is maintained in [the roadmap](../../Roadmap.md).
 
 Status: Working Direction
 Date: 2026-05-16

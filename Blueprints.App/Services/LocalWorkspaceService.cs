@@ -1,9 +1,9 @@
 using Blueprints.App.Models;
 using Blueprints.Collaboration.Enums;
+using Blueprints.Collaboration.Models;
 using Blueprints.Core.Enums;
 using Blueprints.Core.Models;
 using Blueprints.Core.Services;
-using Blueprints.Collaboration.Models;
 using Blueprints.Security.Models;
 using Blueprints.Storage.Abstractions;
 using Blueprints.Storage.Models;

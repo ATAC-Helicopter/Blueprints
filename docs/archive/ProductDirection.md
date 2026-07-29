@@ -1,4 +1,6 @@
-# Blueprints Product Direction
+# Archived: Blueprints Product Direction
+
+> Historical design material. Current product direction is maintained in [the roadmap](../../Roadmap.md).
 
 Status: Working Direction
 Date: 2026-05-16

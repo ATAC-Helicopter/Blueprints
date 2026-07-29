@@ -1,4 +1,6 @@
-# Blueprints Test Plan
+# Archived: Blueprints Test Plan
+
+> Historical verification snapshot. Current commands are in [the development guide](../development.md); current CI is authoritative.
 
 Status: Working Draft
 Date: 2026-05-16

@@ -1,4 +1,6 @@
-# Blueprints
+# Archived: Blueprints Product Plan
+
+> Historical design material. Current product direction is maintained in [the roadmap](../../Roadmap.md).
 
 Product and Technical Design Specification
 
