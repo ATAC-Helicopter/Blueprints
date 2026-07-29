@@ -1,27 +1,27 @@
-area/app:
+app:
   - changed-files:
       - any-glob-to-any-file: Blueprints.App/**
 
-area/core:
+core:
   - changed-files:
       - any-glob-to-any-file: Blueprints.Core/**
 
-area/security:
+security:
   - changed-files:
       - any-glob-to-any-file:
           - Blueprints.Security/**
           - SECURITY.md
           - docs/security-model.md
 
-area/storage:
+storage:
   - changed-files:
       - any-glob-to-any-file: Blueprints.Storage/**
 
-area/collaboration:
+collaboration:
   - changed-files:
       - any-glob-to-any-file: Blueprints.Collaboration/**
 
-area/tests:
+tests:
   - changed-files:
       - any-glob-to-any-file: Blueprints.Tests/**
 
