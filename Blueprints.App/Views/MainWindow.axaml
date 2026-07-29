@@ -78,106 +78,48 @@
 
     <views:SetupView Grid.Row="1" IsVisible="{Binding IsSetupMode}" />
 
-    <Grid Grid.Row="1" ColumnDefinitions="252,*" IsVisible="{Binding HasActiveSession}">
-      <Border Background="#08233A" BorderBrush="#1C4A6A" BorderThickness="0,0,1,0" Padding="16,18">
-        <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="16">
-          <Border Classes="dark-card" Padding="13">
-            <StackPanel Spacing="5">
-              <TextBlock Classes="eyebrow" Text="ACTIVE BLUEPRINT" Foreground="#62D3F0" />
-              <TextBlock Text="{Binding CurrentProject.Name}" Foreground="White" FontSize="18" FontWeight="Bold" TextWrapping="Wrap" />
-              <TextBlock Text="{Binding CurrentProject.Code, StringFormat='PROJECT / {0}'}" Classes="mono" Foreground="#8FB5CC" FontSize="11" />
-              <TextBlock Text="{Binding VersioningScheme, StringFormat='SCHEME / {0}'}" Classes="mono" Foreground="#8FB5CC" FontSize="11" />
+    <Grid Grid.Row="1" ColumnDefinitions="74,*" IsVisible="{Binding HasActiveSession}">
+      <Border Background="#061C30" BorderBrush="#285A78" BorderThickness="0,0,1,0">
+        <Grid RowDefinitions="Auto,*,Auto">
+          <Border Margin="10,12" Height="48" Background="#0D4166" BorderBrush="#5CCBE8" BorderThickness="1" CornerRadius="4">
+            <StackPanel VerticalAlignment="Center">
+              <TextBlock Text="{Binding CurrentProject.Code}" Classes="mono" Foreground="White" FontWeight="Black" HorizontalAlignment="Center" />
+              <TextBlock Text="MAP" Classes="mono" Foreground="#6DD6EF" FontSize="8" HorizontalAlignment="Center" />
             </StackPanel>
           </Border>
 
-          <StackPanel Grid.Row="1" Spacing="4">
-            <TextBlock Classes="eyebrow" Text="PROJECT MAP" Foreground="#62D3F0" Margin="10,0,0,5" />
-
-            <Button Classes="nav" Classes.active="{Binding IsOverviewSelected}" Command="{Binding NavigateToOverviewCommand}">
-              <Grid ColumnDefinitions="24,*" ColumnSpacing="10">
-                <TextBlock Text="01" Classes="mono" Foreground="#62D3F0" />
-                <TextBlock Grid.Column="1" Text="Overview" Foreground="{Binding $parent[Button].Foreground}" />
-              </Grid>
-            </Button>
-            <Button Classes="nav" Classes.active="{Binding IsReleasesSelected}" Command="{Binding NavigateToReleasesCommand}">
-              <Grid ColumnDefinitions="24,*" ColumnSpacing="10">
-                <TextBlock Text="02" Classes="mono" Foreground="#62D3F0" />
-                <TextBlock Grid.Column="1" Text="Releases" Foreground="{Binding $parent[Button].Foreground}" />
-              </Grid>
-            </Button>
-            <Button Classes="nav" Classes.active="{Binding IsTeamSelected}" Command="{Binding NavigateToTeamCommand}">
-              <Grid ColumnDefinitions="24,*" ColumnSpacing="10">
-                <TextBlock Text="03" Classes="mono" Foreground="#62D3F0" />
-                <TextBlock Grid.Column="1" Text="Team" Foreground="{Binding $parent[Button].Foreground}" />
-              </Grid>
-            </Button>
-            <Button Classes="nav" Classes.active="{Binding IsSyncSelected}" Command="{Binding NavigateToSyncCommand}">
-              <Grid ColumnDefinitions="24,*" ColumnSpacing="10">
-                <TextBlock Text="04" Classes="mono" Foreground="#62D3F0" />
-                <TextBlock Grid.Column="1" Text="Sync" Foreground="{Binding $parent[Button].Foreground}" />
-              </Grid>
-            </Button>
-            <Button Classes="nav" Classes.active="{Binding IsTrustSelected}" Command="{Binding NavigateToTrustCommand}">
-              <Grid ColumnDefinitions="24,*" ColumnSpacing="10">
-                <TextBlock Text="05" Classes="mono" Foreground="#62D3F0" />
-                <TextBlock Grid.Column="1" Text="Trust" Foreground="{Binding $parent[Button].Foreground}" />
-              </Grid>
-            </Button>
-            <Button Classes="nav" Classes.active="{Binding IsIntegrationsSelected}" Command="{Binding NavigateToIntegrationsCommand}">
-              <Grid ColumnDefinitions="24,*" ColumnSpacing="10">
-                <TextBlock Text="06" Classes="mono" Foreground="#62D3F0" />
-                <TextBlock Grid.Column="1" Text="Integrations" Foreground="{Binding $parent[Button].Foreground}" />
-              </Grid>
-            </Button>
+          <StackPanel Grid.Row="1" Spacing="7" Margin="8,8">
+            <Button Classes="rail" Classes.active="{Binding IsOverviewSelected}" Content="⌘" ToolTip.Tip="Canvas" Command="{Binding NavigateToOverviewCommand}" />
+            <Button Classes="rail" Classes.active="{Binding IsReleasesSelected}" Content="V" ToolTip.Tip="Versions and releases" Command="{Binding NavigateToReleasesCommand}" />
+            <Button Classes="rail" Classes.active="{Binding IsTeamSelected}" Content="P" ToolTip.Tip="People and identities" Command="{Binding NavigateToTeamCommand}" />
+            <Button Classes="rail" Classes.active="{Binding IsSyncSelected}" Content="⇄" ToolTip.Tip="Sync exchange" Command="{Binding NavigateToSyncCommand}" />
+            <Button Classes="rail" Classes.active="{Binding IsTrustSelected}" Content="◇" ToolTip.Tip="Trust and audit" Command="{Binding NavigateToTrustCommand}" />
+            <Button Classes="rail" Classes.active="{Binding IsIntegrationsSelected}" Content="⌁" ToolTip.Tip="Integrations" Command="{Binding NavigateToIntegrationsCommand}" />
           </StackPanel>
 
-          <Border Grid.Row="2" BorderBrush="#194765" BorderThickness="1,0,0,0" Margin="20,0,0,0" IsHitTestVisible="False" />
-
-          <StackPanel Grid.Row="3" Spacing="8">
-            <Button Classes="secondary compact" Content="↻ Refresh workspace" Command="{Binding RefreshWorkspaceCommand}" HorizontalContentAlignment="Left" />
-            <Button Classes="nav compact" Content="← Switch project" Command="{Binding ReturnToProjectSetupCommand}" HorizontalContentAlignment="Left" />
-            <TextBlock Text="LOCAL-FIRST  /  SIGNED  /  EXPLICIT"
-                       Classes="mono"
-                       Foreground="#527B94"
-                       FontSize="9"
-                       HorizontalAlignment="Center"
-                       Margin="0,8,0,0" />
-          </StackPanel>
+          <Button Grid.Row="2"
+                  Classes="rail"
+                  Content="←"
+                  ToolTip.Tip="Switch project"
+                  Command="{Binding ReturnToProjectSetupCommand}"
+                  Margin="8,0,8,12" />
         </Grid>
       </Border>
 
       <Grid Grid.Column="1" Background="#F2F8FC">
-        <Canvas IsHitTestVisible="False" Opacity="0.45">
-          <shapes:Line StartPoint="0,140" EndPoint="1600,140" Stroke="#D7E8F1" StrokeThickness="1" />
-          <shapes:Line StartPoint="0,420" EndPoint="1600,420" Stroke="#D7E8F1" StrokeThickness="1" />
-          <shapes:Line StartPoint="320,0" EndPoint="320,1000" Stroke="#E0EDF4" StrokeThickness="1" />
-          <shapes:Line StartPoint="860,0" EndPoint="860,1000" Stroke="#E0EDF4" StrokeThickness="1" />
-        </Canvas>
+        <views:OverviewView IsVisible="{Binding IsOverviewSelected}" />
 
-        <Grid Margin="24" RowDefinitions="Auto,*" RowSpacing="16">
+        <Grid IsVisible="{Binding IsDetailsWorkspaceSelected}" Margin="24" RowDefinitions="Auto,*" RowSpacing="16">
           <Grid ColumnDefinitions="*,Auto" ColumnSpacing="18">
             <StackPanel Spacing="4">
-              <TextBlock Classes="eyebrow" Text="{Binding SelectedWorkspaceSection, StringFormat='BLUEPRINT / {0}'}" />
+              <TextBlock Classes="eyebrow" Text="{Binding SelectedWorkspaceSection, StringFormat='TOOLS / {0}'}" />
               <TextBlock Text="{Binding SelectedWorkspaceSectionTitle}" FontSize="28" FontWeight="Black" />
               <TextBlock Text="{Binding SelectedWorkspaceSectionDescription}" Classes="muted" TextWrapping="Wrap" />
             </StackPanel>
-            <Border Grid.Column="1" Classes="blueprint-card" Padding="12,8" VerticalAlignment="Center">
-              <StackPanel Orientation="Horizontal" Spacing="12">
-                <StackPanel Spacing="1">
-                  <TextBlock Classes="eyebrow" Text="MODE" />
-                  <TextBlock Text="{Binding TrustBadge}" FontWeight="Bold" />
-                </StackPanel>
-                <Border Width="1" Background="#BED8E8" />
-                <StackPanel Spacing="1">
-                  <TextBlock Classes="eyebrow" Text="SYNC" />
-                  <TextBlock Text="{Binding Sync.Health}" FontWeight="Bold" />
-                </StackPanel>
-              </StackPanel>
-            </Border>
+            <Button Grid.Column="1" Classes="secondary" Content="Return to canvas" Command="{Binding NavigateToOverviewCommand}" VerticalAlignment="Center" />
           </Grid>
 
           <Grid Grid.Row="1">
-            <views:OverviewView IsVisible="{Binding IsOverviewSelected}" />
             <views:ReleasePlannerView IsVisible="{Binding IsReleasesSelected}" />
             <views:TeamView IsVisible="{Binding IsTeamSelected}" />
             <views:SyncView IsVisible="{Binding IsSyncSelected}" />

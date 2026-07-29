@@ -1,6 +1,6 @@
 # User guide
 
-Blueprints is a desktop application for planning releases in signed local files. Its interface is organized as an interactive project blueprint: the left project map moves between the workspaces responsible for planning, evidence, trust, and exchange.
+Blueprints is a desktop application for planning releases in signed local files. The main workspace is a hands-on blueprint canvas: versions and work items are visible as connected nodes, while a compact tool rail opens evidence, trust, and exchange tools.
 
 ## Concepts
 
@@ -23,25 +23,27 @@ Blueprints creates the first local identity automatically in the current preview
 
 ## Plan a release
 
-1. Select **Releases** on the project map.
-2. Enter a version name in the version index and select **Add**.
-3. Select the version and edit its name, status, and notes.
-4. Select an item type and changelog group, enter a title, then select **Add item**.
-5. Mark completed items as ready for release notes.
+1. Enter a version name in the canvas toolbar and select **Version**.
+2. Select the version node to edit its name, state, and accomplishment notes in the inspector.
+3. Select **Work item**, enter its type, changelog group, title, and context, then select **Connect new**.
+4. Select any work-item node to edit it directly in the inspector.
+5. Drag nodes to arrange the working view, and use zoom or **Fit map** to navigate larger plans.
+6. Mark completed items as ready for release notes.
 
-Item keys are generated from project rules. Released versions are immutable.
+The lines on the canvas represent real project relationships: a work item is connected to the version that owns it. Item keys are generated from project rules. Released versions are immutable.
 
 ## Export a changelog
 
-1. Select a version.
-2. Select **Export notes**.
-3. Review the changelog preview and saved path in the version node.
+1. Select a version node.
+2. Open the **Versions and releases** tool from the rail.
+3. Select **Export notes**.
+4. Review the changelog preview and saved path.
 
 Incomplete items are excluded by the current default rules. When a local Git repository is linked, recent commit subjects and matching item keys are added as source context.
 
 ## Link local Git
 
-1. Open **Integrations**.
+1. Open **Integrations** from the tool rail.
 2. Enter the path to a Git worktree.
 3. Select **Save connection**, then **Refresh all**.
 
@@ -60,7 +62,7 @@ The current conflict preview is low-level. Make a backup before resolving import
 
 ## Trust and read-only mode
 
-Open **Trust** to see signature, audit, shared-folder, and conflict diagnostics.
+Open **Trust** from the tool rail to see signature, audit, shared-folder, and conflict diagnostics.
 
 - **Trusted:** normal editing is allowed.
 - **Untrusted:** one or more signatures did not validate; mutation is disabled.
