@@ -72,6 +72,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private string _selectedConflictSharedPreview = string.Empty;
     private string _localGitRepositoryPath = string.Empty;
     private string _integrationMessage = string.Empty;
+    private WorkspaceSection _selectedWorkspaceSection = WorkspaceSection.Overview;
 
     public MainWindowViewModel()
     {
@@ -261,6 +262,61 @@ public partial class MainWindowViewModel : ViewModelBase
         get => _workspaceMessage;
         private set => SetProperty(ref _workspaceMessage, value);
     }
+
+    public WorkspaceSection SelectedWorkspaceSection
+    {
+        get => _selectedWorkspaceSection;
+        private set
+        {
+            if (SetProperty(ref _selectedWorkspaceSection, value))
+            {
+                OnPropertyChanged(nameof(IsOverviewSelected));
+                OnPropertyChanged(nameof(IsReleasesSelected));
+                OnPropertyChanged(nameof(IsTeamSelected));
+                OnPropertyChanged(nameof(IsSyncSelected));
+                OnPropertyChanged(nameof(IsTrustSelected));
+                OnPropertyChanged(nameof(IsIntegrationsSelected));
+                OnPropertyChanged(nameof(SelectedWorkspaceSectionTitle));
+                OnPropertyChanged(nameof(SelectedWorkspaceSectionDescription));
+            }
+        }
+    }
+
+    public bool IsOverviewSelected => SelectedWorkspaceSection == WorkspaceSection.Overview;
+
+    public bool IsReleasesSelected => SelectedWorkspaceSection == WorkspaceSection.Releases;
+
+    public bool IsTeamSelected => SelectedWorkspaceSection == WorkspaceSection.Team;
+
+    public bool IsSyncSelected => SelectedWorkspaceSection == WorkspaceSection.Sync;
+
+    public bool IsTrustSelected => SelectedWorkspaceSection == WorkspaceSection.Trust;
+
+    public bool IsIntegrationsSelected => SelectedWorkspaceSection == WorkspaceSection.Integrations;
+
+    public string SelectedWorkspaceSectionTitle =>
+        SelectedWorkspaceSection switch
+        {
+            WorkspaceSection.Overview => "Project overview",
+            WorkspaceSection.Releases => "Release drafting board",
+            WorkspaceSection.Team => "Team and signing identities",
+            WorkspaceSection.Sync => "Workspace exchange",
+            WorkspaceSection.Trust => "Trust and audit",
+            WorkspaceSection.Integrations => "Connected systems",
+            _ => "Project overview",
+        };
+
+    public string SelectedWorkspaceSectionDescription =>
+        SelectedWorkspaceSection switch
+        {
+            WorkspaceSection.Overview => "Read the project map, spot blockers, and choose the next action.",
+            WorkspaceSection.Releases => "Plan versions, connect work items, preview notes, and mark milestones complete.",
+            WorkspaceSection.Team => "Review signed membership and manage the people allowed to contribute.",
+            WorkspaceSection.Sync => "Compare local and shared state before moving signed changes.",
+            WorkspaceSection.Trust => "Inspect validation results, conflicts, and the audit boundary.",
+            WorkspaceSection.Integrations => "Connect source history without making a provider authoritative.",
+            _ => string.Empty,
+        };
 
     public string CreateProjectName
     {
@@ -634,6 +690,30 @@ public partial class MainWindowViewModel : ViewModelBase
             _ when HasConflicts => "Workspace has unresolved sync conflicts. Resolve them before editing.",
             _ => "Workspace is trusted and editable.",
         };
+
+    [RelayCommand]
+    private void NavigateToOverview() =>
+        SelectedWorkspaceSection = WorkspaceSection.Overview;
+
+    [RelayCommand]
+    private void NavigateToReleases() =>
+        SelectedWorkspaceSection = WorkspaceSection.Releases;
+
+    [RelayCommand]
+    private void NavigateToTeam() =>
+        SelectedWorkspaceSection = WorkspaceSection.Team;
+
+    [RelayCommand]
+    private void NavigateToSync() =>
+        SelectedWorkspaceSection = WorkspaceSection.Sync;
+
+    [RelayCommand]
+    private void NavigateToTrust() =>
+        SelectedWorkspaceSection = WorkspaceSection.Trust;
+
+    [RelayCommand]
+    private void NavigateToIntegrations() =>
+        SelectedWorkspaceSection = WorkspaceSection.Integrations;
 
     [RelayCommand]
     private void CreateProject()
@@ -1080,6 +1160,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void ApplySession(LocalWorkspaceSession session)
     {
+        var wasActiveSession = HasActiveSession;
         _currentSession = session;
 
         var workspace = session.LoadResult.Workspace;
@@ -1171,6 +1252,10 @@ public partial class MainWindowViewModel : ViewModelBase
         ChangelogPreview = string.Empty;
         LastChangelogExportPath = string.Empty;
         GitChangelogSummary = string.Empty;
+        if (!wasActiveSession)
+        {
+            SelectedWorkspaceSection = WorkspaceSection.Overview;
+        }
 
         if (previousSelectedVersionId is Guid selectedVersionId)
         {
@@ -1249,6 +1334,7 @@ public partial class MainWindowViewModel : ViewModelBase
         LastChangelogExportPath = string.Empty;
         GitChangelogSummary = string.Empty;
         IdentityPublicKey = string.Empty;
+        SelectedWorkspaceSection = WorkspaceSection.Overview;
         ClearInviteEditor();
         ClearMemberEditor();
         HasActiveSession = false;

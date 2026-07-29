@@ -1,0 +1,187 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Blueprints.App.ViewModels"
+             xmlns:models="using:Blueprints.App.Models"
+             x:Class="Blueprints.App.Views.Components.ReleasePlannerView"
+             x:DataType="vm:MainWindowViewModel">
+  <Grid ColumnDefinitions="300,*" ColumnSpacing="16">
+    <Border Classes="card">
+      <Grid RowDefinitions="Auto,Auto,*" RowSpacing="12">
+        <StackPanel Spacing="3">
+          <TextBlock Classes="eyebrow" Text="VERSION INDEX" />
+          <TextBlock Text="Milestone drafts" FontSize="21" FontWeight="Bold" />
+        </StackPanel>
+        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+          <TextBox PlaceholderText="0.2.0" Text="{Binding NewVersionName}" IsEnabled="{Binding CanMutateWorkspace}" />
+          <Button Grid.Column="1" Classes="primary" Content="+ Add" Command="{Binding CreateVersionCommand}" IsEnabled="{Binding CanMutateWorkspace}" />
+        </Grid>
+        <ListBox Grid.Row="2" ItemsSource="{Binding Versions}" SelectedItem="{Binding SelectedVersion}">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="models:WorkspaceVersionCard">
+              <Border Classes="blueprint-card" Margin="0,0,0,9">
+                <StackPanel Spacing="6">
+                  <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Classes="mono" Text="{Binding Name}" FontSize="17" FontWeight="Bold" />
+                    <Border Grid.Column="1" Background="#DDEFF8" CornerRadius="10" Padding="8,3">
+                      <TextBlock Text="{Binding Status}" FontSize="11" Foreground="#0B4F8A" />
+                    </Border>
+                  </Grid>
+                  <TextBlock Text="{Binding Notes}" Classes="muted" TextWrapping="Wrap" MaxHeight="44" />
+                  <Grid ColumnDefinitions="*,*">
+                    <TextBlock Text="{Binding CompletedItemCount, StringFormat='✓ {0} done'}" FontSize="12" Foreground="#277A67" />
+                    <TextBlock Grid.Column="1" Text="{Binding ItemCount, StringFormat='Total: {0}'}" Classes="muted" FontSize="12" HorizontalAlignment="Right" />
+                  </Grid>
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </Grid>
+    </Border>
+
+    <ScrollViewer Grid.Column="1">
+      <StackPanel Spacing="16">
+        <Border Classes="card">
+          <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="14">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+              <StackPanel Spacing="3">
+                <TextBlock Classes="eyebrow" Text="VERSION NODE" />
+                <TextBlock Text="{Binding SelectedVersionStateSummary}" Classes="muted" TextWrapping="Wrap" />
+              </StackPanel>
+              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                <Button Classes="danger" Content="Mark released" Command="{Binding ReleaseSelectedVersionCommand}" IsEnabled="{Binding CanReleaseSelectedVersion}" />
+                <Button Classes="primary" Content="Export notes" Command="{Binding ExportSelectedVersionChangelogCommand}" IsEnabled="{Binding IsWorkspaceTrusted}" />
+              </StackPanel>
+            </Grid>
+
+            <Grid Grid.Row="1" ColumnDefinitions="1.2*,0.8*" ColumnSpacing="14">
+              <StackPanel Spacing="10">
+                <Grid ColumnDefinitions="*,170" ColumnSpacing="10">
+                  <StackPanel Spacing="5">
+                    <TextBlock Text="Version" FontWeight="SemiBold" />
+                    <TextBox PlaceholderText="Select a version" Text="{Binding VersionEditorName}" IsEnabled="{Binding CanEditSelectedVersion}" />
+                  </StackPanel>
+                  <StackPanel Grid.Column="1" Spacing="5">
+                    <TextBlock Text="State" FontWeight="SemiBold" />
+                    <ComboBox ItemsSource="{Binding AvailableStatuses}" SelectedItem="{Binding VersionEditorStatus}" IsEnabled="{Binding CanEditSelectedVersion}" />
+                  </StackPanel>
+                </Grid>
+                <StackPanel Spacing="5">
+                  <TextBlock Text="Accomplishment notes" FontWeight="SemiBold" />
+                  <TextBox PlaceholderText="What does this milestone accomplish?"
+                           Text="{Binding VersionEditorNotes}"
+                           AcceptsReturn="True"
+                           Height="88"
+                           IsEnabled="{Binding CanEditSelectedVersion}" />
+                </StackPanel>
+                <Button Classes="secondary"
+                        Content="Save version details"
+                        Command="{Binding SaveVersionDetailsCommand}"
+                        IsEnabled="{Binding CanEditSelectedVersion}"
+                        HorizontalAlignment="Left" />
+              </StackPanel>
+
+              <Border Grid.Column="1" Classes="blueprint-card">
+                <StackPanel Spacing="7">
+                  <TextBlock Classes="eyebrow" Text="CHANGELOG PREVIEW" />
+                  <TextBlock Text="{Binding LastChangelogExportPath}" Classes="mono muted" FontSize="11" TextWrapping="Wrap" />
+                  <TextBlock Text="{Binding GitChangelogSummary}" Classes="muted" FontSize="12" TextWrapping="Wrap" />
+                  <TextBox Text="{Binding ChangelogPreview}"
+                           AcceptsReturn="True"
+                           IsReadOnly="True"
+                           MinHeight="150"
+                           TextWrapping="Wrap"
+                           FontFamily="Cascadia Mono, SFMono-Regular, Consolas, monospace"
+                           FontSize="12" />
+                </StackPanel>
+              </Border>
+            </Grid>
+
+            <Border Grid.Row="2" Background="#F3F9FC" BorderBrush="#BED8E8" BorderThickness="1" CornerRadius="4" Padding="12">
+              <StackPanel Spacing="6">
+                <TextBlock Classes="eyebrow" Text="SOURCE TRACE" />
+                <TextBlock Text="{Binding VersionSourceChangeSummary}" Classes="muted" TextWrapping="Wrap" />
+                <ItemsControl ItemsSource="{Binding VersionSourceChangeDiagnostics}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="models:VersionSourceChangeDiagnostic">
+                      <Grid ColumnDefinitions="72,*,140" ColumnSpacing="8" Margin="0,3,0,0">
+                        <TextBlock Classes="mono muted" Text="{Binding Change.ShortHash}" />
+                        <TextBlock Grid.Column="1" Text="{Binding Change.Subject}" TextWrapping="Wrap" />
+                        <TextBlock Grid.Column="2" Text="{Binding MatchSummary}" Classes="muted" TextWrapping="Wrap" />
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </Border>
+          </Grid>
+        </Border>
+
+        <Grid ColumnDefinitions="340,*" ColumnSpacing="16">
+          <Border Classes="card">
+            <StackPanel Spacing="10">
+              <StackPanel Spacing="3">
+                <TextBlock Classes="eyebrow" Text="WORK ITEM" />
+                <TextBlock Text="Add or edit an accomplishment" FontSize="19" FontWeight="Bold" />
+              </StackPanel>
+              <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                <StackPanel Spacing="5">
+                  <TextBlock Text="Type" FontWeight="SemiBold" />
+                  <ComboBox ItemsSource="{Binding AvailableItemTypes}" SelectedItem="{Binding SelectedItemTypeId}" IsEnabled="{Binding CanEditItems}" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="5">
+                  <TextBlock Text="Changelog group" FontWeight="SemiBold" />
+                  <ComboBox ItemsSource="{Binding AvailableCategories}" SelectedItem="{Binding SelectedCategoryId}" IsEnabled="{Binding CanEditItems}" />
+                </StackPanel>
+              </Grid>
+              <TextBox PlaceholderText="Concise outcome" Text="{Binding ItemEditorTitle}" IsEnabled="{Binding CanEditItems}" />
+              <TextBox PlaceholderText="Useful context for people reading the release"
+                       Text="{Binding ItemEditorDescription}"
+                       AcceptsReturn="True"
+                       Height="90"
+                       IsEnabled="{Binding CanEditItems}" />
+              <CheckBox Content="Completed and ready for release notes" IsChecked="{Binding ItemEditorIsDone}" IsEnabled="{Binding CanEditItems}" />
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Classes="primary" Content="Add item" Command="{Binding AddItemCommand}" IsEnabled="{Binding CanEditItems}" />
+                <Button Classes="secondary" Content="Save selected" Command="{Binding SaveItemDetailsCommand}" IsEnabled="{Binding CanEditItems}" />
+              </StackPanel>
+            </StackPanel>
+          </Border>
+
+          <Border Grid.Column="1" Classes="card">
+            <Grid RowDefinitions="Auto,*" RowSpacing="10">
+              <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Spacing="3">
+                  <TextBlock Classes="eyebrow" Text="CONNECTED ITEMS" />
+                  <TextBlock Text="Selected version scope" FontSize="19" FontWeight="Bold" />
+                </StackPanel>
+                <TextBlock Grid.Column="1" Text="{Binding SelectedVersion.ItemCount, StringFormat='Mapped: {0}'}" Classes="mono muted" VerticalAlignment="Center" />
+              </Grid>
+              <ListBox Grid.Row="1" ItemsSource="{Binding SelectedVersion.Items}" SelectedItem="{Binding SelectedItem}" MinHeight="260">
+                <ListBox.ItemTemplate>
+                  <DataTemplate x:DataType="models:WorkspaceItemCard">
+                    <Border Classes="blueprint-card" Margin="0,0,0,8">
+                      <Grid ColumnDefinitions="92,*,Auto,Auto" ColumnSpacing="10">
+                        <TextBlock Classes="mono" Text="{Binding ItemKey}" FontWeight="Bold" Foreground="#0B4F8A" />
+                        <StackPanel Grid.Column="1" Spacing="2">
+                          <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                          <TextBlock Text="{Binding Description}" Classes="muted" FontSize="11" TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                        <Border Grid.Column="2" Background="#E7F3F9" CornerRadius="10" Padding="8,3" VerticalAlignment="Center">
+                          <TextBlock Text="{Binding CategoryId}" Foreground="#0B4F8A" FontSize="11" />
+                        </Border>
+                        <Border Grid.Column="3" Background="#EEF4F7" CornerRadius="10" Padding="8,3" VerticalAlignment="Center">
+                          <TextBlock Text="{Binding ItemTypeId}" Classes="muted" FontSize="11" />
+                        </Border>
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+            </Grid>
+          </Border>
+        </Grid>
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

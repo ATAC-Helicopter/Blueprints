@@ -93,6 +93,7 @@ Blueprints uses a local workspace as the editable source of truth and a separate
 - [Security model](docs/security-model.md)
 - [Development guide](docs/development.md)
 - [Release process](docs/releasing.md)
+- [Release history](docs/releases.md)
 - [Roadmap](Roadmap.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)
