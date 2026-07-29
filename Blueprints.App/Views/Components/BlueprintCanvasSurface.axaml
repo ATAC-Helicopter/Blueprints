@@ -1,0 +1,24 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Blueprints.App.Views.Components.BlueprintCanvasSurface">
+  <Border Background="#072A46"
+          BorderBrush="#2C6E96"
+          BorderThickness="1"
+          CornerRadius="4"
+          ClipToBounds="True">
+    <ScrollViewer x:Name="Viewport"
+                  HorizontalScrollBarVisibility="Auto"
+                  VerticalScrollBarVisibility="Auto">
+      <Viewbox x:Name="ZoomHost"
+               Stretch="None"
+               StretchDirection="Both"
+               HorizontalAlignment="Left"
+               VerticalAlignment="Top">
+        <Canvas x:Name="Surface"
+                Width="1500"
+                Height="960"
+                Background="#082F50" />
+      </Viewbox>
+    </ScrollViewer>
+  </Border>
+</UserControl>

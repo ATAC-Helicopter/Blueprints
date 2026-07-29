@@ -42,4 +42,41 @@ public sealed class MainWindowNavigationTests
         viewModel.NavigateToOverviewCommand.Execute(null);
         Assert.True(viewModel.IsOverviewSelected);
     }
+
+    [Fact]
+    public void CanvasNodeSelection_ConnectsInspectorToTheRealWorkspaceObjects()
+    {
+        var viewModel = new MainWindowViewModel();
+        var version = Assert.Single(viewModel.Versions, candidate => candidate.Items.Count > 0);
+        var item = version.Items[0];
+
+        viewModel.SelectItemNodeCommand.Execute(item);
+
+        Assert.Equal(version.VersionId, viewModel.SelectedVersion?.VersionId);
+        Assert.Equal(item.ItemId, viewModel.SelectedItem?.ItemId);
+        Assert.True(viewModel.HasSelectedItem);
+        Assert.Contains(item.ItemKey, viewModel.InspectorSelectionSummary, StringComparison.Ordinal);
+
+        viewModel.SelectVersionNodeCommand.Execute(version);
+
+        Assert.Equal(version.VersionId, viewModel.SelectedVersion?.VersionId);
+        Assert.Null(viewModel.SelectedItem);
+        Assert.False(viewModel.HasSelectedItem);
+        Assert.Equal($"VERSION / {version.Name}", viewModel.InspectorSelectionSummary);
+    }
+
+    [Fact]
+    public void BeginNewItem_ClearsTheInspectorAndKeepsTheSelectedConnectionTarget()
+    {
+        var viewModel = new MainWindowViewModel();
+        var version = Assert.Single(viewModel.Versions, candidate => candidate.Items.Count > 0);
+        viewModel.SelectItemNodeCommand.Execute(version.Items[0]);
+
+        viewModel.BeginNewItemCommand.Execute(null);
+
+        Assert.Equal(version.VersionId, viewModel.SelectedVersion?.VersionId);
+        Assert.Null(viewModel.SelectedItem);
+        Assert.Empty(viewModel.ItemEditorTitle);
+        Assert.Contains(version.Name, viewModel.WorkspaceMessage, StringComparison.Ordinal);
+    }
 }
