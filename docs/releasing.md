@@ -1,6 +1,6 @@
 # Release process
 
-Blueprints is pre-release. Releases should remain marked as prereleases until the v1.0 exit criteria are met.
+Blueprints uses releases as lightweight milestone records while the product is pre-release. A milestone release records what was accomplished; it does not publish installers or application archives.
 
 ## Before promotion
 
@@ -8,33 +8,39 @@ Blueprints is pre-release. Releases should remain marked as prereleases until th
 2. Update `Roadmap.md`, user-facing docs, and dependency notices.
 3. Run `./scripts/verify.sh` on a clean worktree.
 4. Review security-sensitive changes and workspace compatibility.
-5. Merge a promotion pull request from `develop` into `main`.
+5. Create a promotion branch from `main`, apply the verified `develop` diff, and merge that protected pull request into `main`.
 6. Confirm CI and CodeQL succeed on `main`.
 
-## Version and tag
+## Milestone versions
 
-Use semantic versions. Until stable:
+Each roadmap milestone maps to one semantic version:
 
 ```text
-v0.y.z-alpha.n
-v0.y.z-beta.n
-v0.y.z-rc.n
+v0.1 milestone -> v0.1.0
+v0.2 milestone -> v0.2.0
+v0.3 milestone -> v0.3.0
 ```
 
-Create an annotated, signed tag when possible:
+The historical foundation checkpoint used `v0.1.0-alpha.1`. Starting with the v0.2 milestone, use the clean `v0.x.0` form. GitHub records remain marked as prereleases until v1.0.
+
+Before tagging:
+
+1. close or explicitly defer every milestone issue;
+2. move the relevant `Unreleased` changelog entries into `## 0.x.0 — YYYY-MM-DD`;
+3. add the version and its major accomplishments to [release history](releases.md);
+4. promote the exact milestone tree to `main`;
+5. confirm CI and CodeQL are green on `main`.
+
+Create an annotated, signed tag from `main` when possible:
 
 ```sh
-git tag -s v0.2.0-alpha.1 -m "Blueprints v0.2.0-alpha.1"
-git push origin v0.2.0-alpha.1
+git switch main
+git pull --ff-only
+git tag -s v0.2.0 -m "Blueprints v0.2.0 — coherent solo workflow"
+git push origin v0.2.0
 ```
 
-The release workflow publishes platform archives, generates SHA-256 checksums, and records signed build-provenance attestations for `v*` tags. It can also be started manually for packaging verification without creating a public release.
-
-Verify a downloaded archive against the repository’s GitHub attestation:
-
-```sh
-gh attestation verify Blueprints-<runtime>.zip --repo ATAC-Helicopter/Blueprints
-```
+The milestone workflow verifies that the tag belongs to `main`, requires a matching changelog heading, extracts that section, and creates a GitHub prerelease with no attached binaries.
 
 ## Release notes
 
@@ -45,11 +51,11 @@ Include:
 - workspace-format compatibility;
 - known limitations;
 - upgrade and recovery steps;
-- artifact checksums.
+- deferred work that moved to the next milestone.
 
 ## Post-release
 
-- smoke-test each published archive;
 - mark prerelease status correctly;
+- verify the GitHub release has no accidental binary assets;
 - move unfinished issues to the next milestone;
 - open a roadmap issue for any release-specific regression.

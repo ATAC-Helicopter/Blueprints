@@ -1,0 +1,71 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Blueprints.App.ViewModels"
+             xmlns:models="using:Blueprints.App.Models"
+             x:Class="Blueprints.App.Views.Components.TrustView"
+             x:DataType="vm:MainWindowViewModel">
+  <Grid ColumnDefinitions="360,*" ColumnSpacing="16">
+    <StackPanel Spacing="16">
+      <Border Classes="dark-card">
+        <StackPanel Spacing="10">
+          <TextBlock Classes="eyebrow" Text="TRUST GATE" Foreground="#62D3F0" />
+          <Border Width="72" Height="72" CornerRadius="36" Background="#0F5E76" BorderBrush="#62D3F0" BorderThickness="2" HorizontalAlignment="Left">
+            <TextBlock Text="✓" FontSize="32" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Border>
+          <TextBlock Text="{Binding TrustBadge}" FontSize="25" FontWeight="Black" Foreground="White" />
+          <TextBlock Text="{Binding TrustSummary}" Foreground="#A9C8DC" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding WorkspaceModeSummary}" Foreground="#A9C8DC" TextWrapping="Wrap" />
+          <Button Classes="primary" Content="Run validation again" Command="{Binding RefreshWorkspaceCommand}" HorizontalAlignment="Left" />
+        </StackPanel>
+      </Border>
+
+      <Border Classes="card">
+        <StackPanel Spacing="10">
+          <TextBlock Classes="eyebrow" Text="TRUST BOUNDARIES" />
+          <StackPanel Spacing="3">
+            <TextBlock Text="Editable local workspace" FontWeight="Bold" />
+            <TextBlock Text="{Binding WorkspacePath}" Classes="mono muted" FontSize="11" TextWrapping="Wrap" />
+          </StackPanel>
+          <Border Height="1" Background="#D5E6F0" />
+          <StackPanel Spacing="3">
+            <TextBlock Text="Untrusted shared exchange" FontWeight="Bold" />
+            <TextBlock Text="{Binding SharedSyncPath}" Classes="mono muted" FontSize="11" TextWrapping="Wrap" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+
+    <Border Grid.Column="1" Classes="card">
+      <Grid RowDefinitions="Auto,*" RowSpacing="12">
+        <StackPanel Spacing="3">
+          <TextBlock Classes="eyebrow" Text="VALIDATION SCHEMATIC" />
+          <TextBlock Text="Audit, signatures, storage, and safety findings" FontSize="21" FontWeight="Bold" />
+          <TextBlock Text="Every finding describes the affected boundary and the safest next action."
+                     Classes="muted"
+                     TextWrapping="Wrap" />
+        </StackPanel>
+        <ListBox Grid.Row="1" ItemsSource="{Binding TrustDiagnostics}">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="models:TrustDiagnosticCard">
+              <Border Classes="blueprint-card" Margin="0,0,0,9">
+                <Grid ColumnDefinitions="48,130,*" ColumnSpacing="12">
+                  <Border Width="34" Height="34" CornerRadius="17" Background="#DDEFF8" VerticalAlignment="Top">
+                    <TextBlock Text="◆" Foreground="#168AD0" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                  </Border>
+                  <StackPanel Grid.Column="1" Spacing="3">
+                    <TextBlock Text="{Binding Severity}" FontWeight="Bold" Foreground="#0B4F8A" />
+                    <TextBlock Text="{Binding Area}" Classes="mono muted" FontSize="11" TextWrapping="Wrap" />
+                  </StackPanel>
+                  <StackPanel Grid.Column="2" Spacing="5">
+                    <TextBlock Text="{Binding Summary}" FontWeight="Bold" TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding Guidance}" Classes="muted" TextWrapping="Wrap" />
+                  </StackPanel>
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </Grid>
+    </Border>
+  </Grid>
+</UserControl>

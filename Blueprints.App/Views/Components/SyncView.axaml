@@ -1,0 +1,123 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Blueprints.App.ViewModels"
+             xmlns:models="using:Blueprints.App.Models"
+             x:Class="Blueprints.App.Views.Components.SyncView"
+             x:DataType="vm:MainWindowViewModel">
+  <Grid ColumnDefinitions="330,*" ColumnSpacing="16">
+    <StackPanel Spacing="16">
+      <Border Classes="dark-card">
+        <StackPanel Spacing="12">
+          <TextBlock Classes="eyebrow" Text="EXCHANGE CIRCUIT" Foreground="#62D3F0" />
+          <TextBlock Text="{Binding SyncStatus}" FontSize="21" FontWeight="Bold" Foreground="White" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding WorkspaceModeSummary}" Foreground="#A9C8DC" TextWrapping="Wrap" />
+
+          <Grid ColumnDefinitions="*,48,*" VerticalAlignment="Center" Margin="0,8">
+            <Border Background="#0F4F7A" BorderBrush="#3C88B5" BorderThickness="1" CornerRadius="4" Padding="10">
+              <StackPanel Spacing="3">
+                <TextBlock Text="LOCAL" Classes="eyebrow" Foreground="#62D3F0" />
+                <TextBlock Text="{Binding Sync.PendingOutgoingChanges}" FontSize="28" FontWeight="Black" Foreground="White" />
+                <TextBlock Text="outgoing" Foreground="#A9C8DC" FontSize="11" />
+              </StackPanel>
+            </Border>
+            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+              <TextBlock Text="⇄" Foreground="#62D3F0" FontSize="26" HorizontalAlignment="Center" />
+            </StackPanel>
+            <Border Grid.Column="2" Background="#0F4F7A" BorderBrush="#3C88B5" BorderThickness="1" CornerRadius="4" Padding="10">
+              <StackPanel Spacing="3">
+                <TextBlock Text="SHARED" Classes="eyebrow" Foreground="#62D3F0" />
+                <TextBlock Text="{Binding Sync.PendingIncomingChanges}" FontSize="28" FontWeight="Black" Foreground="White" />
+                <TextBlock Text="incoming" Foreground="#A9C8DC" FontSize="11" />
+              </StackPanel>
+            </Border>
+          </Grid>
+
+          <Button Classes="primary" Content="Refresh comparison" Command="{Binding RefreshWorkspaceCommand}" />
+          <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+            <Button Classes="primary" Content="Push →" Command="{Binding PushWorkspaceCommand}" IsEnabled="{Binding CanMutateWorkspace}" />
+            <Button Grid.Column="1" Classes="secondary" Content="← Pull" Command="{Binding PullWorkspaceCommand}" IsEnabled="{Binding IsWorkspaceTrusted}" />
+          </Grid>
+        </StackPanel>
+      </Border>
+
+      <Border Classes="card">
+        <StackPanel Spacing="6">
+          <TextBlock Classes="eyebrow" Text="SHARED ROUTE" />
+          <TextBlock Text="{Binding SharedSyncPath}" Classes="mono muted" FontSize="11" TextWrapping="Wrap" />
+          <TextBlock Text="The shared location is never trusted merely because it is reachable."
+                     Classes="muted"
+                     FontSize="12"
+                     TextWrapping="Wrap" />
+        </StackPanel>
+      </Border>
+    </StackPanel>
+
+    <Border Grid.Column="1" Classes="card">
+      <Grid RowDefinitions="Auto,160,Auto,*" RowSpacing="12">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+          <StackPanel Spacing="3">
+            <TextBlock Classes="eyebrow" Text="DIAGNOSTIC LAYER" />
+            <TextBlock Text="Conflicts and exchange findings" FontSize="21" FontWeight="Bold" />
+            <TextBlock Text="{Binding WorkspaceMessage}" Classes="muted" TextWrapping="Wrap" />
+          </StackPanel>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <Button Classes="secondary" Content="Keep local" Command="{Binding ResolveConflictKeepLocalCommand}" IsEnabled="{Binding CanResolveSelectedConflict}" />
+            <Button Classes="primary" Content="Accept shared" Command="{Binding ResolveConflictAcceptSharedCommand}" IsEnabled="{Binding CanResolveSelectedConflict}" />
+          </StackPanel>
+        </Grid>
+
+        <ListBox Grid.Row="1" ItemsSource="{Binding SyncDiagnostics}" SelectedItem="{Binding SelectedSyncDiagnostic}">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="models:SyncDiagnosticCard">
+              <Border Classes="blueprint-card" Margin="0,0,0,8">
+                <Grid ColumnDefinitions="105,*" ColumnSpacing="10">
+                  <StackPanel Spacing="2">
+                    <TextBlock Text="{Binding Severity}" FontWeight="Bold" Foreground="#A63D40" />
+                    <TextBlock Text="{Binding Source}" Classes="muted" FontSize="11" />
+                  </StackPanel>
+                  <StackPanel Grid.Column="1" Spacing="2">
+                    <TextBlock Text="{Binding Path}" Classes="mono" FontWeight="Bold" />
+                    <TextBlock Text="{Binding Message}" Classes="muted" TextWrapping="Wrap" />
+                  </StackPanel>
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+
+        <Border Grid.Row="2" Background="#E7F3F9" BorderBrush="#9AC7DE" BorderThickness="1" CornerRadius="4" Padding="12">
+          <ScrollViewer MaxHeight="110">
+            <TextBlock Text="{Binding SelectedConflictSemanticSummary}" TextWrapping="Wrap" Classes="mono" FontSize="11" Foreground="#214A64" />
+          </ScrollViewer>
+        </Border>
+
+        <Grid Grid.Row="3" ColumnDefinitions="*,*" ColumnSpacing="12" MinHeight="240">
+          <StackPanel Spacing="6">
+            <Grid ColumnDefinitions="Auto,*">
+              <TextBlock Classes="eyebrow" Text="LOCAL COPY" />
+              <Border Grid.Column="1" Height="1" Background="#BED8E8" Margin="10,0,0,0" VerticalAlignment="Center" />
+            </Grid>
+            <TextBox Text="{Binding SelectedConflictLocalPreview}"
+                     AcceptsReturn="True"
+                     TextWrapping="NoWrap"
+                     IsReadOnly="True"
+                     FontFamily="Cascadia Mono, SFMono-Regular, Consolas, monospace"
+                     FontSize="11" />
+          </StackPanel>
+          <StackPanel Grid.Column="1" Spacing="6">
+            <Grid ColumnDefinitions="Auto,*">
+              <TextBlock Classes="eyebrow" Text="SHARED COPY" />
+              <Border Grid.Column="1" Height="1" Background="#BED8E8" Margin="10,0,0,0" VerticalAlignment="Center" />
+            </Grid>
+            <TextBox Text="{Binding SelectedConflictSharedPreview}"
+                     AcceptsReturn="True"
+                     TextWrapping="NoWrap"
+                     IsReadOnly="True"
+                     FontFamily="Cascadia Mono, SFMono-Regular, Consolas, monospace"
+                     FontSize="11" />
+          </StackPanel>
+        </Grid>
+      </Grid>
+    </Border>
+  </Grid>
+</UserControl>

@@ -1,0 +1,133 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Blueprints.App.ViewModels"
+             x:Class="Blueprints.App.Views.Components.OverviewView"
+             x:DataType="vm:MainWindowViewModel">
+  <ScrollViewer>
+    <StackPanel Spacing="18">
+      <UniformGrid Columns="4">
+        <Border Classes="blueprint-card" Margin="0,0,12,0">
+          <StackPanel Spacing="5">
+            <TextBlock Classes="eyebrow" Text="VERSIONS" />
+            <TextBlock Text="{Binding VersionCount}" FontSize="30" FontWeight="Black" />
+            <TextBlock Text="Release plans on the map" Classes="muted" />
+          </StackPanel>
+        </Border>
+        <Border Classes="blueprint-card" Margin="0,0,12,0">
+          <StackPanel Spacing="5">
+            <TextBlock Classes="eyebrow" Text="WORK ITEMS" />
+            <TextBlock Text="{Binding ItemCount}" FontSize="30" FontWeight="Black" />
+            <TextBlock Text="Tracked accomplishments" Classes="muted" />
+          </StackPanel>
+        </Border>
+        <Border Classes="blueprint-card" Margin="0,0,12,0">
+          <StackPanel Spacing="5">
+            <TextBlock Classes="eyebrow" Text="ACTIVE MEMBERS" />
+            <TextBlock Text="{Binding ActiveMemberCount}" FontSize="30" FontWeight="Black" />
+            <TextBlock Text="{Binding MembershipRevision, StringFormat='Membership revision {0}'}" Classes="muted" />
+          </StackPanel>
+        </Border>
+        <Border Classes="blueprint-card">
+          <StackPanel Spacing="5">
+            <TextBlock Classes="eyebrow" Text="SYNC STATE" />
+            <TextBlock Text="{Binding SyncStatus}" FontSize="17" FontWeight="Bold" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding TrustBadge, StringFormat='Trust: {0}'}" Classes="muted" />
+          </StackPanel>
+        </Border>
+      </UniformGrid>
+
+      <Grid ColumnDefinitions="1.35*,0.65*" ColumnSpacing="18">
+        <Border Classes="card">
+          <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="18">
+            <StackPanel Spacing="4">
+              <TextBlock Classes="eyebrow" Text="INTERACTIVE PROJECT MAP" />
+              <TextBlock Text="From idea to milestone record" FontSize="24" FontWeight="Bold" />
+              <TextBlock Text="Each node opens the workspace responsible for that part of the release."
+                         Classes="muted"
+                         TextWrapping="Wrap" />
+            </StackPanel>
+
+            <Grid Grid.Row="1" ColumnDefinitions="*,48,*,48,*,48,*" VerticalAlignment="Center">
+              <Button Classes="secondary" Command="{Binding NavigateToReleasesCommand}" Padding="14">
+                <StackPanel Spacing="6">
+                  <Border Width="30" Height="30" CornerRadius="15" Background="#168AD0" HorizontalAlignment="Left">
+                    <TextBlock Text="01" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11" FontWeight="Bold" />
+                  </Border>
+                  <TextBlock Text="Draft" FontSize="17" FontWeight="Bold" />
+                  <TextBlock Text="Versions and items" Classes="muted" FontSize="12" />
+                </StackPanel>
+              </Button>
+              <Border Grid.Column="1" Height="1" Background="#80B8D8" Margin="8,0" />
+              <Button Grid.Column="2" Classes="secondary" Command="{Binding NavigateToIntegrationsCommand}" Padding="14">
+                <StackPanel Spacing="6">
+                  <Border Width="30" Height="30" CornerRadius="15" Background="#168AD0" HorizontalAlignment="Left">
+                    <TextBlock Text="02" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11" FontWeight="Bold" />
+                  </Border>
+                  <TextBlock Text="Connect" FontSize="17" FontWeight="Bold" />
+                  <TextBlock Text="Source evidence" Classes="muted" FontSize="12" />
+                </StackPanel>
+              </Button>
+              <Border Grid.Column="3" Height="1" Background="#80B8D8" Margin="8,0" />
+              <Button Grid.Column="4" Classes="secondary" Command="{Binding NavigateToTrustCommand}" Padding="14">
+                <StackPanel Spacing="6">
+                  <Border Width="30" Height="30" CornerRadius="15" Background="#168AD0" HorizontalAlignment="Left">
+                    <TextBlock Text="03" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11" FontWeight="Bold" />
+                  </Border>
+                  <TextBlock Text="Verify" FontSize="17" FontWeight="Bold" />
+                  <TextBlock Text="Trust and audit" Classes="muted" FontSize="12" />
+                </StackPanel>
+              </Button>
+              <Border Grid.Column="5" Height="1" Background="#80B8D8" Margin="8,0" />
+              <Button Grid.Column="6" Classes="secondary" Command="{Binding NavigateToSyncCommand}" Padding="14">
+                <StackPanel Spacing="6">
+                  <Border Width="30" Height="30" CornerRadius="15" Background="#168AD0" HorizontalAlignment="Left">
+                    <TextBlock Text="04" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11" FontWeight="Bold" />
+                  </Border>
+                  <TextBlock Text="Exchange" FontSize="17" FontWeight="Bold" />
+                  <TextBlock Text="Signed handoff" Classes="muted" FontSize="12" />
+                </StackPanel>
+              </Button>
+            </Grid>
+
+            <Border Grid.Row="2" Background="#E8F4FA" BorderBrush="#9AC7DE" BorderThickness="1,0,0,0" Padding="14,10">
+              <TextBlock Text="{Binding WorkspaceModeSummary}" TextWrapping="Wrap" Foreground="#214A64" />
+            </Border>
+          </Grid>
+        </Border>
+
+        <StackPanel Grid.Column="1" Spacing="18">
+          <Border Classes="dark-card">
+            <StackPanel Spacing="10">
+              <TextBlock Classes="eyebrow" Text="NEXT ACTIONS" Foreground="#62D3F0" />
+              <Button Classes="primary" Content="Open release board" Command="{Binding NavigateToReleasesCommand}" HorizontalContentAlignment="Left" />
+              <Button Classes="secondary" Content="Inspect trust report" Command="{Binding NavigateToTrustCommand}" HorizontalContentAlignment="Left" />
+              <Button Classes="secondary" Content="Review sync state" Command="{Binding NavigateToSyncCommand}" HorizontalContentAlignment="Left" />
+            </StackPanel>
+          </Border>
+
+          <Border Classes="card">
+            <StackPanel Spacing="7">
+              <TextBlock Classes="eyebrow" Text="WORKSPACE ROUTES" />
+              <TextBlock Text="Local source" FontWeight="Bold" />
+              <TextBlock Text="{Binding WorkspacePath}" Classes="mono muted" FontSize="11" TextWrapping="Wrap" />
+              <Border Height="1" Background="#D5E6F0" Margin="0,4" />
+              <TextBlock Text="Shared exchange" FontWeight="Bold" />
+              <TextBlock Text="{Binding SharedSyncPath}" Classes="mono muted" FontSize="11" TextWrapping="Wrap" />
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </Grid>
+
+      <Border Classes="card">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+          <StackPanel Spacing="4">
+            <TextBlock Classes="eyebrow" Text="CURRENT SIGNAL" />
+            <TextBlock Text="{Binding WorkspaceMessage}" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding TrustSummary}" Classes="muted" TextWrapping="Wrap" />
+          </StackPanel>
+          <Button Grid.Column="1" Classes="secondary" Content="Refresh project map" Command="{Binding RefreshWorkspaceCommand}" VerticalAlignment="Center" />
+        </Grid>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

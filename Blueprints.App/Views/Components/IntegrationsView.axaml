@@ -1,0 +1,78 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Blueprints.App.ViewModels"
+             xmlns:models="using:Blueprints.App.Models"
+             x:Class="Blueprints.App.Views.Components.IntegrationsView"
+             x:DataType="vm:MainWindowViewModel">
+  <Grid RowDefinitions="Auto,Auto,*" RowSpacing="14">
+    <Border Classes="card">
+      <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="10">
+        <StackPanel Margin="0,0,10,0" VerticalAlignment="Center">
+          <TextBlock Classes="eyebrow" Text="LOCAL SOURCE" />
+          <TextBlock Text="Git repository" FontWeight="Bold" />
+        </StackPanel>
+        <TextBox Grid.Column="1" Text="{Binding LocalGitRepositoryPath}" PlaceholderText="/path/to/repository" />
+        <Button Grid.Column="2" Classes="primary" Content="Save connection" Command="{Binding SaveLocalGitRepositoryPathCommand}" />
+        <Button Grid.Column="3" Classes="secondary" Content="Refresh all" Command="{Binding RefreshIntegrationStatusesCommand}" />
+      </Grid>
+    </Border>
+
+    <Border Grid.Row="1" Background="#E8F4FA" BorderBrush="#9AC7DE" BorderThickness="1,0,0,0" Padding="12,9">
+      <TextBlock Text="{Binding IntegrationMessage}" Foreground="#214A64" TextWrapping="Wrap" />
+    </Border>
+
+    <ListBox Grid.Row="2" ItemsSource="{Binding Integrations}">
+      <ListBox.ItemsPanel>
+        <ItemsPanelTemplate>
+          <WrapPanel />
+        </ItemsPanelTemplate>
+      </ListBox.ItemsPanel>
+      <ListBox.ItemTemplate>
+        <DataTemplate x:DataType="models:IntegrationStatusCard">
+          <Border Classes="card" Width="500" MinHeight="250" Margin="0,0,12,12">
+            <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="10">
+              <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Spacing="3">
+                  <TextBlock Classes="eyebrow" Text="{Binding Provider}" />
+                  <TextBlock Text="{Binding DisplayName}" FontSize="21" FontWeight="Bold" />
+                </StackPanel>
+                <Border Grid.Column="1" Background="#DDEFF8" CornerRadius="12" Padding="10,4" VerticalAlignment="Top">
+                  <TextBlock Text="{Binding State}" Foreground="#0B4F8A" FontSize="12" FontWeight="Bold" />
+                </Border>
+              </Grid>
+
+              <StackPanel Grid.Row="1" Spacing="3">
+                <TextBlock Text="{Binding Target}" Classes="mono" FontWeight="Bold" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding CheckedAtSummary}" Classes="muted" FontSize="11" />
+              </StackPanel>
+
+              <StackPanel Grid.Row="2" Spacing="7">
+                <TextBlock Text="{Binding Summary}" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding Guidance}" Classes="muted" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding RecentChangeSummary}" FontWeight="Bold" />
+                <ItemsControl ItemsSource="{Binding RecentChanges}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="models:SourceChangeSummary">
+                      <Grid ColumnDefinitions="72,*,110" ColumnSpacing="8" Margin="0,3,0,0">
+                        <TextBlock Classes="mono muted" Text="{Binding ShortHash}" />
+                        <TextBlock Grid.Column="1" Text="{Binding Subject}" TextWrapping="Wrap" />
+                        <TextBlock Grid.Column="2" Text="{Binding ItemKeySummary}" Classes="muted" />
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+
+              <Border Grid.Row="3" Background="#F1F8FC" BorderBrush="#BED8E8" BorderThickness="1" CornerRadius="4" Padding="10">
+                <StackPanel Spacing="3">
+                  <TextBlock Classes="eyebrow" Text="AUTHORITY BOUNDARY" />
+                  <TextBlock Text="{Binding TrustBoundary}" Foreground="#214A64" TextWrapping="Wrap" FontSize="12" />
+                </StackPanel>
+              </Border>
+            </Grid>
+          </Border>
+        </DataTemplate>
+      </ListBox.ItemTemplate>
+    </ListBox>
+  </Grid>
+</UserControl>
