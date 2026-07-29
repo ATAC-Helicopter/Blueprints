@@ -248,7 +248,7 @@
                   <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
                     <TextBlock Text="Versions" FontSize="20" FontWeight="Bold" VerticalAlignment="Center" />
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                      <TextBox Width="120" Watermark="1.0.0" Text="{Binding NewVersionName}" IsEnabled="{Binding CanMutateWorkspace}" />
+                      <TextBox Width="120" PlaceholderText="1.0.0" Text="{Binding NewVersionName}" IsEnabled="{Binding CanMutateWorkspace}" />
                       <Button Content="New"
                               Command="{Binding CreateVersionCommand}"
                               IsEnabled="{Binding CanMutateWorkspace}"
@@ -286,10 +286,10 @@
                       <TextBlock Text="Version Editor" FontSize="20" FontWeight="Bold" />
                       <TextBlock Text="{Binding SelectedVersionStateSummary}" TextWrapping="Wrap" Foreground="#5B625D" />
                       <Grid ColumnDefinitions="*,160" ColumnSpacing="10">
-                        <TextBox Watermark="Select a version" Text="{Binding VersionEditorName}" IsEnabled="{Binding CanEditSelectedVersion}" />
+                        <TextBox PlaceholderText="Select a version" Text="{Binding VersionEditorName}" IsEnabled="{Binding CanEditSelectedVersion}" />
                         <ComboBox Grid.Column="1" ItemsSource="{Binding AvailableStatuses}" SelectedItem="{Binding VersionEditorStatus}" IsEnabled="{Binding CanEditSelectedVersion}" />
                       </Grid>
-                      <TextBox Watermark="Version notes" Text="{Binding VersionEditorNotes}" AcceptsReturn="True" Height="76" IsEnabled="{Binding CanEditSelectedVersion}" />
+                      <TextBox PlaceholderText="Version notes" Text="{Binding VersionEditorNotes}" AcceptsReturn="True" Height="76" IsEnabled="{Binding CanEditSelectedVersion}" />
                       <StackPanel Orientation="Horizontal" Spacing="8">
                         <Button Content="Save Version" Command="{Binding SaveVersionDetailsCommand}" IsEnabled="{Binding CanEditSelectedVersion}" Background="#17211D" Foreground="#F8F2E8" />
                         <Button Content="Release" Command="{Binding ReleaseSelectedVersionCommand}" IsEnabled="{Binding CanReleaseSelectedVersion}" Background="#A85332" Foreground="#FFFFFF" />
@@ -327,8 +327,8 @@
                       <TextBlock Text="Item Editor" FontSize="20" FontWeight="Bold" />
                       <ComboBox ItemsSource="{Binding AvailableItemTypes}" SelectedItem="{Binding SelectedItemTypeId}" IsEnabled="{Binding CanEditItems}" />
                       <ComboBox ItemsSource="{Binding AvailableCategories}" SelectedItem="{Binding SelectedCategoryId}" IsEnabled="{Binding CanEditItems}" />
-                      <TextBox Watermark="Item title" Text="{Binding ItemEditorTitle}" IsEnabled="{Binding CanEditItems}" />
-                      <TextBox Watermark="Description" Text="{Binding ItemEditorDescription}" AcceptsReturn="True" Height="86" IsEnabled="{Binding CanEditItems}" />
+                      <TextBox PlaceholderText="Item title" Text="{Binding ItemEditorTitle}" IsEnabled="{Binding CanEditItems}" />
+                      <TextBox PlaceholderText="Description" Text="{Binding ItemEditorDescription}" AcceptsReturn="True" Height="86" IsEnabled="{Binding CanEditItems}" />
                       <CheckBox Content="Done" IsChecked="{Binding ItemEditorIsDone}" IsEnabled="{Binding CanEditItems}" />
                       <StackPanel Orientation="Horizontal" Spacing="8">
                         <Button Content="Add Item" Command="{Binding AddItemCommand}" IsEnabled="{Binding CanEditItems}" Background="#17211D" Foreground="#F8F2E8" />
@@ -372,10 +372,10 @@
                 <Border Background="#FFFFFF" BorderBrush="#D8D5CB" BorderThickness="1" CornerRadius="8" Padding="16">
                   <StackPanel Spacing="10">
                     <TextBlock Text="Invite Member" FontSize="18" FontWeight="Bold" />
-                    <TextBox Watermark="Invitee user ID" Text="{Binding InviteUserId}" IsEnabled="{Binding CanManageMembers}" />
-                    <TextBox Watermark="Invitee display name" Text="{Binding InviteDisplayName}" IsEnabled="{Binding CanManageMembers}" />
+                    <TextBox PlaceholderText="Invitee user ID" Text="{Binding InviteUserId}" IsEnabled="{Binding CanManageMembers}" />
+                    <TextBox PlaceholderText="Invitee display name" Text="{Binding InviteDisplayName}" IsEnabled="{Binding CanManageMembers}" />
                     <ComboBox ItemsSource="{Binding AvailableMemberRoles}" SelectedItem="{Binding InviteRole}" IsEnabled="{Binding CanManageMembers}" />
-                    <TextBox Watermark="Invitee public key (Base64)" Text="{Binding InvitePublicKey}" AcceptsReturn="True" Height="86" TextWrapping="Wrap" IsEnabled="{Binding CanManageMembers}" />
+                    <TextBox PlaceholderText="Invitee public key (Base64)" Text="{Binding InvitePublicKey}" AcceptsReturn="True" Height="86" TextWrapping="Wrap" IsEnabled="{Binding CanManageMembers}" />
                     <Button Content="Invite Member" Command="{Binding InviteMemberCommand}" HorizontalAlignment="Left" IsEnabled="{Binding CanManageMembers}" Background="#17211D" Foreground="#F8F2E8" />
                   </StackPanel>
                 </Border>
@@ -408,7 +408,7 @@
                   <StackPanel Spacing="10">
                     <TextBlock Text="Member Editor" FontSize="18" FontWeight="Bold" />
                     <TextBlock Text="{Binding SelectedMemberStateSummary}" TextWrapping="Wrap" Foreground="#5B625D" />
-                    <TextBox Watermark="Display name" Text="{Binding MemberEditorDisplayName}" IsEnabled="{Binding CanEditSelectedMember}" />
+                    <TextBox PlaceholderText="Display name" Text="{Binding MemberEditorDisplayName}" IsEnabled="{Binding CanEditSelectedMember}" />
                     <ComboBox ItemsSource="{Binding AvailableMemberRoles}" SelectedItem="{Binding MemberEditorRole}" IsEnabled="{Binding CanEditSelectedMember}" />
                     <CheckBox Content="Active member" IsChecked="{Binding MemberEditorIsActive}" IsEnabled="{Binding CanEditSelectedMember}" />
                     <Button Content="Save Member" Command="{Binding SaveMemberDetailsCommand}" HorizontalAlignment="Left" IsEnabled="{Binding CanEditSelectedMember}" Background="#17211D" Foreground="#F8F2E8" />
@@ -568,7 +568,7 @@
                 <Border Grid.Row="1" Background="#EEF3F0" BorderBrush="#CDD8D1" BorderThickness="1" CornerRadius="8" Padding="12">
                   <Grid ColumnDefinitions="160,*,Auto,Auto" ColumnSpacing="10">
                     <TextBlock Text="Local Git Repository" FontWeight="Bold" VerticalAlignment="Center" />
-                    <TextBox Grid.Column="1" Text="{Binding LocalGitRepositoryPath}" Watermark="/path/to/repository" />
+                    <TextBox Grid.Column="1" Text="{Binding LocalGitRepositoryPath}" PlaceholderText="/path/to/repository" />
                     <Button Grid.Column="2" Content="Save" Command="{Binding SaveLocalGitRepositoryPathCommand}" Background="#17211D" Foreground="#F8F2E8" />
                     <Button Grid.Column="3" Content="Refresh" Command="{Binding RefreshIntegrationStatusesCommand}" Background="#F8F2E8" Foreground="#17211D" />
                   </Grid>

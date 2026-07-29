@@ -19,6 +19,7 @@ Goal: a new contributor can build the app, and a developer can plan and export a
 
 - [x] Restore a reproducible local build and executable helper scripts.
 - [x] Establish public-project documentation, templates, automation, and visual identity.
+- [x] Move the supported runtime to .NET 10 LTS and Avalonia 12.
 - [ ] Split the main window and view model into feature-sized components.
 - [ ] Add folder pickers and validation instead of requiring raw paths.
 - [ ] Add first-run identity setup instead of silently creating a default identity.
@@ -108,6 +109,22 @@ Goal: supported installers and documented recovery for small teams.
 - executing arbitrary repository hooks or scripts;
 - silent automatic conflict merging;
 - storing private signing keys in project or shared folders.
+
+## Continuous security assurance
+
+Security work is a release requirement across every milestone, not a one-time feature:
+
+- [ ] maintain an attacker-focused threat model for every trust boundary;
+- [ ] add adversarial tests for malformed, replayed, rolled-back, partially written, and maliciously signed input;
+- [ ] define key rotation, revocation, recovery, and platform keystore integration;
+- [ ] make workspace updates atomic and recoverable;
+- [ ] generate an SBOM for every published package;
+- [x] generate a provenance attestation for every tagged release package;
+- [ ] commission an independent security review before a stable release;
+- [ ] publish supported-version and vulnerability-response targets;
+- [ ] never describe a release as audited unless its exact source and artifacts were reviewed.
+
+No release can guarantee that every user is always safe. Blueprints instead aims to make its trust boundaries explicit, minimize sensitive state, fail closed when integrity cannot be established, and respond transparently when a weakness is found.
 
 ## How roadmap work becomes issues
 
