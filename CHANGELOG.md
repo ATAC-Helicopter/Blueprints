@@ -4,6 +4,12 @@ Notable changes to Blueprints are documented here. The project follows semantic 
 
 ## Unreleased
 
+No changes yet.
+
+## 0.2.0-alpha.2 — 2026-07-30
+
+Interactive workspace milestone. This prerelease makes Blueprints usable as a hands-on visual release planner and establishes the approval-first source-discovery workflow.
+
 ### Added
 
 - Canonical public documentation for users, contributors, architecture, workspace format, security, and releases.
@@ -19,6 +25,7 @@ Notable changes to Blueprints are documented here. The project follows semantic 
 - Source Lens discovery for changelogs, roadmaps, GitHub issues, and issue-linked GitHub Projects.
 - Editable proposal review with duplicate warnings, provenance, confidence, target-version selection, and explicit batch approval.
 - Adaptive next-action guidance based on workspace trust, conflicts, release state, source proposals, and sync status.
+- A disabled-by-default SonarQube Cloud workflow template for .NET analysis and Coverlet coverage. It requires explicit repository activation and credentials.
 
 ### Changed
 
@@ -33,6 +40,20 @@ Notable changes to Blueprints are documented here. The project follows semantic 
 
 - Repository-local SDK selection now works when only a newer compatible SDK is installed.
 - Shell helpers are executable.
+- Source discovery no longer parses the same planning file twice on case-insensitive filesystems.
+
+### Security
+
+- Shared canvas positions are signed, bounded, entity-validated, audited, and synchronized.
+- Source discovery remains read-only and bounded; imports require explicit human approval and trusted mutable targets.
+- CodeQL, dependency review, package vulnerability checks, and cross-platform tests remain required repository gates.
+
+### Known limitations
+
+- This release does not include installers or application binaries.
+- Identity onboarding, undo/redo, deletion/archive, guided recovery, and polished two-user collaboration remain incomplete.
+- GitHub Project discovery currently includes project-linked issues, not standalone draft items.
+- SonarQube Cloud is scaffolded but does not run until the project is imported and repository credentials are configured.
 
 ## 0.1.0-alpha.1 — 2026-02-28
 

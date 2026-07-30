@@ -14,6 +14,7 @@ Use this directory as the canonical technical and user documentation.
 | Understanding the code | [Architecture](architecture.md) |
 | Inspecting project files | [Workspace format](workspace-format.md) |
 | Reviewing trust boundaries | [Security model](security-model.md) |
+| Activating SonarQube Cloud | [SonarQube Cloud](sonarqube.md) |
 | Reviewing milestone accomplishments | [Release history](releases.md) |
 | Publishing a build | [Release process](releasing.md) |
 | Choosing the next work | [Roadmap](../Roadmap.md) |
