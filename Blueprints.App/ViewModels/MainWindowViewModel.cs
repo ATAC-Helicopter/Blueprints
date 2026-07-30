@@ -18,6 +18,7 @@ public partial class MainWindowViewModel : ViewModelBase
 {
     private readonly ProjectWorkspaceCoordinatorService? _coordinatorService;
     private readonly IntegrationStatusService _integrationStatusService;
+    private readonly FileSystemCanvasViewStateStore _canvasViewStateStore;
     private LocalWorkspaceSession? _currentSession;
     private string _title = "Blueprints Setup";
     private ProjectSummary _currentProject = new(string.Empty, string.Empty, TrustState.Corrupt, string.Empty);
@@ -73,6 +74,8 @@ public partial class MainWindowViewModel : ViewModelBase
     private string _localGitRepositoryPath = string.Empty;
     private string _integrationMessage = string.Empty;
     private WorkspaceSection _selectedWorkspaceSection = WorkspaceSection.Overview;
+    private CanvasLayoutDocument? _canvasLayout;
+    private CanvasViewState _canvasViewState = CanvasViewState.Default;
 
     public MainWindowViewModel()
     {
@@ -87,6 +90,7 @@ public partial class MainWindowViewModel : ViewModelBase
         Integrations = new ObservableCollection<IntegrationStatusCard>();
         VersionSourceChangeDiagnostics = new ObservableCollection<VersionSourceChangeDiagnostic>();
         _integrationStatusService = new IntegrationStatusService();
+        _canvasViewStateStore = new FileSystemCanvasViewStateStore();
         ApplyDesignSession(CreateDesignSession());
         RefreshIntegrations();
     }
@@ -97,6 +101,7 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         _coordinatorService = coordinatorService;
         _integrationStatusService = integrationStatusService;
+        _canvasViewStateStore = new FileSystemCanvasViewStateStore();
         Versions = new ObservableCollection<WorkspaceVersionCard>();
         AvailableItemTypes = new ObservableCollection<string>();
         AvailableCategories = new ObservableCollection<string>();
@@ -144,6 +149,29 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         get => _integrationMessage;
         private set => SetProperty(ref _integrationMessage, value);
+    }
+
+    public CanvasLayoutDocument? CanvasLayout
+    {
+        get => _canvasLayout;
+        private set
+        {
+            if (SetProperty(ref _canvasLayout, value))
+            {
+                OnPropertyChanged(nameof(CanvasLayoutRevisionSummary));
+            }
+        }
+    }
+
+    public string CanvasLayoutRevisionSummary =>
+        CanvasLayout is null
+            ? "Layout has not been saved yet"
+            : $"Shared layout revision {CanvasLayout.Revision}";
+
+    public CanvasViewState CanvasViewState
+    {
+        get => _canvasViewState;
+        private set => SetProperty(ref _canvasViewState, value);
     }
 
     public string Title
@@ -775,6 +803,43 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    private void SaveCanvasLayout(CanvasLayoutEditRequest? request)
+    {
+        if (_coordinatorService is null || _currentSession is null || request is null)
+        {
+            return;
+        }
+
+        try
+        {
+            ApplySession(
+                _coordinatorService.SaveCanvasLayout(
+                    _currentSession.Paths.LocalWorkspaceRoot,
+                    _currentSession.Paths.SharedProjectRoot,
+                    request));
+            WorkspaceMessage = CanvasLayout is null
+                ? "Canvas layout saved."
+                : $"Canvas layout revision {CanvasLayout.Revision} saved.";
+        }
+        catch (Exception exception)
+        {
+            WorkspaceMessage = exception.Message;
+        }
+    }
+
+    [RelayCommand]
+    private void SaveCanvasViewState(CanvasViewState? state)
+    {
+        if (state is null || string.IsNullOrWhiteSpace(WorkspacePath))
+        {
+            return;
+        }
+
+        _canvasViewStateStore.Save(WorkspacePath, state);
+        CanvasViewState = state;
+    }
+
+    [RelayCommand]
     private void CreateProject()
     {
         if (_coordinatorService is null)
@@ -1230,7 +1295,8 @@ public partial class MainWindowViewModel : ViewModelBase
             project.Name,
             project.ProjectCode,
             session.LoadResult.TrustReport.State,
-            session.Paths.SharedProjectRoot);
+            session.Paths.SharedProjectRoot,
+            project.ProjectId);
 
         Identity = new IdentitySummary(
             session.Identity.Profile.DisplayName,
@@ -1299,12 +1365,14 @@ public partial class MainWindowViewModel : ViewModelBase
         Title = $"{project.Name} ({project.ProjectCode})";
         TrustSummary = session.LoadResult.TrustReport.Summary;
         WorkspacePath = session.Paths.LocalWorkspaceRoot;
+        CanvasViewState = _canvasViewStateStore.Load(session.Paths.LocalWorkspaceRoot);
         SharedSyncPath = session.Paths.SharedProjectRoot;
         VersioningScheme = project.VersioningScheme;
         VersionCount = workspace.Versions.Count;
         ItemCount = workspace.Versions.Sum(static version => version.Items.Count);
         ActiveMemberCount = workspace.Members.Members.Count(static member => member.IsActive);
         MembershipRevision = workspace.Members.MembershipRevision;
+        CanvasLayout = workspace.CanvasLayout;
         Sync = session.Sync;
         HasActiveSession = true;
         WorkspaceMessage = string.Empty;
@@ -1365,12 +1433,14 @@ public partial class MainWindowViewModel : ViewModelBase
         CurrentProject = new ProjectSummary(string.Empty, string.Empty, TrustState.Corrupt, string.Empty);
         TrustSummary = message;
         WorkspacePath = string.Empty;
+        CanvasViewState = Blueprints.App.Models.CanvasViewState.Default;
         SharedSyncPath = string.Empty;
         VersioningScheme = string.Empty;
         VersionCount = 0;
         ItemCount = 0;
         ActiveMemberCount = 0;
         MembershipRevision = 0;
+        CanvasLayout = null;
         Sync = new SyncSummary(SyncHealth.Idle, 0, 0, 0);
         Versions.Clear();
         AvailableItemTypes.Clear();

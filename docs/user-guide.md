@@ -27,10 +27,25 @@ Blueprints creates the first local identity automatically in the current preview
 2. Select the version node to edit its name, state, and accomplishment notes in the inspector.
 3. Select **Work item**, enter its type, changelog group, title, and context, then select **Connect new**.
 4. Select any work-item node to edit it directly in the inspector.
-5. Drag nodes to arrange the working view, and use zoom or **Fit map** to navigate larger plans.
+5. Drag nodes to arrange the working view, and use zoom or **Fit view** to navigate larger plans.
 6. Mark completed items as ready for release notes.
 
 The lines on the canvas represent real project relationships: a work item is connected to the version that owns it. Item keys are generated from project rules. Released versions are immutable.
+
+## Arrange and share the canvas
+
+- Dragging a node saves the arrangement when the pointer is released.
+- Middle-drag empty canvas space to pan.
+- Scrolling saves the viewport locally after a short pause.
+- Use Ctrl+mouse wheel or Ctrl+plus/minus to zoom; zoom is remembered locally for this workspace.
+- Ctrl+S saves shared node positions and Ctrl+0 fits the local view.
+- **Fit view** returns to the standard overview without rearranging nodes.
+- **Auto arrange** deliberately replaces positions with deterministic defaults.
+- **Save layout** explicitly writes the current arrangement.
+
+The saved revision appears at the bottom of the inspector. Node positions are signed project state and participate in push, pull, trust validation, audit history, and conflicts. Zoom and scroll offsets stay machine-local so navigating does not create team conflicts. Older workspaces without a layout file use default positions until the first save.
+
+See [canvas engine](canvas-engine.md) for the exact model and [troubleshooting](troubleshooting.md) for recovery.
 
 ## Export a changelog
 

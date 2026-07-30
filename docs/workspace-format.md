@@ -10,7 +10,9 @@ This document describes the current schema-1 layout. The format is pre-release a
 │   ├── project.json
 │   ├── project.sig
 │   ├── members.json
-│   └── members.sig
+│   ├── members.sig
+│   ├── canvas-layout.json      # optional until first layout save
+│   └── canvas-layout.sig
 ├── versions/
 │   └── <version-id-without-dashes>/
 │       ├── version.json
@@ -22,10 +24,11 @@ This document describes the current schema-1 layout. The format is pre-release a
 │   ├── <change-id>.json
 │   └── <change-id>.sig
 └── .blueprints/
-    └── sync-state.json
+    ├── sync-state.json
+    └── canvas-view.json
 ```
 
-The collaboration layer also writes a signed manifest in the shared project root. `.blueprints/sync-state.json` is local bookkeeping and is not signed project truth.
+The collaboration layer also writes a signed manifest in the shared project root. Files under `.blueprints/` are local bookkeeping and are not signed project truth or exchange input.
 
 ## Serialization
 
@@ -58,6 +61,37 @@ Contains the membership revision and members. A member has a user ID, display na
 
 Roles are Viewer, Editor, and Admin.
 
+### `canvas-layout.json`
+
+Contains the shared visual arrangement without duplicating version or item content:
+
+```json
+{
+  "schemaVersion": 1,
+  "projectId": "00000000-0000-0000-0000-000000000000",
+  "revision": 1,
+  "nodes": [
+    {
+      "nodeType": "project",
+      "entityId": "00000000-0000-0000-0000-000000000000",
+      "x": 48,
+      "y": 310
+    }
+  ],
+  "updatedUtc": "2026-07-30T00:00:00+00:00",
+  "lastModifiedByUserId": "00000000-0000-0000-0000-000000000000",
+  "lastModifiedByName": "Local Admin"
+}
+```
+
+The real project ID replaces the illustrative zero GUIDs. The file is optional for older schema-1 workspaces. Once present, its signature and project identity must validate. Node identities must reference existing signed entities.
+
+See [canvas engine](canvas-engine.md) for validation limits and interaction behavior.
+
+### `.blueprints/canvas-view.json`
+
+Contains machine-local zoom and scroll offsets. It is deliberately unsigned and excluded from exchange snapshots. Invalid or missing view state falls back to zoom `1` and zero offsets without changing workspace trust.
+
 ### `version.json`
 
 Contains a version ID, name, lifecycle status, creation/release times, notes, and manual item ordering.
@@ -74,7 +108,7 @@ Contains a unique change ID, operation, human summary, author, membership revisi
 
 ## Compatibility
 
-There is no migration engine yet. Do not manually change `schemaVersion`. Before adopting a future schema, preserve a complete copy of the workspace and identity data.
+There is no general migration engine yet. Optional schema-1 documents, including the canvas layout, use explicit missing-file compatibility. Do not manually change `schemaVersion`. Before adopting a future schema, preserve a complete copy of the workspace and identity data.
 
 ## Files that must never be shared as project data
 

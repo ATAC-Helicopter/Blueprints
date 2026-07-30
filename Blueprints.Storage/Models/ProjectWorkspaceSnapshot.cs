@@ -5,4 +5,5 @@ namespace Blueprints.Storage.Models;
 public sealed record ProjectWorkspaceSnapshot(
     ProjectConfigurationDocument Project,
     MemberDocument Members,
-    IReadOnlyList<VersionWorkspaceSnapshot> Versions);
+    IReadOnlyList<VersionWorkspaceSnapshot> Versions,
+    CanvasLayoutDocument? CanvasLayout = null);

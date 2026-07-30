@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="Blueprints.App.Views.Components.BlueprintCanvasSurface">
+             x:Class="Blueprints.App.Views.Components.BlueprintCanvasSurface"
+             Focusable="True">
   <Border Background="#072A46"
           BorderBrush="#2C6E96"
           BorderThickness="1"

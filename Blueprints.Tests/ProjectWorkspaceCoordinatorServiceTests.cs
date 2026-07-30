@@ -4,6 +4,7 @@ using Blueprints.App.Models;
 using Blueprints.App.Services;
 using Blueprints.Collaboration.Models;
 using Blueprints.Core.Enums;
+using Blueprints.Core.Models;
 using Blueprints.Security.Abstractions;
 using Blueprints.Security.Services;
 using Blueprints.Storage.Services;
@@ -90,14 +91,14 @@ public sealed class ProjectWorkspaceCoordinatorServiceTests : IDisposable
         var sharedRoot = Path.Combine(_rootDirectory, "audit-tamper-shared", "BP");
         var service = CreateService();
 
-        service.CreateProject(
+        var created = service.CreateProject(
             new ProjectCreateRequest(
                 "Blueprints",
                 "BP",
                 "SemVer",
                 localRoot,
                 sharedRoot));
-        service.SaveVersion(
+        var versionSession = service.SaveVersion(
             localRoot,
             sharedRoot,
             new VersionEditRequest(
@@ -105,6 +106,22 @@ public sealed class ProjectWorkspaceCoordinatorServiceTests : IDisposable
                 "1.0.0",
                 ReleaseStatus.InProgress,
                 "Baseline"));
+        service.SaveCanvasLayout(
+            localRoot,
+            sharedRoot,
+            new CanvasLayoutEditRequest(
+                [
+                    new CanvasNodeLayoutEdit(
+                        "project",
+                        created.LoadResult.Workspace.Project.ProjectId,
+                        50,
+                        300),
+                    new CanvasNodeLayoutEdit(
+                        "version",
+                        versionSession.LoadResult.Workspace.Versions.Single().Version.VersionId,
+                        400,
+                        100),
+                ]));
 
         File.Delete(FindGenesisAuditEntry(Path.Combine(localRoot, "log")));
 
@@ -210,12 +227,49 @@ public sealed class ProjectWorkspaceCoordinatorServiceTests : IDisposable
     }
 
     [Fact]
-    public void PushWorkspace_PublishesLocalChangesAndRefreshesSyncState()
+    public void SaveCanvasLayout_PersistsSignedEntityPositionsAndAuditRevision()
     {
-        var localRoot = Path.Combine(_rootDirectory, "push-local", "BP");
-        var sharedRoot = Path.Combine(_rootDirectory, "push-shared", "BP");
+        var localRoot = Path.Combine(_rootDirectory, "canvas-local", "BP");
+        var sharedRoot = Path.Combine(_rootDirectory, "canvas-shared", "BP");
         var service = CreateService();
+        var created = service.CreateProject(
+            new ProjectCreateRequest(
+                "Blueprints",
+                "BP",
+                "SemVer",
+                localRoot,
+                sharedRoot));
+        var versionSession = service.SaveVersion(
+            localRoot,
+            sharedRoot,
+            new VersionEditRequest(null, "1.0.0", ReleaseStatus.InProgress, null));
+        var projectId = created.LoadResult.Workspace.Project.ProjectId;
+        var versionId = versionSession.LoadResult.Workspace.Versions.Single().Version.VersionId;
 
+        var updated = service.SaveCanvasLayout(
+            localRoot,
+            sharedRoot,
+            new CanvasLayoutEditRequest(
+                [
+                    new CanvasNodeLayoutEdit("project", projectId, 50, 300),
+                    new CanvasNodeLayoutEdit("version", versionId, 420, 90),
+                ]));
+
+        var layout = Assert.IsType<CanvasLayoutDocument>(updated.LoadResult.Workspace.CanvasLayout);
+        Assert.Equal(1, layout.Revision);
+        Assert.Equal(2, layout.Nodes.Count);
+        Assert.True(File.Exists(Path.Combine(localRoot, "project", "canvas-layout.sig")));
+        Assert.Contains(
+            Directory.EnumerateFiles(Path.Combine(localRoot, "log"), "*.json"),
+            path => File.ReadAllText(path).Contains("canvas.layout.save", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void SaveCanvasLayout_RejectsReferencesOutsideTheWorkspace()
+    {
+        var localRoot = Path.Combine(_rootDirectory, "canvas-invalid-local", "BP");
+        var sharedRoot = Path.Combine(_rootDirectory, "canvas-invalid-shared", "BP");
+        var service = CreateService();
         service.CreateProject(
             new ProjectCreateRequest(
                 "Blueprints",
@@ -223,7 +277,33 @@ public sealed class ProjectWorkspaceCoordinatorServiceTests : IDisposable
                 "SemVer",
                 localRoot,
                 sharedRoot));
-        service.SaveVersion(
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => service.SaveCanvasLayout(
+                localRoot,
+                sharedRoot,
+                new CanvasLayoutEditRequest(
+                    [new CanvasNodeLayoutEdit("version", Guid.NewGuid(), 100, 100)])));
+
+        Assert.Contains("does not reference", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.False(File.Exists(Path.Combine(localRoot, "project", "canvas-layout.json")));
+    }
+
+    [Fact]
+    public void PushWorkspace_PublishesLocalChangesAndRefreshesSyncState()
+    {
+        var localRoot = Path.Combine(_rootDirectory, "push-local", "BP");
+        var sharedRoot = Path.Combine(_rootDirectory, "push-shared", "BP");
+        var service = CreateService();
+
+        var created = service.CreateProject(
+            new ProjectCreateRequest(
+                "Blueprints",
+                "BP",
+                "SemVer",
+                localRoot,
+                sharedRoot));
+        var versionSession = service.SaveVersion(
             localRoot,
             sharedRoot,
             new VersionEditRequest(
@@ -231,6 +311,22 @@ public sealed class ProjectWorkspaceCoordinatorServiceTests : IDisposable
                 "1.0.0",
                 ReleaseStatus.InProgress,
                 "Baseline"));
+        service.SaveCanvasLayout(
+            localRoot,
+            sharedRoot,
+            new CanvasLayoutEditRequest(
+                [
+                    new CanvasNodeLayoutEdit(
+                        "project",
+                        created.LoadResult.Workspace.Project.ProjectId,
+                        50,
+                        300),
+                    new CanvasNodeLayoutEdit(
+                        "version",
+                        versionSession.LoadResult.Workspace.Versions.Single().Version.VersionId,
+                        400,
+                        100),
+                ]));
 
         var beforePush = service.OpenProject(localRoot, sharedRoot);
         Assert.True(beforePush.Sync.PendingOutgoingChanges > 0);
@@ -242,6 +338,8 @@ public sealed class ProjectWorkspaceCoordinatorServiceTests : IDisposable
         Assert.True(result.AppliedDocumentCount > 0);
         Assert.True(File.Exists(Path.Combine(sharedRoot, "manifest", "sync-manifest.json")));
         Assert.True(File.Exists(Path.Combine(sharedRoot, "project", "project.json")));
+        Assert.True(File.Exists(Path.Combine(sharedRoot, "project", "canvas-layout.json")));
+        Assert.True(File.Exists(Path.Combine(sharedRoot, "project", "canvas-layout.sig")));
 
         var refreshed = service.OpenProject(localRoot, sharedRoot);
         Assert.Equal(0, refreshed.Sync.PendingOutgoingChanges);
