@@ -6,4 +6,5 @@ public sealed record ProjectSummary(
     string Name,
     string Code,
     TrustState TrustState,
-    string SharedFolderPath);
+    string SharedFolderPath,
+    Guid ProjectId = default);

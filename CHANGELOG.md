@@ -12,6 +12,9 @@ Notable changes to Blueprints are documented here. The project follows semantic 
 - Cross-platform CI, CodeQL, dependency review, milestone automation, PR labels, and community templates.
 - Lightweight milestone-release records generated from the changelog without binary builds.
 - A diagram-first blueprint canvas with draggable version and work-item nodes, live relationship connectors, zoom controls, and direct node inspection.
+- Signed, revisioned node-position persistence with entity validation, audit entries, sync support, auto arrangement, and explicit save controls.
+- Machine-local canvas zoom and viewport persistence that cannot create audit noise or collaboration conflicts.
+- Canvas-engine and troubleshooting documentation covering behavior, format, security, compatibility, conflicts, and recovery.
 - Native folder pickers for project creation and opening.
 
 ### Changed

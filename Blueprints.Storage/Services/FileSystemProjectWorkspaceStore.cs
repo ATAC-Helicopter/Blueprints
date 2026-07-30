@@ -1,5 +1,6 @@
 using Blueprints.Core.Enums;
 using Blueprints.Core.Models;
+using Blueprints.Core.Services;
 using Blueprints.Security.Models;
 using Blueprints.Storage.Abstractions;
 using Blueprints.Storage.Models;
@@ -34,6 +35,23 @@ public sealed class FileSystemProjectWorkspaceStore : IProjectWorkspaceStore
             var allSignaturesValid = projectResult.IsSignatureValid && membersResult.IsSignatureValid;
             var totalDocuments = 2;
             var invalidSignatures = allSignaturesValid ? 0 : CountInvalid(projectResult.IsSignatureValid, membersResult.IsSignatureValid);
+            CanvasLayoutDocument? canvasLayout = null;
+
+            var canvasLayoutPath = GetCanvasLayoutDocumentPath(workspaceRoot);
+            if (File.Exists(canvasLayoutPath))
+            {
+                var canvasLayoutResult = _signedDocumentStore.Read<CanvasLayoutDocument>(
+                    canvasLayoutPath,
+                    publicKey);
+                CanvasLayoutValidator.Validate(canvasLayoutResult.Document, projectResult.Document.ProjectId);
+                canvasLayout = canvasLayoutResult.Document;
+                totalDocuments++;
+                if (!canvasLayoutResult.IsSignatureValid)
+                {
+                    invalidSignatures++;
+                    allSignaturesValid = false;
+                }
+            }
 
             var versionsRoot = GetVersionsRoot(workspaceRoot);
             if (Directory.Exists(versionsRoot))
@@ -73,13 +91,25 @@ public sealed class FileSystemProjectWorkspaceStore : IProjectWorkspaceStore
                 }
             }
 
+            if (canvasLayout is not null)
+            {
+                CanvasLayoutValidator.ValidateEntityReferences(
+                    canvasLayout,
+                    projectResult.Document.ProjectId,
+                    versionSnapshots.Select(static version => version.Version.VersionId).ToHashSet(),
+                    versionSnapshots
+                        .SelectMany(static version => version.Items)
+                        .Select(static item => item.ItemId)
+                        .ToHashSet());
+            }
+
             var trustState = allSignaturesValid ? TrustState.Trusted : TrustState.Untrusted;
             var summary = allSignaturesValid
                 ? $"Validated {totalDocuments} signed documents."
                 : $"Validated {totalDocuments} signed documents with {invalidSignatures} invalid signatures.";
 
             return new ProjectWorkspaceLoadResult(
-                new ProjectWorkspaceSnapshot(projectResult.Document, membersResult.Document, versionSnapshots),
+                new ProjectWorkspaceSnapshot(projectResult.Document, membersResult.Document, versionSnapshots, canvasLayout),
                 new TrustReport(trustState, summary, DateTimeOffset.UtcNow));
         }
         catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException or InvalidOperationException)
@@ -113,6 +143,10 @@ public sealed class FileSystemProjectWorkspaceStore : IProjectWorkspaceStore
             GetMembersDocumentPath(workspaceRoot),
             workspace.Members,
             signingKey);
+        if (workspace.CanvasLayout is not null)
+        {
+            SaveCanvasLayout(workspaceRoot, workspace.CanvasLayout, signingKey);
+        }
 
         foreach (var versionSnapshot in workspace.Versions)
         {
@@ -133,6 +167,21 @@ public sealed class FileSystemProjectWorkspaceStore : IProjectWorkspaceStore
                     signingKey);
             }
         }
+    }
+
+    public void SaveCanvasLayout(
+        string workspaceRoot,
+        CanvasLayoutDocument layout,
+        SignatureKeyMaterial signingKey)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(workspaceRoot);
+        ArgumentNullException.ThrowIfNull(layout);
+
+        CanvasLayoutValidator.Validate(layout, layout.ProjectId);
+        _signedDocumentStore.Write(
+            GetCanvasLayoutDocumentPath(workspaceRoot),
+            layout,
+            signingKey);
     }
 
     private static ProjectWorkspaceSnapshot EmptyWorkspace() =>
@@ -165,6 +214,9 @@ public sealed class FileSystemProjectWorkspaceStore : IProjectWorkspaceStore
 
     private static string GetMembersDocumentPath(string workspaceRoot) =>
         Path.Combine(GetProjectRoot(workspaceRoot), "members.json");
+
+    private static string GetCanvasLayoutDocumentPath(string workspaceRoot) =>
+        Path.Combine(GetProjectRoot(workspaceRoot), "canvas-layout.json");
 
     private static string GetVersionDirectory(string workspaceRoot, Guid versionId) =>
         Path.Combine(GetVersionsRoot(workspaceRoot), versionId.ToString("N"));

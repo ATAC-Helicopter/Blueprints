@@ -46,10 +46,11 @@ There is no dependency-injection container. Constructor composition keeps the cu
 1. Resolve local and shared paths.
 2. Load the local identity.
 3. Load project, membership, versions, and items.
-4. Verify detached signatures with the project member key selected by the current workflow.
-5. Validate the signed audit chain.
-6. Analyze local/shared changes against local sync state.
-7. return a `LocalWorkspaceSession` containing data, trust, sync, safety, and conflict state.
+4. Load the optional canvas layout and validate schema, project identity, entity references, and rendering bounds.
+5. Verify detached signatures with the project member key selected by the current workflow.
+6. Validate the signed audit chain.
+7. Analyze local/shared changes against local sync state.
+8. Return a `LocalWorkspaceSession` containing data, layout, trust, sync, safety, and conflict state.
 
 ### Mutation
 
@@ -59,6 +60,18 @@ There is no dependency-injection container. Constructor composition keeps the cu
 4. Write canonical JSON and detached signatures.
 5. Append a signed, hash-linked audit entry.
 6. Reload the session so displayed state comes from disk.
+
+### Canvas layout mutation
+
+1. Collect current project/version/item node positions.
+2. Require a trusted workspace with no unresolved conflicts.
+3. Reject unknown entities, duplicate node identities, unsupported types, non-finite values, and out-of-range coordinates.
+4. Increment the layout revision.
+5. Write only `project/canvas-layout.json` and its detached signature.
+6. Append a signed audit entry.
+7. Reload and project the layout onto current signed entities.
+
+Zoom and scroll offsets follow a separate local-preference flow: validate bounded values, atomically replace `.blueprints/canvas-view.json`, and never include it in signatures, audit entries, manifests, or exchange analysis.
 
 ### Push
 
@@ -86,6 +99,7 @@ There is no dependency-injection container. Constructor composition keeps the cu
 - Membership always retains at least one active administrator.
 - Hosted providers cannot become authoritative for signed project truth.
 - Local-only integration credentials and paths stay outside project files.
+- Canvas layout is shared signed presentation state; version and item documents remain authoritative content.
 
 ## Known structural debt
 

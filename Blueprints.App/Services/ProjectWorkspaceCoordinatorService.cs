@@ -275,6 +275,56 @@ public sealed class ProjectWorkspaceCoordinatorService
         }, "item.save", $"Saved item {normalizedTitle}.");
     }
 
+    public LocalWorkspaceSession SaveCanvasLayout(
+        string localWorkspaceRoot,
+        string sharedWorkspaceRoot,
+        CanvasLayoutEditRequest request)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(localWorkspaceRoot);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sharedWorkspaceRoot);
+        ArgumentNullException.ThrowIfNull(request);
+
+        var identity = _identityService.GetOrCreateDefaultIdentity("Local Admin");
+        var session = OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
+        EnsureWorkspaceMutable(session);
+        var workspace = session.LoadResult.Workspace;
+
+        var layout = new CanvasLayoutDocument(
+            CurrentSchemaVersion,
+            workspace.Project.ProjectId,
+            (workspace.CanvasLayout?.Revision ?? 0) + 1,
+            request.Nodes
+                .Select(static node => new CanvasNodePosition(
+                    node.NodeType,
+                    node.EntityId,
+                    node.X,
+                    node.Y))
+                .OrderBy(static node => node.NodeType, StringComparer.Ordinal)
+                .ThenBy(static node => node.EntityId)
+                .ToArray(),
+            DateTimeOffset.UtcNow,
+            identity.Profile.UserId,
+            identity.Profile.DisplayName);
+        CanvasLayoutValidator.Validate(layout, workspace.Project.ProjectId);
+        CanvasLayoutValidator.ValidateEntityReferences(
+            layout,
+            workspace.Project.ProjectId,
+            workspace.Versions.Select(static version => version.Version.VersionId).ToHashSet(),
+            workspace.Versions
+                .SelectMany(static version => version.Items)
+                .Select(static item => item.ItemId)
+                .ToHashSet());
+
+        _workspaceStore.SaveCanvasLayout(localWorkspaceRoot, layout, identity.SigningKey);
+        AppendAuditEntry(
+            localWorkspaceRoot,
+            identity,
+            workspace,
+            "canvas.layout.save",
+            $"Saved canvas layout revision {layout.Revision} with {layout.Nodes.Count} nodes.");
+        return OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
+    }
+
     public LocalWorkspaceSession ReleaseVersion(
         string localWorkspaceRoot,
         string sharedWorkspaceRoot,

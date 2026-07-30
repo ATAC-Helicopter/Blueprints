@@ -1,3 +1,4 @@
+using Blueprints.Core.Models;
 using Blueprints.Security.Models;
 using Blueprints.Storage.Models;
 
@@ -13,4 +14,9 @@ public interface IProjectWorkspaceStore
     ProjectWorkspaceLoadResult Load(
         string workspaceRoot,
         SignaturePublicKey publicKey);
+
+    void SaveCanvasLayout(
+        string workspaceRoot,
+        CanvasLayoutDocument layout,
+        SignatureKeyMaterial signingKey);
 }
