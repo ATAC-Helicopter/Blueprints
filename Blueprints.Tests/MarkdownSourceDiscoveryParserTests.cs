@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Blueprints.App.Models;
 using Blueprints.App.Services;
 
@@ -33,6 +34,10 @@ public sealed class MarkdownSourceDiscoveryParserTests : IDisposable
                 Assert.False(first.IsDone);
                 Assert.Equal("feature", first.SuggestedItemTypeId);
                 Assert.Equal("Canvas interaction", first.SourceContext);
+                var reference = Assert.IsType<ProviderReference>(first.ProviderReference);
+                Assert.Equal(SourceProviderKind.Local, reference.Provider);
+                Assert.Equal(ProviderReferenceKind.PlanningDocument, reference.Kind);
+                Assert.Equal("Roadmap.md:3", reference.Identifier);
             },
             second =>
             {
@@ -99,10 +104,57 @@ public sealed class MarkdownSourceDiscoveryParserTests : IDisposable
         Assert.Equal(2, result.Candidates.Count);
         Assert.Equal(1, result.ChangelogCount);
         Assert.Equal(1, result.RoadmapCount);
-        Assert.Equal(0, result.GitHubIssueCount);
+        Assert.Equal(0, result.HostedIssueCount);
         Assert.Contains(
             result.Warnings,
             static warning => warning.Contains("GitHub", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Discover_UsesTheProviderNeutralHostedReaderBoundary()
+    {
+        Directory.CreateDirectory(_root);
+        RunGit("init", _root);
+        RunGit("-C", _root, "remote", "add", "origin", "https://github.com/example/project.git");
+        var hostedReader = new TestHostedSourceProviderReader();
+        var service = new RepositorySourceDiscoveryService(
+            new MarkdownSourceDiscoveryParser(),
+            hostedReader);
+
+        var result = service.Discover(_root);
+
+        Assert.Equal("example/project", hostedReader.Repository.RepositoryName);
+        Assert.Equal(SourceProviderKind.GitHub, hostedReader.Repository.Provider);
+        Assert.Equal(_root, hostedReader.RepositoryRoot);
+        Assert.Equal(1, result.ChangeRequestCount);
+        Assert.Contains(
+            result.Candidates,
+            static candidate => candidate.Kind == SourceArtifactKind.ChangeRequest);
+    }
+
+    [Fact]
+    public void Discover_RoutesNestedGitLabOriginThroughProviderBoundary()
+    {
+        Directory.CreateDirectory(_root);
+        RunGit("init", _root);
+        RunGit(
+            "-C",
+            _root,
+            "remote",
+            "add",
+            "origin",
+            "git@gitlab.com:example/platform/project.git");
+        var hostedReader = new TestHostedSourceProviderReader();
+        var service = new RepositorySourceDiscoveryService(
+            new MarkdownSourceDiscoveryParser(),
+            hostedReader);
+
+        service.Discover(_root);
+
+        Assert.Equal(SourceProviderKind.GitLab, hostedReader.Repository.Provider);
+        Assert.Equal(
+            "example/platform/project",
+            hostedReader.Repository.RepositoryName);
     }
 
     private string Write(string name, string content)
@@ -113,11 +165,70 @@ public sealed class MarkdownSourceDiscoveryParserTests : IDisposable
         return path;
     }
 
+    private static void RunGit(params string[] arguments)
+    {
+        var startInfo = new ProcessStartInfo("git")
+        {
+            RedirectStandardError = true,
+            UseShellExecute = false,
+        };
+        foreach (var argument in arguments)
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
+
+        using var process = Process.Start(startInfo)
+            ?? throw new InvalidOperationException("Failed to start Git for the test.");
+        var error = process.StandardError.ReadToEnd();
+        process.WaitForExit();
+        Assert.True(process.ExitCode == 0, error);
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_root))
         {
             Directory.Delete(_root, recursive: true);
+        }
+    }
+
+    private sealed class TestHostedSourceProviderReader : IHostedSourceProviderReader
+    {
+        public string RepositoryRoot { get; private set; } = string.Empty;
+
+        public HostedRepositoryDescriptor Repository { get; private set; } =
+            new(SourceProviderKind.Local, string.Empty);
+
+        public HostedSourceDiscoveryResult Read(
+            string repositoryRoot,
+            HostedRepositoryDescriptor repository)
+        {
+            RepositoryRoot = repositoryRoot;
+            Repository = repository;
+            return new HostedSourceDiscoveryResult(
+                [
+                    new SourceDiscoveryCandidate(
+                        SourceArtifactKind.ChangeRequest,
+                        "Provider-neutral reader",
+                        null,
+                        "feature",
+                        "added",
+                        false,
+                        "test:pr:1",
+                        "Test pull request",
+                        1,
+                        new ProviderReference(
+                            SourceProviderKind.GitHub,
+                            ProviderReferenceKind.ChangeRequest,
+                            repository.RepositoryName,
+                            "#1",
+                            null)),
+                ],
+                [],
+                0,
+                0,
+                1,
+                0);
         }
     }
 }

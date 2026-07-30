@@ -9,4 +9,5 @@ public sealed record SourceDiscoveryCandidate(
     bool IsDone,
     string SourceReference,
     string SourceContext,
-    double Confidence);
+    double Confidence,
+    ProviderReference? ProviderReference = null);

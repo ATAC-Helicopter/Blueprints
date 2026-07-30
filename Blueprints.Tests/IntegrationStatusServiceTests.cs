@@ -18,7 +18,62 @@ public sealed class IntegrationStatusServiceTests
             status => Assert.Equal(IntegrationProviderType.GitHub, status.Provider),
             status => Assert.Equal(IntegrationProviderType.GitLab, status.Provider),
             status => Assert.Equal(IntegrationProviderType.VaultSync, status.Provider));
-        Assert.All(statuses, status => Assert.Equal(IntegrationConnectionState.NotConfigured, status.State));
+        Assert.All(
+            statuses.Where(status =>
+                status.Provider is IntegrationProviderType.GitHub or
+                IntegrationProviderType.GitLab),
+            status => Assert.Equal(
+                IntegrationConnectionState.Warning,
+                status.State));
+        Assert.All(
+            statuses.Where(status =>
+                status.Provider is not IntegrationProviderType.GitHub and not
+                IntegrationProviderType.GitLab),
+            status => Assert.Equal(
+                IntegrationConnectionState.NotConfigured,
+                status.State));
+    }
+
+    [Fact]
+    public void GetIntegrationStatuses_ReportsEnvironmentCredentialWithoutPersistingIt()
+    {
+        var service = CreateService(
+            IntegrationSettings.Empty,
+            credential: "test-secret");
+
+        var github = service.GetIntegrationStatuses()
+            .Single(status => status.Provider == IntegrationProviderType.GitHub);
+
+        Assert.Equal(IntegrationConnectionState.Connected, github.State);
+        Assert.Contains(
+            "BLUEPRINTS_GITHUB_TOKEN",
+            github.Guidance,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "test-secret",
+            $"{github.Target}{github.Summary}{github.Guidance}",
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GetIntegrationStatuses_ReportsGitLabCredentialWithoutPersistingIt()
+    {
+        var service = CreateService(
+            IntegrationSettings.Empty,
+            gitLabCredential: "gitlab-secret");
+
+        var gitLab = service.GetIntegrationStatuses()
+            .Single(status => status.Provider == IntegrationProviderType.GitLab);
+
+        Assert.Equal(IntegrationConnectionState.Connected, gitLab.State);
+        Assert.Contains(
+            "BLUEPRINTS_GITLAB_TOKEN",
+            gitLab.Guidance,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "gitlab-secret",
+            $"{gitLab.Target}{gitLab.Summary}{gitLab.Guidance}",
+            StringComparison.Ordinal);
     }
 
     [Fact]
@@ -77,7 +132,7 @@ public sealed class IntegrationStatusServiceTests
             .Single(status => status.Provider == IntegrationProviderType.LocalGit);
 
         Assert.Equal(IntegrationConnectionState.Connected, localGit.State);
-        Assert.Equal("/repo", localGit.Target);
+        Assert.Equal(Path.GetFullPath("/repo"), localGit.Target);
         Assert.Contains("main", localGit.Summary, StringComparison.Ordinal);
         Assert.Contains("v1.0.0", localGit.Summary, StringComparison.Ordinal);
         Assert.Single(localGit.RecentChanges);
@@ -106,12 +161,55 @@ public sealed class IntegrationStatusServiceTests
         Assert.Contains("uncommitted", localGit.Guidance, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void GetIntegrationStatuses_InspectsEveryDistinctLinkedRepository()
+    {
+        var settings = new IntegrationSettings("/repo-a", string.Empty)
+        {
+            LocalGitRepositoryPaths = ["/repo-a", "/repo-b"],
+        };
+        var service = CreateService(
+            settings,
+            new LocalGitRepositoryStatus(
+                true,
+                string.Empty,
+                "main",
+                "(no origin remote)",
+                false,
+                "(no tags)",
+                [],
+                "Repository working tree is clean."));
+
+        var localGit = service.GetIntegrationStatuses()
+            .Where(status => status.Provider == IntegrationProviderType.LocalGit)
+            .ToArray();
+
+        Assert.Equal(2, localGit.Length);
+        Assert.Equal(
+            [Path.GetFullPath("/repo-a"), Path.GetFullPath("/repo-b")],
+            localGit.Select(static status => status.Target));
+        Assert.All(localGit, status => Assert.Equal(IntegrationConnectionState.Connected, status.State));
+    }
+
     private static IntegrationStatusService CreateService(
         IntegrationSettings settings,
-        LocalGitRepositoryStatus? gitStatus = null) =>
+        LocalGitRepositoryStatus? gitStatus = null,
+        string? credential = null,
+        string? gitLabCredential = null) =>
         new(
             new TestIntegrationSettingsStore(settings),
-            new TestLocalGitRepositoryInspector(gitStatus));
+            new TestLocalGitRepositoryInspector(gitStatus),
+            new TestProviderCredentialSource(credential, gitLabCredential));
+
+    private sealed class TestProviderCredentialSource(
+        string? credential,
+        string? gitLabCredential)
+        : IProviderCredentialSource
+    {
+        public string? GetGitHubToken() => credential;
+
+        public string? GetGitLabToken() => gitLabCredential;
+    }
 
     private sealed class TestIntegrationSettingsStore : IIntegrationSettingsStore
     {
@@ -137,14 +235,16 @@ public sealed class IntegrationStatusServiceTests
         }
 
         public LocalGitRepositoryStatus Inspect(string repositoryPath) =>
-            _status ?? new LocalGitRepositoryStatus(
-                false,
-                repositoryPath,
-                string.Empty,
-                string.Empty,
-                false,
-                string.Empty,
-                [],
-                "Configured path is not a Git repository.");
+            _status is null
+                ? new LocalGitRepositoryStatus(
+                    false,
+                    repositoryPath,
+                    string.Empty,
+                    string.Empty,
+                    false,
+                    string.Empty,
+                    [],
+                    "Configured path is not a Git repository.")
+                : _status with { RepositoryRoot = repositoryPath };
     }
 }

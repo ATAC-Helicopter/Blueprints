@@ -4,6 +4,8 @@ public enum SourceArtifactKind
 {
     Changelog,
     Roadmap,
-    GitHubIssue,
-    GitHubProject,
+    Issue,
+    Project,
+    ChangeRequest,
+    Release,
 }

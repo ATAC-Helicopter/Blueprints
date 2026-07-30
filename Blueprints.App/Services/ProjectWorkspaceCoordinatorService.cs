@@ -493,6 +493,142 @@ public sealed class ProjectWorkspaceCoordinatorService
         return OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
     }
 
+    public LocalWorkspaceSession SaveRelationshipType(
+        string localWorkspaceRoot,
+        string sharedWorkspaceRoot,
+        RelationshipTypeEditRequest request)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(localWorkspaceRoot);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sharedWorkspaceRoot);
+        ArgumentNullException.ThrowIfNull(request);
+
+        var identity = _identityService.GetOrCreateDefaultIdentity("Local Admin");
+        var session = OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
+        EnsureWorkspaceMutable(session);
+        var workspace = session.LoadResult.Workspace;
+        var typeId = request.TypeId.Trim().ToLowerInvariant();
+        var existing = workspace.Relationships?.Types.FirstOrDefault(type =>
+            string.Equals(type.TypeId, typeId, StringComparison.Ordinal));
+        if (existing is not null &&
+            existing.IsDirectional != request.IsDirectional &&
+            workspace.Relationships!.Relationships.Any(edge =>
+                string.Equals(edge.TypeId, typeId, StringComparison.Ordinal)))
+        {
+            throw new InvalidOperationException(
+                "A relationship type's direction cannot change while relationships use it.");
+        }
+
+        var types = (workspace.Relationships?.Types ?? [])
+            .Where(type => !string.Equals(type.TypeId, typeId, StringComparison.Ordinal))
+            .Append(new RelationshipTypeDefinition(
+                typeId,
+                request.Name.Trim(),
+                string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim(),
+                request.ColorHex.Trim().ToUpperInvariant(),
+                request.IsDirectional))
+            .OrderBy(static type => type.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(static type => type.TypeId, StringComparer.Ordinal)
+            .ToArray();
+        var document = CreateRelationshipDocument(
+            workspace,
+            identity,
+            types,
+            workspace.Relationships?.Relationships ?? []);
+        SaveRelationshipDocument(localWorkspaceRoot, identity, workspace, document);
+        AppendAuditEntry(
+            localWorkspaceRoot,
+            identity,
+            workspace with { Relationships = document },
+            existing is null ? "relationship.type.create" : "relationship.type.update",
+            $"{(existing is null ? "Created" : "Updated")} relationship type {document.Types.First(type => type.TypeId == typeId).Name}.");
+        return OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
+    }
+
+    public LocalWorkspaceSession SaveRelationship(
+        string localWorkspaceRoot,
+        string sharedWorkspaceRoot,
+        RelationshipEditRequest request)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(localWorkspaceRoot);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sharedWorkspaceRoot);
+        ArgumentNullException.ThrowIfNull(request);
+
+        var identity = _identityService.GetOrCreateDefaultIdentity("Local Admin");
+        var session = OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
+        EnsureWorkspaceMutable(session);
+        var workspace = session.LoadResult.Workspace;
+        var relationships = workspace.Relationships
+            ?? throw new InvalidOperationException(
+                "Create a relationship type before adding relationships.");
+        var relationshipId = request.RelationshipId ?? Guid.NewGuid();
+        if (request.RelationshipId is not null &&
+            relationships.Relationships.All(edge => edge.RelationshipId != relationshipId))
+        {
+            throw new InvalidOperationException("The selected relationship was not found.");
+        }
+
+        var edges = relationships.Relationships
+            .Where(edge => edge.RelationshipId != relationshipId)
+            .Append(new RelationshipEdge(
+                relationshipId,
+                request.TypeId.Trim().ToLowerInvariant(),
+                request.Source,
+                request.Target,
+                string.IsNullOrWhiteSpace(request.Label) ? null : request.Label.Trim()))
+            .OrderBy(static edge => edge.TypeId, StringComparer.Ordinal)
+            .ThenBy(static edge => edge.RelationshipId)
+            .ToArray();
+        var document = CreateRelationshipDocument(
+            workspace,
+            identity,
+            relationships.Types,
+            edges);
+        SaveRelationshipDocument(localWorkspaceRoot, identity, workspace, document);
+        AppendAuditEntry(
+            localWorkspaceRoot,
+            identity,
+            workspace with { Relationships = document },
+            request.RelationshipId is null ? "relationship.create" : "relationship.update",
+            $"{(request.RelationshipId is null ? "Created" : "Updated")} relationship {relationshipId:N}.");
+        return OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
+    }
+
+    public LocalWorkspaceSession RemoveRelationship(
+        string localWorkspaceRoot,
+        string sharedWorkspaceRoot,
+        Guid relationshipId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(localWorkspaceRoot);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sharedWorkspaceRoot);
+
+        var identity = _identityService.GetOrCreateDefaultIdentity("Local Admin");
+        var session = OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
+        EnsureWorkspaceMutable(session);
+        var workspace = session.LoadResult.Workspace;
+        var relationships = workspace.Relationships
+            ?? throw new InvalidOperationException("The selected relationship was not found.");
+        if (relationships.Relationships.All(edge => edge.RelationshipId != relationshipId))
+        {
+            throw new InvalidOperationException("The selected relationship was not found.");
+        }
+
+        var document = CreateRelationshipDocument(
+            workspace,
+            identity,
+            relationships.Types,
+            relationships.Relationships
+                .Where(edge => edge.RelationshipId != relationshipId)
+                .ToArray());
+        SaveRelationshipDocument(localWorkspaceRoot, identity, workspace, document);
+        AppendAuditEntry(
+            localWorkspaceRoot,
+            identity,
+            workspace with { Relationships = document },
+            "relationship.remove",
+            $"Removed relationship {relationshipId:N}.");
+        return OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
+    }
+
     public LocalWorkspaceSession ReleaseVersion(
         string localWorkspaceRoot,
         string sharedWorkspaceRoot,
@@ -590,6 +726,10 @@ public sealed class ProjectWorkspaceCoordinatorService
                     .ToArray(),
                 CanvasLayout = RemoveArchivedLayoutNodes(
                     workspace.CanvasLayout,
+                    removedEntityIds,
+                    identity),
+                Relationships = RemoveArchivedRelationships(
+                    workspace.Relationships,
                     removedEntityIds,
                     identity),
             };
@@ -694,6 +834,10 @@ public sealed class ProjectWorkspaceCoordinatorService
                     Versions = versions,
                     CanvasLayout = RemoveArchivedLayoutNodes(
                         workspace.CanvasLayout,
+                        new HashSet<Guid> { itemId },
+                        identity),
+                    Relationships = RemoveArchivedRelationships(
+                        workspace.Relationships,
                         new HashSet<Guid> { itemId },
                         identity),
                 },
@@ -1400,6 +1544,69 @@ public sealed class ProjectWorkspaceCoordinatorService
             Nodes = layout.Nodes
                 .Where(node => !removedEntityIds.Contains(node.EntityId))
                 .ToArray(),
+            UpdatedUtc = DateTimeOffset.UtcNow,
+            LastModifiedByUserId = identity.Profile.UserId,
+            LastModifiedByName = identity.Profile.DisplayName,
+        };
+    }
+
+    private void SaveRelationshipDocument(
+        string localWorkspaceRoot,
+        Security.Models.StoredIdentity identity,
+        ProjectWorkspaceSnapshot workspace,
+        RelationshipDocument document)
+    {
+        RelationshipDocumentValidator.Validate(document, workspace.Project.ProjectId);
+        RelationshipDocumentValidator.ValidateEntityReferences(
+            document,
+            workspace.Project.ProjectId,
+            workspace.Versions.Select(static version => version.Version.VersionId).ToHashSet(),
+            workspace.Versions
+                .SelectMany(static version => version.Items)
+                .Select(static item => item.ItemId)
+                .ToHashSet());
+        _workspaceStore.SaveRelationships(localWorkspaceRoot, document, identity.SigningKey);
+    }
+
+    private static RelationshipDocument CreateRelationshipDocument(
+        ProjectWorkspaceSnapshot workspace,
+        Security.Models.StoredIdentity identity,
+        IReadOnlyList<RelationshipTypeDefinition> types,
+        IReadOnlyList<RelationshipEdge> relationships) =>
+        new(
+            CurrentSchemaVersion,
+            workspace.Project.ProjectId,
+            (workspace.Relationships?.Revision ?? 0) + 1,
+            types,
+            relationships,
+            DateTimeOffset.UtcNow,
+            identity.Profile.UserId,
+            identity.Profile.DisplayName);
+
+    private static RelationshipDocument? RemoveArchivedRelationships(
+        RelationshipDocument? document,
+        IReadOnlySet<Guid> removedEntityIds,
+        Security.Models.StoredIdentity identity)
+    {
+        if (document is null)
+        {
+            return null;
+        }
+
+        var relationships = document.Relationships
+            .Where(edge =>
+                !removedEntityIds.Contains(edge.Source.EntityId) &&
+                !removedEntityIds.Contains(edge.Target.EntityId))
+            .ToArray();
+        if (relationships.Length == document.Relationships.Count)
+        {
+            return document;
+        }
+
+        return document with
+        {
+            Revision = document.Revision + 1,
+            Relationships = relationships,
             UpdatedUtc = DateTimeOffset.UtcNow,
             LastModifiedByUserId = identity.Profile.UserId,
             LastModifiedByName = identity.Profile.DisplayName,

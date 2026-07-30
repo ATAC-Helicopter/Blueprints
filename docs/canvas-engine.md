@@ -15,9 +15,18 @@ project
 - The project node uses `ProjectConfigurationDocument.ProjectId`.
 - A version node uses `VersionDocument.VersionId`.
 - A work-item node uses `ItemDocument.ItemId`.
-- Connector lines are derived from version ownership; they are not persisted separately.
+- Ownership connector lines are derived from version ownership; they are not persisted separately.
+- User-created typed connectors are projected from the optional signed relationship graph.
 
 Changing a node title, state, category, or completion value uses the existing version and item workflows. Moving a node changes only the layout document.
+
+## Typed relationships
+
+The inspector can define a relationship type with a stable lowercase ID, display name, optional description, `#RRGGBB` canvas color, and directional flag. A relationship then connects any two different existing project, version, or item nodes and may carry a short label. Its color is projected on the canvas alongside the built-in ownership lines.
+
+Relationship types and edges are stored together in `project/relationships.json`. Every edit increments the document revision, writes canonical signed JSON, and adds a specific audit action. A type cannot change between directional and undirected while an edge uses it. Archiving a version or item removes dangling edges in the same signed archive operation.
+
+The validator permits at most 100 types and 5,000 edges, rejects unknown types and entities, empty or duplicate IDs, self-links, malformed colors, and duplicate logical edges. For an undirected type, reversing endpoints does not create a distinct edge.
 
 ## Interaction model
 
@@ -25,7 +34,12 @@ Changing a node title, state, category, or completion value uses the existing ve
 | --- | --- |
 | Click a version | Select it and open version fields in the inspector |
 | Click a work item | Select it, its owning version, and its item fields |
-| Drag a node | Move it and save a new signed layout revision on release |
+| Drag empty canvas | Draw a box that selects every intersecting node |
+| Ctrl/Shift-click a node | Add or remove it from the canvas selection |
+| Drag a selected node | Move the complete selection and save a new signed layout revision on release |
+| Arrow keys | Move selected nodes by one pixel and save the layout |
+| Shift+arrow keys | Move selected nodes by ten pixels and save the layout |
+| Ctrl+A / Escape | Select every node / clear the canvas selection |
 | Middle-drag empty canvas | Pan without changing shared node positions |
 | Scroll the canvas | Save machine-local viewport offsets after a short debounce |
 | Ctrl+mouse wheel or zoom buttons | Change and save machine-local zoom |
@@ -38,6 +52,8 @@ Changing a node title, state, category, or completion value uses the existing ve
 | Ctrl+Shift+Z or Ctrl+Y | Redo the latest undone layout change |
 | Ctrl+0 | Fit the local view |
 | Ctrl+plus/minus | Zoom the local view |
+
+Live guides appear when the edge or center of a moving node approaches another node's edge or center. The minimap shows the full graph, selected nodes, and the current viewport. Selection, guides, and minimap visuals are session-local UI state; only resulting node coordinates are persisted.
 
 Editing and layout controls are disabled when the workspace is untrusted or has unresolved sync conflicts.
 
@@ -105,13 +121,16 @@ Two collaborators moving the same canvas from a common baseline may produce a co
 
 Version and work-item content remain separate documents. A layout conflict does not imply that their content has conflicted.
 
+The relationship graph follows the same whole-document rule. A conflict in `project/relationships.json` compares revision, types, edges, update time, and author for diagnosis, then requires choosing the complete local or shared graph. Schema 1 deliberately does not attempt an unsafe automatic edge merge.
+
 ## Current limits
 
 - There is one shared release-planning canvas per project.
 - Node positions are shared project state, not per-user preferences.
-- Connectors represent ownership and cannot yet be created as arbitrary edge types.
-- There is no minimap, box selection, grouping, or keyboard-driven node movement yet.
+- Directional typed relationships use distinct type semantics and color, but the canvas does not yet draw arrowheads or edit labels directly on an edge.
+- Multi-selection groups nodes for movement only; it does not create a persistent group entity.
 - Auto arrangement is deterministic but not a graph-optimization engine.
 - Layout conflict resolution is whole-document.
+- Relationship conflict resolution is whole-document.
 
 These are product limitations, not hidden behavior. Planned work belongs in the canonical [roadmap](../Roadmap.md).

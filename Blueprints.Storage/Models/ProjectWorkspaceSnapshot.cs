@@ -6,4 +6,5 @@ public sealed record ProjectWorkspaceSnapshot(
     ProjectConfigurationDocument Project,
     MemberDocument Members,
     IReadOnlyList<VersionWorkspaceSnapshot> Versions,
-    CanvasLayoutDocument? CanvasLayout = null);
+    CanvasLayoutDocument? CanvasLayout = null,
+    RelationshipDocument? Relationships = null);

@@ -4,7 +4,56 @@ Notable changes to Blueprints are documented here. The project follows semantic 
 
 ## Unreleased
 
-No changes yet.
+## 0.4.0 — 2026-07-30
+
+Provider-neutral source-control awareness milestone. This release connects the signed release plan to local Git, GitHub, and GitLab evidence while keeping discovery read-only, credentials local, and every imported proposal subject to explicit review.
+
+### Added
+
+- Canvas box selection, additive multi-selection, grouped node dragging, `Ctrl+A`, `Escape`, precise arrow-key movement, live alignment guides, and a viewport minimap.
+- Release-readiness diagnostics that surface unavailable or dirty repositories, incomplete items, missing post-tag history, and recent commits that do not map to completed items in the selected version.
+- Machine-local links for up to eight Git worktrees, with combined read-only health, source discovery, source trace, and release-readiness analysis.
+- A provider-neutral reference contract for planning documents, commits, issues, pull requests, releases, and project records across local Git, GitHub, and GitLab.
+- Bounded read-only discovery for up to 100 GitHub pull requests and 50 GitHub release records per linked repository, including merge/publication state and provider-neutral provenance.
+- Repository-linked GitHub Project discovery for standalone draft items through a bounded read-only GraphQL query covering at most 10 projects, 100 items per project, and 100 returned drafts.
+- An injectable provider-neutral hosted-source reader boundary, keeping repository discovery and approval workflows independent from the current authenticated GitHub CLI implementation.
+- User-defined directional or undirected relationship types with validated colors and optional descriptions, plus signed relationships between project, version, and work-item nodes.
+- Relationship authoring and removal in the canvas inspector, colored relationship projection on the canvas, archive cleanup, audit operations, and document-aware conflict summaries.
+- Direct bounded GitHub REST and GraphQL discovery for issues, pull requests, releases, project-linked issues, and standalone Project drafts, including anonymous public-repository reads.
+- A provider-operation policy that allows reads directly but requires a fresh, exact-target, single-use approval before any future hosted-provider write.
+- GitLab.com remote detection and bounded parallel discovery for issues, merge requests, releases, and milestones, with anonymous public reads and environment-only private-project credentials.
+
+### Changed
+
+- Completed release builds now identify themselves as `0.4.0`.
+- Canvas guidance now exposes the active selection and the available multi-node keyboard controls; resulting layout changes keep using signed, audited persistence.
+- The release planner now presents source-control blockers and follow-up guidance next to source trace and changelog review.
+- Source Lens accepts one repository path per line and preserves the full repository-qualified provenance of combined proposals.
+- Source Lens proposals now expose structured provider, repository, artifact kind, identifier, and optional web location instead of relying only on GitHub-specific display strings.
+- Combined Source Lens summaries now separate issue, pull-request, release, and project-linked proposal counts.
+- Schema-1 workspaces may contain an optional signed `project/relationships.json`; missing files remain compatible with earlier workspaces and the complete relationship graph is one revisioned conflict domain.
+- Source Lens no longer requires the GitHub CLI. Private repository and GitHub Project discovery uses the environment-only `BLUEPRINTS_GITHUB_TOKEN`; Blueprints does not persist the credential.
+- Hosted source kinds and counts are provider-neutral, so GitHub pull requests and GitLab merge requests share the same change-request workflow without provider-specific signed data.
+
+### Security
+
+- Hosted API responses are fetched in parallel with per-request timeouts, 4 MiB response limits, provider-specific count limits, repository-identity validation, and credential-free error messages.
+- GitHub and GitLab credentials are accepted only from process environment variables and never enter signed project truth, integration settings, proposal provenance, or warnings.
+- Future provider writes require a fresh approval matching the exact provider, repository, operation, and target; approval expires within ten minutes and is consumed once.
+
+### Workspace compatibility
+
+- Signed workspace schema remains version 1.
+- `project/relationships.json` and its signature are optional schema-1 documents. Older projects remain readable until the first relationship type is saved.
+- Provider references and credentials remain application-layer and machine-local data; no hosted provider is required to open, edit, sign, or exchange a project.
+
+### Known limitations
+
+- This release contains no installers or application binaries.
+- Hosted-provider integrations are discovery-only; no issue, project, merge-request, pull-request, or release writes are implemented.
+- GitLab hosted discovery currently recognizes `gitlab.com` origins, not arbitrary self-managed GitLab hosts.
+- Provider credentials use process environment variables rather than an OAuth/device flow or operating-system credential UI.
+- Directional relationship types do not yet render arrowheads, and relationship conflicts resolve as a whole document.
 
 ## 0.3.0 — 2026-07-30
 
