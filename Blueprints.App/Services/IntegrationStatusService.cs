@@ -6,20 +6,34 @@ public sealed class IntegrationStatusService
 {
     private readonly IIntegrationSettingsStore _settingsStore;
     private readonly ILocalGitRepositoryInspector _localGitRepositoryInspector;
+    private readonly IProviderCredentialSource _providerCredentialSource;
 
     public IntegrationStatusService()
         : this(
             new FileSystemIntegrationSettingsStore(AppEnvironment.GetIntegrationSettingsPath()),
-            new GitCommandLocalGitRepositoryInspector())
+            new GitCommandLocalGitRepositoryInspector(),
+            new EnvironmentProviderCredentialSource())
     {
     }
 
     public IntegrationStatusService(
         IIntegrationSettingsStore settingsStore,
         ILocalGitRepositoryInspector localGitRepositoryInspector)
+        : this(
+            settingsStore,
+            localGitRepositoryInspector,
+            new EnvironmentProviderCredentialSource())
+    {
+    }
+
+    public IntegrationStatusService(
+        IIntegrationSettingsStore settingsStore,
+        ILocalGitRepositoryInspector localGitRepositoryInspector,
+        IProviderCredentialSource providerCredentialSource)
     {
         _settingsStore = settingsStore;
         _localGitRepositoryInspector = localGitRepositoryInspector;
+        _providerCredentialSource = providerCredentialSource;
     }
 
     public IReadOnlyList<IntegrationStatusCard> GetIntegrationStatuses()
@@ -30,16 +44,7 @@ public sealed class IntegrationStatusService
         return
         [
             .. GetLocalGitStatuses(settings, checkedAtUtc),
-            new IntegrationStatusCard(
-                IntegrationProviderType.GitHub,
-                "GitHub",
-                IntegrationConnectionState.NotConfigured,
-                "No GitHub repository linked",
-                "GitHub should enrich releases with issues, pull requests, checks, and draft release publishing.",
-                "Connect only after the provider-agnostic repository and release models are stable. Remote writes must be explicit user actions.",
-                BlueprintsTrustBoundary(),
-                checkedAtUtc,
-                []),
+            GetGitHubStatus(checkedAtUtc),
             new IntegrationStatusCard(
                 IntegrationProviderType.GitLab,
                 "GitLab",
@@ -66,6 +71,30 @@ public sealed class IntegrationStatusService
     public IntegrationSettings GetSettings() => _settingsStore.Load();
 
     public void SaveSettings(IntegrationSettings settings) => _settingsStore.Save(settings);
+
+    private IntegrationStatusCard GetGitHubStatus(DateTimeOffset checkedAtUtc)
+    {
+        var hasCredential = !string.IsNullOrWhiteSpace(
+            _providerCredentialSource.GetGitHubToken());
+        return new IntegrationStatusCard(
+            IntegrationProviderType.GitHub,
+            "GitHub",
+            hasCredential
+                ? IntegrationConnectionState.Connected
+                : IntegrationConnectionState.Warning,
+            hasCredential
+                ? "Direct API credential available"
+                : "Public API discovery only",
+            hasCredential
+                ? "Source Lens can read issues, pull requests, releases, and repository-linked Project drafts through GitHub's API."
+                : "Source Lens can read public issues, pull requests, and releases. Private repositories and Project drafts require an environment credential.",
+            hasCredential
+                ? "The credential is read from BLUEPRINTS_GITHUB_TOKEN and is never persisted by Blueprints. Provider access remains read-only."
+                : "Set BLUEPRINTS_GITHUB_TOKEN in the application environment when private or Project discovery is needed.",
+            BlueprintsTrustBoundary(),
+            checkedAtUtc,
+            []);
+    }
 
     private IReadOnlyList<IntegrationStatusCard> GetLocalGitStatuses(
         IntegrationSettings settings,

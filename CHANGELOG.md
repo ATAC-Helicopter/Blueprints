@@ -15,6 +15,8 @@ Notable changes to Blueprints are documented here. The project follows semantic 
 - An injectable provider-neutral hosted-source reader boundary, keeping repository discovery and approval workflows independent from the current authenticated GitHub CLI implementation.
 - User-defined directional or undirected relationship types with validated colors and optional descriptions, plus signed relationships between project, version, and work-item nodes.
 - Relationship authoring and removal in the canvas inspector, colored relationship projection on the canvas, archive cleanup, audit operations, and document-aware conflict summaries.
+- Direct bounded GitHub REST and GraphQL discovery for issues, pull requests, releases, project-linked issues, and standalone Project drafts, including anonymous public-repository reads.
+- A provider-operation policy that allows reads directly but requires a fresh, exact-target, single-use approval before any future hosted-provider write.
 
 ### Changed
 
@@ -25,6 +27,7 @@ Notable changes to Blueprints are documented here. The project follows semantic 
 - Source Lens proposals now expose structured provider, repository, artifact kind, identifier, and optional web location instead of relying only on GitHub-specific display strings.
 - Combined Source Lens summaries now separate issue, pull-request, release, and project-linked proposal counts.
 - Schema-1 workspaces may contain an optional signed `project/relationships.json`; missing files remain compatible with earlier workspaces and the complete relationship graph is one revisioned conflict domain.
+- Source Lens no longer requires the GitHub CLI. Private repository and GitHub Project discovery uses the environment-only `BLUEPRINTS_GITHUB_TOKEN`; Blueprints does not persist the credential.
 
 ## 0.3.0 — 2026-07-30
 
