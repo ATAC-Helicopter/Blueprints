@@ -106,6 +106,69 @@ public sealed class IntegrationStatusServiceTests
     }
 
     [Fact]
+    public void GetIntegrationStatuses_ReportsHealthyVaultSyncEvidence()
+    {
+        var vaultStatus = new VaultSyncStatusSummary(
+            true,
+            "/backup/.vaultsync/meta/vaultsync.meta.db",
+            "/backup/.vaultsync/meta/blueprints.status.json",
+            DateTimeOffset.Parse("2026-07-30T20:00:00Z"),
+            "project-42",
+            "Blueprints",
+            "NAS",
+            true,
+            DateTimeOffset.Parse("2026-07-30T20:00:00Z"),
+            DateTimeOffset.Parse("2026-07-30T21:00:00Z"),
+            DateTimeOffset.Parse("2026-07-30T22:00:00Z"),
+            true,
+            "Ready",
+            0,
+            [],
+            "Restore readiness: Ready.");
+        var service = CreateService(
+            new IntegrationSettings(string.Empty, "/backup"),
+            vaultStatus: vaultStatus);
+
+        var vaultSync = service.GetIntegrationStatuses()
+            .Single(status => status.Provider == IntegrationProviderType.VaultSync);
+
+        Assert.Equal(IntegrationConnectionState.Connected, vaultSync.State);
+        Assert.Contains("NAS", vaultSync.Target, StringComparison.Ordinal);
+        Assert.Contains("read-only", vaultSync.Guidance, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void GetIntegrationStatuses_WarnsForVaultSyncMetadataConflicts()
+    {
+        var vaultStatus = new VaultSyncStatusSummary(
+            true,
+            "/backup/.vaultsync/meta/vaultsync.meta.db",
+            "/backup/.vaultsync/meta/blueprints.status.json",
+            DateTimeOffset.Parse("2026-07-30T20:00:00Z"),
+            "project-42",
+            "Blueprints",
+            "NAS",
+            true,
+            null,
+            null,
+            null,
+            true,
+            "Risk",
+            2,
+            ["2 VaultSync metadata conflicts require review."],
+            "Restore readiness: Risk.");
+        var service = CreateService(
+            new IntegrationSettings(string.Empty, "/backup"),
+            vaultStatus: vaultStatus);
+
+        var vaultSync = service.GetIntegrationStatuses()
+            .Single(status => status.Provider == IntegrationProviderType.VaultSync);
+
+        Assert.Equal(IntegrationConnectionState.Warning, vaultSync.State);
+        Assert.Contains("conflicts", vaultSync.Guidance, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void GetIntegrationStatuses_DetectsConfiguredCleanLocalGitRepository()
     {
         var service = CreateService(
@@ -195,11 +258,13 @@ public sealed class IntegrationStatusServiceTests
         IntegrationSettings settings,
         LocalGitRepositoryStatus? gitStatus = null,
         string? credential = null,
-        string? gitLabCredential = null) =>
+        string? gitLabCredential = null,
+        VaultSyncStatusSummary? vaultStatus = null) =>
         new(
             new TestIntegrationSettingsStore(settings),
             new TestLocalGitRepositoryInspector(gitStatus),
-            new TestProviderCredentialSource(credential, gitLabCredential));
+            new TestProviderCredentialSource(credential, gitLabCredential),
+            new TestVaultSyncStatusReader(vaultStatus));
 
     private sealed class TestProviderCredentialSource(
         string? credential,
@@ -246,5 +311,28 @@ public sealed class IntegrationStatusServiceTests
                     [],
                     "Configured path is not a Git repository.")
                 : _status with { RepositoryRoot = repositoryPath };
+    }
+
+    private sealed class TestVaultSyncStatusReader(VaultSyncStatusSummary? status)
+        : IVaultSyncStatusReader
+    {
+        public VaultSyncStatusSummary Inspect(string configuredRoot) =>
+            status ?? new VaultSyncStatusSummary(
+                false,
+                configuredRoot,
+                string.Empty,
+                null,
+                string.Empty,
+                string.Empty,
+                string.Empty,
+                null,
+                null,
+                null,
+                null,
+                null,
+                "Unavailable",
+                0,
+                ["Metadata unavailable."],
+                "Metadata unavailable.");
     }
 }

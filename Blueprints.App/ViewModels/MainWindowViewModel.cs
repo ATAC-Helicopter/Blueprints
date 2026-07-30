@@ -87,6 +87,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private string _selectedConflictLocalPreview = string.Empty;
     private string _selectedConflictSharedPreview = string.Empty;
     private string _localGitRepositoryPath = string.Empty;
+    private string _vaultSyncMetadataRoot = string.Empty;
     private string _integrationMessage = string.Empty;
     private WorkspaceSection _selectedWorkspaceSection = WorkspaceSection.Overview;
     private CanvasLayoutDocument? _canvasLayout;
@@ -276,6 +277,12 @@ public partial class MainWindowViewModel : ViewModelBase
                 OnPropertyChanged(nameof(CanDiscoverSources));
             }
         }
+    }
+
+    public string VaultSyncMetadataRoot
+    {
+        get => _vaultSyncMetadataRoot;
+        set => SetProperty(ref _vaultSyncMetadataRoot, value);
     }
 
     public string IntegrationMessage
@@ -1724,6 +1731,28 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    private void SaveVaultSyncMetadataRoot()
+    {
+        try
+        {
+            var configuredRoot = VaultSyncMetadataRoot.Trim();
+            var settings = _integrationStatusService.GetSettings();
+            _integrationStatusService.SaveSettings(settings with
+            {
+                VaultSyncMetadataRoot = configuredRoot,
+            });
+            RefreshIntegrations();
+            IntegrationMessage = string.IsNullOrWhiteSpace(configuredRoot)
+                ? "VaultSync metadata link cleared."
+                : "VaultSync metadata link saved and checked read-only.";
+        }
+        catch (Exception exception)
+        {
+            IntegrationMessage = exception.Message;
+        }
+    }
+
+    [RelayCommand]
     private void RefreshIntegrationStatuses()
     {
         try
@@ -2548,6 +2577,7 @@ public partial class MainWindowViewModel : ViewModelBase
         LocalGitRepositoryPath = string.Join(
             Environment.NewLine,
             settings.EffectiveLocalGitRepositoryPaths);
+        VaultSyncMetadataRoot = settings.VaultSyncMetadataRoot;
 
         Integrations.Clear();
         foreach (var integration in _integrationStatusService.GetIntegrationStatuses())
