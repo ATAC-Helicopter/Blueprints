@@ -22,6 +22,8 @@ Goal: a new contributor can build the app, and a developer can plan and export a
 - [x] Move the supported runtime to .NET 10 LTS and Avalonia 12.
 - [x] Make the primary workspace a draggable, diagram-first blueprint canvas backed by real version and item relationships.
 - [x] Persist, sign, audit, sync, validate, and restore shared node positions while keeping viewport preferences machine-local.
+- [x] Add approval-first Source Lens discovery for changelogs, roadmaps, GitHub issues, and issue-linked GitHub Projects.
+- [x] Replace icon-only navigation with a clear workflow rail and adaptive next-action guidance.
 - [ ] Add undo/redo, box selection, multi-select, keyboard movement, alignment guides, and a minimap.
 - [ ] Add user-created typed relationships after defining their domain and conflict semantics.
 - [x] Keep release, team, sync, trust, and integration operations in focused secondary tools.
@@ -69,7 +71,10 @@ Goal: connect release intent to source history without weakening local ownership
 - [ ] Link a Blueprints project to one or more repositories.
 - [ ] Add release-readiness diagnostics for uncommitted and unmatched changes.
 - [ ] Define provider-neutral issue, pull-request, and release references.
-- [ ] Add a read-only GitHub adapter, then carefully scope write operations.
+- [x] Add a bounded read-only GitHub issue/Project discovery adapter through the authenticated GitHub CLI.
+- [ ] Replace the CLI-backed reader with a provider-neutral authenticated adapter and add pull-request/release references.
+- [ ] Add standalone GitHub Project draft-item discovery.
+- [ ] Define and separately approve any future provider write operations.
 - [ ] Add GitLab parity after the provider contract stabilizes.
 
 Exit criteria:

@@ -18,6 +18,7 @@ public partial class MainWindowViewModel : ViewModelBase
 {
     private readonly ProjectWorkspaceCoordinatorService? _coordinatorService;
     private readonly IntegrationStatusService _integrationStatusService;
+    private readonly ISourceDiscoveryService _sourceDiscoveryService;
     private readonly FileSystemCanvasViewStateStore _canvasViewStateStore;
     private LocalWorkspaceSession? _currentSession;
     private string _title = "Blueprints Setup";
@@ -76,6 +77,10 @@ public partial class MainWindowViewModel : ViewModelBase
     private WorkspaceSection _selectedWorkspaceSection = WorkspaceSection.Overview;
     private CanvasLayoutDocument? _canvasLayout;
     private CanvasViewState _canvasViewState = CanvasViewState.Default;
+    private SourceImportProposal? _selectedSourceProposal;
+    private string _sourceDiscoverySummary = "Connect a repository, then scan its planning sources.";
+    private string _sourceDiscoveryWarnings = string.Empty;
+    private bool _isDiscoveringSources;
 
     public MainWindowViewModel()
     {
@@ -90,17 +95,22 @@ public partial class MainWindowViewModel : ViewModelBase
         Integrations = new ObservableCollection<IntegrationStatusCard>();
         VersionSourceChangeDiagnostics = new ObservableCollection<VersionSourceChangeDiagnostic>();
         _integrationStatusService = new IntegrationStatusService();
+        _sourceDiscoveryService = new RepositorySourceDiscoveryService();
         _canvasViewStateStore = new FileSystemCanvasViewStateStore();
+        SourceImportProposals = new ObservableCollection<SourceImportProposal>();
         ApplyDesignSession(CreateDesignSession());
+        ApplyDesignSourceProposals();
         RefreshIntegrations();
     }
 
     public MainWindowViewModel(
         ProjectWorkspaceCoordinatorService coordinatorService,
-        IntegrationStatusService integrationStatusService)
+        IntegrationStatusService integrationStatusService,
+        ISourceDiscoveryService? sourceDiscoveryService = null)
     {
         _coordinatorService = coordinatorService;
         _integrationStatusService = integrationStatusService;
+        _sourceDiscoveryService = sourceDiscoveryService ?? new RepositorySourceDiscoveryService();
         _canvasViewStateStore = new FileSystemCanvasViewStateStore();
         Versions = new ObservableCollection<WorkspaceVersionCard>();
         AvailableItemTypes = new ObservableCollection<string>();
@@ -112,6 +122,7 @@ public partial class MainWindowViewModel : ViewModelBase
         TrustDiagnostics = new ObservableCollection<TrustDiagnosticCard>();
         Integrations = new ObservableCollection<IntegrationStatusCard>();
         VersionSourceChangeDiagnostics = new ObservableCollection<VersionSourceChangeDiagnostic>();
+        SourceImportProposals = new ObservableCollection<SourceImportProposal>();
 
         RefreshRecentProjects();
         RefreshSuggestedPaths();
@@ -139,10 +150,86 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public ObservableCollection<VersionSourceChangeDiagnostic> VersionSourceChangeDiagnostics { get; }
 
+    public ObservableCollection<SourceImportProposal> SourceImportProposals { get; }
+
+    public SourceImportProposal? SelectedSourceProposal
+    {
+        get => _selectedSourceProposal;
+        set
+        {
+            if (SetProperty(ref _selectedSourceProposal, value))
+            {
+                OnPropertyChanged(nameof(HasSelectedSourceProposal));
+            }
+        }
+    }
+
+    public bool HasSelectedSourceProposal => SelectedSourceProposal is not null;
+
+    public string SourceDiscoverySummary
+    {
+        get => _sourceDiscoverySummary;
+        private set => SetProperty(ref _sourceDiscoverySummary, value);
+    }
+
+    public string SourceDiscoveryWarnings
+    {
+        get => _sourceDiscoveryWarnings;
+        private set
+        {
+            if (SetProperty(ref _sourceDiscoveryWarnings, value))
+            {
+                OnPropertyChanged(nameof(HasSourceDiscoveryWarnings));
+            }
+        }
+    }
+
+    public bool HasSourceDiscoveryWarnings => !string.IsNullOrWhiteSpace(SourceDiscoveryWarnings);
+
+    public bool IsDiscoveringSources
+    {
+        get => _isDiscoveringSources;
+        private set
+        {
+            if (SetProperty(ref _isDiscoveringSources, value))
+            {
+                OnPropertyChanged(nameof(CanDiscoverSources));
+            }
+        }
+    }
+
+    public bool CanDiscoverSources =>
+        !IsDiscoveringSources && !string.IsNullOrWhiteSpace(LocalGitRepositoryPath);
+
+    public bool HasSourceProposals => SourceImportProposals.Count > 0;
+
+    public int ApprovedSourceProposalCount =>
+        SourceImportProposals.Count(static proposal => proposal.IsIncluded);
+
+    public string SourceApprovalSummary =>
+        HasSourceProposals
+            ? $"{ApprovedSourceProposalCount} of {SourceImportProposals.Count} proposals approved"
+            : "Nothing is queued for approval.";
+
+    public bool CanApplyApprovedSourceProposals =>
+        CanMutateWorkspace &&
+        ApprovedSourceProposalCount > 0 &&
+        SourceImportProposals
+            .Where(static proposal => proposal.IsIncluded)
+            .All(static proposal =>
+                proposal.TargetVersion is not null &&
+                !string.IsNullOrWhiteSpace(proposal.Title));
+
     public string LocalGitRepositoryPath
     {
         get => _localGitRepositoryPath;
-        set => SetProperty(ref _localGitRepositoryPath, value);
+        set
+        {
+            if (SetProperty(ref _localGitRepositoryPath, value))
+            {
+                OnPropertyChanged(nameof(CanDiscoverSources));
+            }
+        }
     }
 
     public string IntegrationMessage
@@ -333,7 +420,7 @@ public partial class MainWindowViewModel : ViewModelBase
             WorkspaceSection.Team => "Team and signing identities",
             WorkspaceSection.Sync => "Workspace exchange",
             WorkspaceSection.Trust => "Trust and audit",
-            WorkspaceSection.Integrations => "Connected systems",
+            WorkspaceSection.Integrations => "Source Lens",
             _ => "Project overview",
         };
 
@@ -345,7 +432,7 @@ public partial class MainWindowViewModel : ViewModelBase
             WorkspaceSection.Team => "Review signed membership and manage the people allowed to contribute.",
             WorkspaceSection.Sync => "Compare local and shared state before moving signed changes.",
             WorkspaceSection.Trust => "Inspect validation results, conflicts, and the audit boundary.",
-            WorkspaceSection.Integrations => "Connect source history without making a provider authoritative.",
+            WorkspaceSection.Integrations => "Discover project signals, shape editable proposals, and approve exactly what enters the signed blueprint.",
             _ => string.Empty,
         };
 
@@ -734,6 +821,36 @@ public partial class MainWindowViewModel : ViewModelBase
             _ => "Workspace is trusted and editable.",
         };
 
+    public string AdaptiveGuidanceTitle =>
+        !IsWorkspaceTrusted
+            ? "Review trust before editing"
+            : HasConflicts
+                ? $"Resolve {Conflicts.Count} sync conflict{(Conflicts.Count == 1 ? string.Empty : "s")}"
+                : Versions.Count == 0
+                    ? "Create the first release node"
+                    : HasSourceProposals
+                        ? $"Review {SourceImportProposals.Count} source proposals"
+                        : ItemCount == 0
+                            ? "Connect work to the selected release"
+                            : Sync.PendingOutgoingChanges > 0
+                                ? $"Review {Sync.PendingOutgoingChanges} outgoing changes"
+                                : "Shape the map around your next milestone";
+
+    public string AdaptiveGuidanceDetail =>
+        !IsWorkspaceTrusted
+            ? "Blueprints has disabled mutations to protect signed project truth."
+            : HasConflicts
+                ? "Choose local or shared content for every conflict before continuing."
+                : Versions.Count == 0
+                    ? "A version gives imported and manual work a deliberate destination."
+                    : HasSourceProposals
+                        ? "Edit titles, targets, types, and completion state before approving anything."
+                        : ItemCount == 0
+                            ? "Add work manually or open Source Lens to discover it from project signals."
+                            : Sync.PendingOutgoingChanges > 0
+                                ? "Your local signed workspace has changes that have not been shared."
+                                : "Drag nodes, inspect relationships, and make the release plan reflect reality.";
+
     [RelayCommand]
     private void NavigateToOverview() =>
         SelectedWorkspaceSection = WorkspaceSection.Overview;
@@ -1095,6 +1212,118 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    private async Task DiscoverSources()
+    {
+        if (!CanDiscoverSources)
+        {
+            IntegrationMessage = "Link a local Git repository before scanning planning sources.";
+            return;
+        }
+
+        IsDiscoveringSources = true;
+        IntegrationMessage = "Reading changelogs, roadmaps, GitHub issues, and project links…";
+        try
+        {
+            var result = await Task.Run(() => _sourceDiscoveryService.Discover(LocalGitRepositoryPath));
+            PopulateSourceProposals(result);
+            IntegrationMessage = result.Candidates.Count == 0
+                ? "The scan completed, but no importable planning entries were found."
+                : "Discovery is complete. Review, edit, and approve proposals before applying them.";
+        }
+        catch (Exception exception)
+        {
+            SourceDiscoverySummary = "Discovery could not be completed.";
+            SourceDiscoveryWarnings = exception.Message;
+            IntegrationMessage = exception.Message;
+        }
+        finally
+        {
+            IsDiscoveringSources = false;
+        }
+    }
+
+    [RelayCommand]
+    private void ApproveAllSourceProposals()
+    {
+        foreach (var proposal in SourceImportProposals)
+        {
+            proposal.IsIncluded = true;
+        }
+
+        RefreshSourceApprovalState();
+    }
+
+    [RelayCommand]
+    private void ClearSourceProposalApprovals()
+    {
+        foreach (var proposal in SourceImportProposals)
+        {
+            proposal.IsIncluded = false;
+        }
+
+        RefreshSourceApprovalState();
+    }
+
+    [RelayCommand]
+    private void ApplyApprovedSourceProposals()
+    {
+        if (_coordinatorService is null || _currentSession is null)
+        {
+            IntegrationMessage = "Open a project before applying source proposals.";
+            return;
+        }
+
+        var approved = SourceImportProposals
+            .Where(static proposal => proposal.IsIncluded)
+            .ToArray();
+        if (approved.Length == 0)
+        {
+            IntegrationMessage = "Approve at least one proposal before applying.";
+            return;
+        }
+
+        if (approved.Any(static proposal =>
+                proposal.TargetVersion is null ||
+                string.IsNullOrWhiteSpace(proposal.Title)))
+        {
+            IntegrationMessage = "Every approved proposal needs a title and target version.";
+            return;
+        }
+
+        try
+        {
+            var request = new ApprovedSourceImportRequest(
+                approved
+                    .Select(static proposal => new ApprovedSourceImportItem(
+                        proposal.TargetVersion!.VersionId,
+                        proposal.ItemTypeId,
+                        proposal.CategoryId,
+                        proposal.Title,
+                        proposal.Description,
+                        proposal.IsDone,
+                        proposal.Kind,
+                        proposal.SourceReference))
+                    .ToArray());
+            ApplySession(
+                _coordinatorService.ApplyApprovedSourceImport(
+                    _currentSession.Paths.LocalWorkspaceRoot,
+                    _currentSession.Paths.SharedProjectRoot,
+                    request));
+
+            SourceImportProposals.Clear();
+            SelectedSourceProposal = null;
+            SourceDiscoverySummary = $"{approved.Length} approved proposals were added as signed work items.";
+            SourceDiscoveryWarnings = string.Empty;
+            RefreshSourceApprovalState();
+            IntegrationMessage = $"Applied {approved.Length} approved proposals. No source system was modified.";
+        }
+        catch (Exception exception)
+        {
+            IntegrationMessage = exception.Message;
+        }
+    }
+
+    [RelayCommand]
     private void PushWorkspace()
     {
         if (_coordinatorService is null || _currentSession is null)
@@ -1423,6 +1652,9 @@ public partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(CanResolveSelectedConflict));
         OnPropertyChanged(nameof(HasSyncDiagnostics));
         OnPropertyChanged(nameof(HasTrustDiagnostics));
+        OnPropertyChanged(nameof(CanApplyApprovedSourceProposals));
+        OnPropertyChanged(nameof(AdaptiveGuidanceTitle));
+        OnPropertyChanged(nameof(AdaptiveGuidanceDetail));
         RefreshVersionSourceChangeDiagnostics();
     }
 
@@ -1450,6 +1682,10 @@ public partial class MainWindowViewModel : ViewModelBase
         SyncDiagnostics.Clear();
         TrustDiagnostics.Clear();
         VersionSourceChangeDiagnostics.Clear();
+        SourceImportProposals.Clear();
+        SelectedSourceProposal = null;
+        SourceDiscoverySummary = "Connect a repository, then scan its planning sources.";
+        SourceDiscoveryWarnings = string.Empty;
         SelectedVersion = null;
         SelectedItem = null;
         SelectedMember = null;
@@ -1486,6 +1722,7 @@ public partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(HasSyncDiagnostics));
         OnPropertyChanged(nameof(HasTrustDiagnostics));
         OnPropertyChanged(nameof(VersionSourceChangeSummary));
+        RefreshSourceApprovalState();
     }
 
     private void ApplyDesignSession(LocalWorkspaceSession session)
@@ -1524,6 +1761,108 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         RefreshVersionSourceChangeDiagnostics();
+    }
+
+    private void PopulateSourceProposals(SourceDiscoveryResult result)
+    {
+        SourceImportProposals.Clear();
+        var targetVersion = SelectedVersion is { Status: not ReleaseStatus.Frozen and not ReleaseStatus.Released }
+            ? SelectedVersion
+            : Versions.FirstOrDefault(static version =>
+                version.Status is not ReleaseStatus.Frozen and not ReleaseStatus.Released);
+        var existingTitles = Versions
+            .SelectMany(static version => version.Items)
+            .Select(static item => NormalizeComparableTitle(item.Title))
+            .ToHashSet(StringComparer.Ordinal);
+        var defaultItemType = AvailableItemTypes.FirstOrDefault() ?? "feature";
+        var defaultCategory = AvailableCategories.FirstOrDefault() ?? "added";
+
+        foreach (var candidate in result.Candidates)
+        {
+            var compatibleCandidate = candidate with
+            {
+                SuggestedItemTypeId = AvailableItemTypes.Contains(candidate.SuggestedItemTypeId)
+                    ? candidate.SuggestedItemTypeId
+                    : defaultItemType,
+                SuggestedCategoryId = AvailableCategories.Contains(candidate.SuggestedCategoryId)
+                    ? candidate.SuggestedCategoryId
+                    : defaultCategory,
+            };
+            var proposal = new SourceImportProposal(
+                compatibleCandidate,
+                targetVersion,
+                existingTitles.Contains(NormalizeComparableTitle(candidate.Title)));
+            proposal.PropertyChanged += SourceProposalPropertyChanged;
+            SourceImportProposals.Add(proposal);
+        }
+
+        SelectedSourceProposal = SourceImportProposals.FirstOrDefault();
+        SourceDiscoverySummary = result.Summary;
+        SourceDiscoveryWarnings = string.Join(Environment.NewLine, result.Warnings);
+        RefreshSourceApprovalState();
+    }
+
+    private void SourceProposalPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs eventArgs) =>
+        RefreshSourceApprovalState();
+
+    private void RefreshSourceApprovalState()
+    {
+        OnPropertyChanged(nameof(HasSourceProposals));
+        OnPropertyChanged(nameof(ApprovedSourceProposalCount));
+        OnPropertyChanged(nameof(SourceApprovalSummary));
+        OnPropertyChanged(nameof(CanApplyApprovedSourceProposals));
+        OnPropertyChanged(nameof(AdaptiveGuidanceTitle));
+        OnPropertyChanged(nameof(AdaptiveGuidanceDetail));
+    }
+
+    private static string NormalizeComparableTitle(string title) =>
+        string.Join(
+            ' ',
+            title.Trim()
+                .ToUpperInvariant()
+                .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+
+    private void ApplyDesignSourceProposals()
+    {
+        PopulateSourceProposals(
+            new SourceDiscoveryResult(
+                [
+                    new SourceDiscoveryCandidate(
+                        SourceArtifactKind.GitHubProject,
+                        "Interactive dependency map",
+                        "Let users connect work visually and reveal release blockers.",
+                        "feature",
+                        "added",
+                        false,
+                        "github:#42",
+                        "Project: Canvas engine · Milestone: 0.2.0",
+                        0.97),
+                    new SourceDiscoveryCandidate(
+                        SourceArtifactKind.Roadmap,
+                        "Add undo and redo history",
+                        "Imported from section “Canvas interaction”.",
+                        "feature",
+                        "added",
+                        false,
+                        "roadmap:Roadmap.md:88",
+                        "Canvas interaction",
+                        0.94),
+                    new SourceDiscoveryCandidate(
+                        SourceArtifactKind.Changelog,
+                        "Signed shared canvas layouts",
+                        "Imported from section “Unreleased”.",
+                        "feature",
+                        "changed",
+                        true,
+                        "changelog:CHANGELOG.md:12",
+                        "Unreleased",
+                        0.82),
+                ],
+                [],
+                1,
+                1,
+                1,
+                1));
     }
 
     private IReadOnlyList<SourceChangeSummary> GetLocalGitRecentChanges() =>
