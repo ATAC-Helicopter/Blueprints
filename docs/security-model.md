@@ -20,6 +20,7 @@ Blueprints uses signatures and explicit validation to detect unauthorized or inc
 | Shared sync root | Untrusted exchange input until manifest and signatures validate |
 | Local identity directory | Sensitive local state protected by OS permissions and key protection |
 | Git/provider integration | Informational; not authoritative project truth |
+| Source Lens proposals | Untrusted transient suggestions; no persistence before explicit approval |
 | UI input | Validated by application workflows before persistence |
 | Canvas layout | Signed shared node positions; entity references and coordinate bounds validated before rendering or saving |
 | Canvas viewport | Unsigned machine-local preference; bounded and excluded from sync and trust decisions |
@@ -46,6 +47,9 @@ Blueprints uses signatures and explicit validation to detect unauthorized or inc
 - Canvas coordinates, node count, project identity, schema, and uniqueness are bounded and validated.
 - Local viewport values are bounded but cannot affect signed project truth or workspace trust.
 - Invalid canvas signatures place the workspace in read-only untrusted state.
+- Source discovery uses read-only local/GitHub commands and enforces count, line, and text bounds.
+- Source apply validates the complete batch before persistence and requires trusted, conflict-free, mutable targets.
+- GitHub CLI credentials remain outside Blueprints workspaces and settings.
 
 ## Important limitations
 
@@ -58,6 +62,8 @@ Blueprints uses signatures and explicit validation to detect unauthorized or inc
 - Canvas layout is a whole signed document; concurrent arrangements conflict as a unit and are not field-merged.
 - Conflict resolution currently exposes low-level previews and supports whole-document choices.
 - Blueprints does not encrypt project content.
+- Duplicate detection is an exact normalized-title warning, not semantic identity proof.
+- GitHub Project discovery currently sees project-linked repository issues, not standalone Project draft items.
 
 ## Reviewing security changes
 

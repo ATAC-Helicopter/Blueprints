@@ -755,6 +755,105 @@ public sealed class ProjectWorkspaceCoordinatorServiceTests : IDisposable
         Assert.Equal(TrustState.Trusted, refreshed.LoadResult.TrustReport.State);
     }
 
+    [Fact]
+    public void ApplyApprovedSourceImport_CreatesSignedItemsWithProvenanceInOneAuditAction()
+    {
+        var localRoot = Path.Combine(_rootDirectory, "source-import-local", "BP");
+        var sharedRoot = Path.Combine(_rootDirectory, "source-import-shared", "BP");
+        var service = CreateService();
+        service.CreateProject(
+            new ProjectCreateRequest(
+                "Blueprints",
+                "BP",
+                "SemVer",
+                localRoot,
+                sharedRoot));
+        var versionSession = service.SaveVersion(
+            localRoot,
+            sharedRoot,
+            new VersionEditRequest(null, "0.2.0", ReleaseStatus.InProgress, null));
+        var versionId = versionSession.LoadResult.Workspace.Versions.Single().Version.VersionId;
+
+        var updated = service.ApplyApprovedSourceImport(
+            localRoot,
+            sharedRoot,
+            new ApprovedSourceImportRequest(
+                [
+                    new ApprovedSourceImportItem(
+                        versionId,
+                        "feature",
+                        "added",
+                        "Visualize GitHub issues",
+                        "Approval-first source ingestion.",
+                        false,
+                        SourceArtifactKind.GitHubIssue,
+                        "github:#42"),
+                    new ApprovedSourceImportItem(
+                        versionId,
+                        "bug",
+                        "fixed",
+                        "Repair roadmap parsing",
+                        null,
+                        true,
+                        SourceArtifactKind.Roadmap,
+                        "roadmap:Roadmap.md:18"),
+                ]));
+
+        var items = updated.LoadResult.Workspace.Versions.Single().Items;
+        Assert.Equal(2, items.Count);
+        Assert.Contains(items, static item =>
+            item.Title == "Visualize GitHub issues" &&
+            item.Tags.Contains("source-import") &&
+            item.Tags.Contains("source:githubissue") &&
+            item.Tags.Contains("github:#42"));
+        Assert.Contains(items, static item => item.ItemKey.StartsWith("BUG-", StringComparison.Ordinal));
+
+        var auditEntries = Directory.EnumerateFiles(Path.Combine(localRoot, "log"), "*.json");
+        Assert.Single(
+            auditEntries,
+            path => File.ReadAllText(path)
+                .Contains("\"operation\":\"source.import.apply\"", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ApplyApprovedSourceImport_RejectsUnknownProjectTaxonomy()
+    {
+        var localRoot = Path.Combine(_rootDirectory, "source-invalid-local", "BP");
+        var sharedRoot = Path.Combine(_rootDirectory, "source-invalid-shared", "BP");
+        var service = CreateService();
+        service.CreateProject(
+            new ProjectCreateRequest(
+                "Blueprints",
+                "BP",
+                "SemVer",
+                localRoot,
+                sharedRoot));
+        var versionSession = service.SaveVersion(
+            localRoot,
+            sharedRoot,
+            new VersionEditRequest(null, "0.2.0", ReleaseStatus.InProgress, null));
+        var versionId = versionSession.LoadResult.Workspace.Versions.Single().Version.VersionId;
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => service.ApplyApprovedSourceImport(
+                localRoot,
+                sharedRoot,
+                new ApprovedSourceImportRequest(
+                    [
+                        new ApprovedSourceImportItem(
+                            versionId,
+                            "unknown",
+                            "added",
+                            "Invalid proposal",
+                            null,
+                            false,
+                            SourceArtifactKind.Roadmap,
+                            "roadmap:Roadmap.md:1"),
+                    ])));
+
+        Assert.Contains("not configured", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     private ProjectWorkspaceCoordinatorService CreateService()
     {
         var identityRoot = Path.Combine(_rootDirectory, "identities");

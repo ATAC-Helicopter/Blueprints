@@ -78,31 +78,30 @@
 
     <views:SetupView Grid.Row="1" IsVisible="{Binding IsSetupMode}" />
 
-    <Grid Grid.Row="1" ColumnDefinitions="74,*" IsVisible="{Binding HasActiveSession}">
+    <Grid Grid.Row="1" ColumnDefinitions="184,*" IsVisible="{Binding HasActiveSession}">
       <Border Background="#061C30" BorderBrush="#285A78" BorderThickness="0,0,1,0">
         <Grid RowDefinitions="Auto,*,Auto">
-          <Border Margin="10,12" Height="48" Background="#0D4166" BorderBrush="#5CCBE8" BorderThickness="1" CornerRadius="4">
-            <StackPanel VerticalAlignment="Center">
-              <TextBlock Text="{Binding CurrentProject.Code}" Classes="mono" Foreground="White" FontWeight="Black" HorizontalAlignment="Center" />
-              <TextBlock Text="MAP" Classes="mono" Foreground="#6DD6EF" FontSize="8" HorizontalAlignment="Center" />
+          <Border Margin="12" Padding="12,10" Background="#0D4166" BorderBrush="#5CCBE8" BorderThickness="1" CornerRadius="6">
+            <StackPanel>
+              <TextBlock Text="{Binding CurrentProject.Code}" Classes="mono" Foreground="White" FontWeight="Black" />
+              <TextBlock Text="{Binding CurrentProject.Name}" Foreground="#A9D4E5" FontSize="10" TextTrimming="CharacterEllipsis" />
             </StackPanel>
           </Border>
 
-          <StackPanel Grid.Row="1" Spacing="7" Margin="8,8">
-            <Button Classes="rail" Classes.active="{Binding IsOverviewSelected}" Content="⌘" ToolTip.Tip="Canvas" Command="{Binding NavigateToOverviewCommand}" />
-            <Button Classes="rail" Classes.active="{Binding IsReleasesSelected}" Content="V" ToolTip.Tip="Versions and releases" Command="{Binding NavigateToReleasesCommand}" />
-            <Button Classes="rail" Classes.active="{Binding IsTeamSelected}" Content="P" ToolTip.Tip="People and identities" Command="{Binding NavigateToTeamCommand}" />
-            <Button Classes="rail" Classes.active="{Binding IsSyncSelected}" Content="⇄" ToolTip.Tip="Sync exchange" Command="{Binding NavigateToSyncCommand}" />
-            <Button Classes="rail" Classes.active="{Binding IsTrustSelected}" Content="◇" ToolTip.Tip="Trust and audit" Command="{Binding NavigateToTrustCommand}" />
-            <Button Classes="rail" Classes.active="{Binding IsIntegrationsSelected}" Content="⌁" ToolTip.Tip="Integrations" Command="{Binding NavigateToIntegrationsCommand}" />
+          <StackPanel Grid.Row="1" Spacing="3" Margin="10,8">
+            <Button Classes="nav" Classes.active="{Binding IsOverviewSelected}" Content="⌘  Blueprint map" Command="{Binding NavigateToOverviewCommand}" />
+            <Button Classes="nav" Classes.active="{Binding IsIntegrationsSelected}" Content="⌁  Source lens" Command="{Binding NavigateToIntegrationsCommand}" />
+            <Button Classes="nav" Classes.active="{Binding IsReleasesSelected}" Content="V  Releases" Command="{Binding NavigateToReleasesCommand}" />
+            <Button Classes="nav" Classes.active="{Binding IsTeamSelected}" Content="P  People" Command="{Binding NavigateToTeamCommand}" />
+            <Button Classes="nav" Classes.active="{Binding IsSyncSelected}" Content="⇄  Sync" Command="{Binding NavigateToSyncCommand}" />
+            <Button Classes="nav" Classes.active="{Binding IsTrustSelected}" Content="◇  Trust" Command="{Binding NavigateToTrustCommand}" />
           </StackPanel>
 
           <Button Grid.Row="2"
-                  Classes="rail"
-                  Content="←"
-                  ToolTip.Tip="Switch project"
+                  Classes="nav"
+                  Content="←  Switch project"
                   Command="{Binding ReturnToProjectSetupCommand}"
-                  Margin="8,0,8,12" />
+                  Margin="10,0,10,12" />
         </Grid>
       </Border>
 
