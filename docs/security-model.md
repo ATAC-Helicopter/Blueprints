@@ -19,6 +19,8 @@ Blueprints uses signatures and explicit validation to detect unauthorized or inc
 | Local workspace | Editable only while required content validates |
 | Shared sync root | Untrusted exchange input until manifest and signatures validate |
 | Local identity directory | Sensitive local state protected by OS permissions and key protection |
+| Project invitation | Out-of-band signed trust bootstrap targeted to one local identity |
+| Local project trust anchors | Machine-local accepted member keys; never sourced from unverified shared data |
 | Git/provider integration | Informational; not authoritative project truth |
 | Source Lens proposals | Untrusted transient suggestions; no persistence before explicit approval |
 | UI input | Validated by application workflows before persistence |
@@ -36,9 +38,16 @@ Blueprints uses signatures and explicit validation to detect unauthorized or inc
 ## Security invariants
 
 - Private keys are never written into a workspace or shared root.
+- Identity invitations prove possession of their included private key.
+- Project invitations bind the target identity, inviter administrator, project, membership revision, and initial member-key set.
+- A join is staged and fully validated before the final local workspace is created.
+- Documents, manifests, and audit entries are verified against their signer key ID in the locally trusted project-key set.
+- Current workspace and incoming project content require an active Editor or Admin key; inactive and Viewer keys remain usable only for historical audit verification.
 - Invalid incoming signatures block pull.
+- Pull copies incoming data to a local inbox, rechecks signatures and manifest hashes there, snapshots rollback pairs, and only then mutates the local workspace.
 - Invalid or missing signed local content produces untrusted or corrupt read-only state.
 - Conflicting concurrent changes block further mutation.
+- Whole-document conflict choices preserve both available sides in machine-local recovery storage before mutation.
 - Only an active Admin may change membership.
 - At least one active Admin must remain.
 - Released versions reject further version and item edits.
@@ -60,7 +69,8 @@ Blueprints uses signatures and explicit validation to detect unauthorized or inc
 - Shared-folder availability, confidentiality, and rollback resistance depend on the underlying storage.
 - Current workspace saves are not a single atomic transaction across all changed files.
 - Canvas layout is a whole signed document; concurrent arrangements conflict as a unit and are not field-merged.
-- Conflict resolution currently exposes low-level previews and supports whole-document choices.
+- Conflict resolution provides semantic summaries for known document types but still operates on whole documents rather than merging individual fields.
+- Conflict recovery copies are local, unsigned operational records; protect and back them up according to the sensitivity of project content.
 - Blueprints does not encrypt project content.
 - Duplicate detection is an exact normalized-title warning, not semantic identity proof.
 - GitHub Project discovery currently sees project-linked repository issues, not standalone Project draft items.
@@ -76,3 +86,5 @@ Security-sensitive pull requests should include:
 - any workspace compatibility impact.
 
 Report vulnerabilities using [SECURITY.md](../SECURITY.md).
+
+Operational behavior for planned rotation, compromise, and lost keys is defined in [member key lifecycle](key-lifecycle.md). Automated same-user rotation and revocation remain unimplemented.

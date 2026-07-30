@@ -19,7 +19,9 @@ Blueprints is a desktop application for planning releases in signed local files.
 4. Use **Browse** to choose different local and shared roots. Neither may contain the other.
 5. Select **Create signed project**.
 
-Blueprints creates the first local identity automatically in the current preview. Identity onboarding is planned.
+Before creating or joining a project, enter the display name teammates should see and select **Create identity**. Blueprints creates protected local Ed25519 key material. Back up the complete Blueprints application-data directory before relying on that identity.
+
+A new teammate can export a signed identity invitation directly from the setup screen before they belong to any project.
 
 ## Plan a release
 
@@ -52,10 +54,15 @@ See [canvas engine](canvas-engine.md) for the exact model and [troubleshooting](
 
 1. Select a version node.
 2. Open the **Versions and releases** tool from the rail.
-3. Select **Export notes**.
-4. Review the changelog preview and saved path.
+3. Choose whether to include incomplete items, item keys, descriptions, or compact output.
+4. Select **Preview notes** to review the exact Markdown without writing a file.
+5. Select **Export notes** and review the saved path.
 
 Incomplete items are excluded by the current default rules. When a local Git repository is linked, recent commit subjects and matching item keys are added as source context.
+
+## Archive draft work
+
+Draft versions and items in Planned or In Progress state can be archived. Select the archive action twice to confirm. The entity leaves the active signed plan, its removal participates in sync, and its signed files remain under `.blueprints/archive/` for recovery. Frozen and released versions are immutable and cannot be archived.
 
 ## Discover work with Source Lens
 
@@ -75,12 +82,26 @@ GitHub discovery requires the authenticated GitHub CLI. Local changelog and road
 
 The shared root is an exchange layer, not the editable workspace.
 
+To add a second person:
+
+1. The new person opens **Team** in any local project and exports a signed identity invitation.
+2. An existing project administrator imports that file, reviews the requested display name and role, and adds the member.
+3. The administrator pushes the membership revision.
+4. With the new member selected, the administrator exports a signed project invitation.
+5. The new member chooses **Join a team project** on the setup screen and selects an empty local workspace.
+6. Blueprints stages and validates the shared project before promoting it to the chosen local location.
+
+Project invitations are targeted to one local identity. Treat them as sensitive team coordination records and transfer them through an authenticated channel.
+
 - **Refresh comparison** compares local, shared, and last-synced baselines.
 - **Push** copies valid outgoing signed documents and updates the signed manifest.
 - **Pull** validates incoming signatures and manifest continuity before applying changes.
+- The exchange header reports the last locally recorded pulled/pushed manifest versions and successful trust check; these are local evidence, not a guarantee that an offline shared folder has not changed.
 - If both copies changed, Blueprints blocks mutation until you choose **Keep Local** or **Accept Shared**.
 
-The current conflict preview is low-level. Make a backup before resolving important conflicts.
+The conflict view summarizes important fields for known project document types and keeps bounded raw previews available for diagnosis. Before applying **Keep Local** or **Accept Shared**, Blueprints preserves both available document/signature pairs under `.blueprints/recovery/conflicts/` in the local workspace. The completion message includes the exact recovery directory.
+
+Conflict recovery copies reduce the risk of an accidental choice, but they are not a substitute for backing up the complete workspace before important collaboration or membership changes.
 
 ## Trust and read-only mode
 
@@ -101,4 +122,4 @@ Back up both:
 
 A workspace without the signing identity may remain readable but cannot be safely continued as the same member. Formal key recovery is not implemented yet.
 
-See [workspace format](workspace-format.md) and [security model](security-model.md) for details.
+See [workspace format](workspace-format.md), [security model](security-model.md), [member key lifecycle](key-lifecycle.md), and [backup and disaster recovery](backup-recovery.md) for details.

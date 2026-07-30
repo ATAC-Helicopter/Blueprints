@@ -20,16 +20,30 @@ public sealed class FileSystemProjectWorkspaceStore : IProjectWorkspaceStore
         string workspaceRoot,
         SignaturePublicKey publicKey)
     {
+        ArgumentNullException.ThrowIfNull(publicKey);
+        return Load(
+            workspaceRoot,
+            new Dictionary<string, SignaturePublicKey>(StringComparer.Ordinal)
+            {
+                [publicKey.KeyId] = publicKey,
+            });
+    }
+
+    public ProjectWorkspaceLoadResult Load(
+        string workspaceRoot,
+        IReadOnlyDictionary<string, SignaturePublicKey> publicKeys)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(workspaceRoot);
+        ArgumentNullException.ThrowIfNull(publicKeys);
 
         try
         {
             var projectResult = _signedDocumentStore.Read<ProjectConfigurationDocument>(
                 GetProjectDocumentPath(workspaceRoot),
-                publicKey);
+                publicKeys);
             var membersResult = _signedDocumentStore.Read<MemberDocument>(
                 GetMembersDocumentPath(workspaceRoot),
-                publicKey);
+                publicKeys);
 
             var versionSnapshots = new List<VersionWorkspaceSnapshot>();
             var allSignaturesValid = projectResult.IsSignatureValid && membersResult.IsSignatureValid;
@@ -42,7 +56,7 @@ public sealed class FileSystemProjectWorkspaceStore : IProjectWorkspaceStore
             {
                 var canvasLayoutResult = _signedDocumentStore.Read<CanvasLayoutDocument>(
                     canvasLayoutPath,
-                    publicKey);
+                    publicKeys);
                 CanvasLayoutValidator.Validate(canvasLayoutResult.Document, projectResult.Document.ProjectId);
                 canvasLayout = canvasLayoutResult.Document;
                 totalDocuments++;
@@ -60,7 +74,7 @@ public sealed class FileSystemProjectWorkspaceStore : IProjectWorkspaceStore
                 {
                     var versionResult = _signedDocumentStore.Read<VersionDocument>(
                         GetVersionDocumentPath(versionDirectory),
-                        publicKey);
+                        publicKeys);
 
                     totalDocuments++;
                     if (!versionResult.IsSignatureValid)
@@ -75,7 +89,7 @@ public sealed class FileSystemProjectWorkspaceStore : IProjectWorkspaceStore
                     {
                         foreach (var itemPath in Directory.EnumerateFiles(itemsRoot, "*.json").OrderBy(static path => path, StringComparer.Ordinal))
                         {
-                            var itemResult = _signedDocumentStore.Read<ItemDocument>(itemPath, publicKey);
+                            var itemResult = _signedDocumentStore.Read<ItemDocument>(itemPath, publicKeys);
                             totalDocuments++;
                             if (!itemResult.IsSignatureValid)
                             {

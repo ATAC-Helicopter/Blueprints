@@ -27,6 +27,9 @@ public sealed class IdentityService : IIdentityService
             : _identityStore.Load(existingProfile.UserId);
     }
 
+    public StoredIdentity CreateIdentity(string displayName) =>
+        _identityStore.Create(displayName);
+
     public IReadOnlyList<IdentityProfile> ListProfiles()
     {
         if (!Directory.Exists(_rootDirectory))

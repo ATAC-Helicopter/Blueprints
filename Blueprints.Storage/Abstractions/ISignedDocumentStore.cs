@@ -13,4 +13,8 @@ public interface ISignedDocumentStore
     SignedDocumentReadResult<T> Read<T>(
         string documentPath,
         SignaturePublicKey publicKey);
+
+    SignedDocumentReadResult<T> Read<T>(
+        string documentPath,
+        IReadOnlyDictionary<string, SignaturePublicKey> publicKeys);
 }

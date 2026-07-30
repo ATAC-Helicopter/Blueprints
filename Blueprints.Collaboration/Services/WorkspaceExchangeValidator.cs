@@ -25,9 +25,24 @@ public sealed class WorkspaceExchangeValidator
         IEnumerable<string> documentPaths,
         SignaturePublicKey publicKey)
     {
+        ArgumentNullException.ThrowIfNull(publicKey);
+        return Validate(
+            workspaceRoot,
+            documentPaths,
+            new Dictionary<string, SignaturePublicKey>(StringComparer.Ordinal)
+            {
+                [publicKey.KeyId] = publicKey,
+            });
+    }
+
+    public ExchangeValidationResult Validate(
+        string workspaceRoot,
+        IEnumerable<string> documentPaths,
+        IReadOnlyDictionary<string, SignaturePublicKey> publicKeys)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(workspaceRoot);
         ArgumentNullException.ThrowIfNull(documentPaths);
-        ArgumentNullException.ThrowIfNull(publicKey);
+        ArgumentNullException.ThrowIfNull(publicKeys);
 
         var invalidPaths = new List<string>();
 
@@ -47,7 +62,9 @@ public sealed class WorkspaceExchangeValidator
                 File.ReadAllText(absoluteSignaturePath, Encoding.UTF8),
                 SignatureSerializerOptions);
 
-            if (signature is null || !_signatureService.Verify(payload, signature, publicKey))
+            if (signature is null ||
+                !publicKeys.TryGetValue(signature.KeyId, out var publicKey) ||
+                !_signatureService.Verify(payload, signature, publicKey))
             {
                 invalidPaths.Add(documentPath);
             }

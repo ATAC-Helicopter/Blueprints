@@ -5,8 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latestmajor</LangVersion>
     <RollForward>LatestPatch</RollForward>
-    <VersionPrefix>0.2.0</VersionPrefix>
-    <VersionSuffix>alpha.3-dev</VersionSuffix>
+    <VersionPrefix>0.3.0</VersionPrefix>
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
