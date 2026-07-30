@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Text.Json;
 using System.Text.RegularExpressions;
 using Blueprints.App.Models;
 
@@ -7,17 +6,29 @@ namespace Blueprints.App.Services;
 
 public sealed partial class RepositorySourceDiscoveryService : ISourceDiscoveryService
 {
-    private const int MaximumGitHubIssues = 100;
     private readonly MarkdownSourceDiscoveryParser _markdownParser;
+    private readonly IHostedSourceProviderReader _hostedSourceProviderReader;
 
     public RepositorySourceDiscoveryService()
-        : this(new MarkdownSourceDiscoveryParser())
+        : this(
+            new MarkdownSourceDiscoveryParser(),
+            new HostedSourceProviderRouter())
     {
     }
 
     public RepositorySourceDiscoveryService(MarkdownSourceDiscoveryParser markdownParser)
+        : this(markdownParser, new HostedSourceProviderRouter())
     {
+    }
+
+    public RepositorySourceDiscoveryService(
+        MarkdownSourceDiscoveryParser markdownParser,
+        IHostedSourceProviderReader hostedSourceProviderReader)
+    {
+        ArgumentNullException.ThrowIfNull(markdownParser);
+        ArgumentNullException.ThrowIfNull(hostedSourceProviderReader);
         _markdownParser = markdownParser;
+        _hostedSourceProviderReader = hostedSourceProviderReader;
     }
 
     public SourceDiscoveryResult Discover(string repositoryPath)
@@ -35,20 +46,25 @@ public sealed partial class RepositorySourceDiscoveryService : ISourceDiscoveryS
         var changelogCount = AddMarkdownCandidates(root, SourceArtifactKind.Changelog, candidates);
         var roadmapCount = AddMarkdownCandidates(root, SourceArtifactKind.Roadmap, candidates);
 
-        var repositoryName = ReadGitHubRepositoryName(root);
-        var githubIssueCount = 0;
-        var githubProjectCount = 0;
-        if (string.IsNullOrWhiteSpace(repositoryName))
+        var hostedRepository = ReadHostedRepository(root);
+        var hostedIssueCount = 0;
+        var hostedPlanningCount = 0;
+        var changeRequestCount = 0;
+        var releaseCount = 0;
+        if (hostedRepository is null)
         {
-            warnings.Add("GitHub issues were skipped because the origin remote is not a recognizable GitHub repository.");
+            warnings.Add(
+                "Hosted sources were skipped because the origin remote is not a recognizable GitHub or GitLab repository.");
         }
         else
         {
-            var github = ReadGitHubIssues(root, repositoryName);
-            candidates.AddRange(github.Candidates);
-            warnings.AddRange(github.Warnings);
-            githubIssueCount = github.Candidates.Count;
-            githubProjectCount = github.Candidates.Count(static candidate => candidate.Kind == SourceArtifactKind.GitHubProject);
+            var hosted = _hostedSourceProviderReader.Read(root, hostedRepository);
+            candidates.AddRange(hosted.Candidates);
+            warnings.AddRange(hosted.Warnings);
+            hostedIssueCount = hosted.IssueCount;
+            hostedPlanningCount = hosted.ProjectCount;
+            changeRequestCount = hosted.ChangeRequestCount;
+            releaseCount = hosted.ReleaseCount;
         }
 
         var deduplicated = candidates
@@ -64,8 +80,10 @@ public sealed partial class RepositorySourceDiscoveryService : ISourceDiscoveryS
             warnings,
             changelogCount,
             roadmapCount,
-            githubIssueCount,
-            githubProjectCount);
+            hostedIssueCount,
+            hostedPlanningCount,
+            changeRequestCount,
+            releaseCount);
     }
 
     private int AddMarkdownCandidates(
@@ -96,184 +114,40 @@ public sealed partial class RepositorySourceDiscoveryService : ISourceDiscoveryS
         return candidates.Count - countBefore;
     }
 
-    private static GitHubDiscovery ReadGitHubIssues(string root, string repositoryName)
-    {
-        var command = RunProcess(
-            root,
-            "gh",
-            [
-                "issue",
-                "list",
-                "--repo",
-                repositoryName,
-                "--state",
-                "all",
-                "--limit",
-                MaximumGitHubIssues.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                "--json",
-                "number,title,body,state,labels,milestone,url,projectItems",
-            ]);
-
-        if (!command.Success)
-        {
-            return new GitHubDiscovery(
-                [],
-                [$"GitHub issues were skipped: {command.Error}"]);
-        }
-
-        try
-        {
-            using var document = JsonDocument.Parse(command.Output);
-            var candidates = document.RootElement
-                .EnumerateArray()
-                .Select(ParseGitHubIssue)
-                .ToArray();
-            return new GitHubDiscovery(candidates, []);
-        }
-        catch (JsonException exception)
-        {
-            return new GitHubDiscovery([], [$"GitHub returned unreadable issue data: {exception.Message}"]);
-        }
-    }
-
-    private static SourceDiscoveryCandidate ParseGitHubIssue(JsonElement issue)
-    {
-        var number = issue.GetProperty("number").GetInt32();
-        var title = issue.GetProperty("title").GetString()?.Trim() ?? $"Issue #{number}";
-        var body = issue.TryGetProperty("body", out var bodyElement)
-            ? Truncate(bodyElement.GetString()?.Trim(), 2_000)
-            : null;
-        var state = issue.TryGetProperty("state", out var stateElement)
-            ? stateElement.GetString()
-            : null;
-        var url = issue.TryGetProperty("url", out var urlElement)
-            ? urlElement.GetString()
-            : null;
-        var labels = issue.TryGetProperty("labels", out var labelsElement)
-            ? labelsElement.EnumerateArray()
-                .Select(static label => label.TryGetProperty("name", out var name) ? name.GetString() : null)
-                .Where(static name => !string.IsNullOrWhiteSpace(name))
-                .Cast<string>()
-                .ToArray()
-            : [];
-        var milestone = issue.TryGetProperty("milestone", out var milestoneElement) &&
-                        milestoneElement.ValueKind == JsonValueKind.Object &&
-                        milestoneElement.TryGetProperty("title", out var milestoneTitle)
-            ? milestoneTitle.GetString()
-            : null;
-        var projectNames = ReadProjectNames(issue);
-        var isProjectLinked = projectNames.Count > 0;
-        var contextParts = new[]
-            {
-                milestone is null ? null : $"Milestone: {milestone}",
-                projectNames.Count == 0 ? null : $"Projects: {string.Join(", ", projectNames)}",
-                labels.Length == 0 ? null : $"Labels: {string.Join(", ", labels)}",
-            }
-            .Where(static value => value is not null);
-
-        return new SourceDiscoveryCandidate(
-            isProjectLinked ? SourceArtifactKind.GitHubProject : SourceArtifactKind.GitHubIssue,
-            title,
-            body,
-            SuggestGitHubItemType(labels, title),
-            SuggestGitHubCategory(labels, state),
-            string.Equals(state, "CLOSED", StringComparison.OrdinalIgnoreCase),
-            $"github:#{number}",
-            string.Join(" · ", contextParts.DefaultIfEmpty($"GitHub issue #{number}")),
-            isProjectLinked ? 0.97 : 0.93);
-    }
-
-    private static IReadOnlyList<string> ReadProjectNames(JsonElement issue)
-    {
-        if (!issue.TryGetProperty("projectItems", out var projects) ||
-            projects.ValueKind != JsonValueKind.Array)
-        {
-            return [];
-        }
-
-        return projects
-            .EnumerateArray()
-            .Select(static project =>
-            {
-                if (project.TryGetProperty("title", out var title))
-                {
-                    return title.GetString();
-                }
-
-                return project.TryGetProperty("project", out var nested) &&
-                       nested.TryGetProperty("title", out var nestedTitle)
-                    ? nestedTitle.GetString()
-                    : null;
-            })
-            .Where(static title => !string.IsNullOrWhiteSpace(title))
-            .Cast<string>()
-            .Distinct(StringComparer.Ordinal)
-            .ToArray();
-    }
-
-    private static string SuggestGitHubItemType(IReadOnlyList<string> labels, string title)
-    {
-        var text = $"{string.Join(' ', labels)} {title}";
-        if (text.Contains("security", StringComparison.OrdinalIgnoreCase))
-        {
-            return "security";
-        }
-
-        if (text.Contains("bug", StringComparison.OrdinalIgnoreCase) ||
-            text.Contains("fix", StringComparison.OrdinalIgnoreCase))
-        {
-            return "bug";
-        }
-
-        if (text.Contains("feature", StringComparison.OrdinalIgnoreCase) ||
-            text.Contains("enhancement", StringComparison.OrdinalIgnoreCase))
-        {
-            return "feature";
-        }
-
-        return "issue";
-    }
-
-    private static string SuggestGitHubCategory(IReadOnlyList<string> labels, string? state)
-    {
-        var text = string.Join(' ', labels);
-        if (text.Contains("security", StringComparison.OrdinalIgnoreCase))
-        {
-            return "security";
-        }
-
-        if (text.Contains("bug", StringComparison.OrdinalIgnoreCase) ||
-            text.Contains("fix", StringComparison.OrdinalIgnoreCase))
-        {
-            return "fixed";
-        }
-
-        return string.Equals(state, "CLOSED", StringComparison.OrdinalIgnoreCase)
-            ? "changed"
-            : "added";
-    }
-
-    private static string ReadGitHubRepositoryName(string root)
+    private static HostedRepositoryDescriptor? ReadHostedRepository(string root)
     {
         var remote = RunProcess(root, "git", ["-C", root, "config", "--get", "remote.origin.url"]);
         if (!remote.Success)
         {
-            return string.Empty;
+            return null;
         }
 
-        var match = GitHubRemotePattern().Match(remote.Output.Trim());
-        if (!match.Success)
+        var remoteUrl = remote.Output.Trim();
+        var gitHubMatch = GitHubRemotePattern().Match(remoteUrl);
+        if (gitHubMatch.Success)
         {
-            return string.Empty;
+            var repository = RemoveGitSuffix(gitHubMatch.Groups["repo"].Value);
+            return new HostedRepositoryDescriptor(
+                SourceProviderKind.GitHub,
+                $"{gitHubMatch.Groups["owner"].Value}/{repository}");
         }
 
-        var repository = match.Groups["repo"].Value;
+        var gitLabMatch = GitLabRemotePattern().Match(remoteUrl);
+        return gitLabMatch.Success
+            ? new HostedRepositoryDescriptor(
+                SourceProviderKind.GitLab,
+                RemoveGitSuffix(gitLabMatch.Groups["repo"].Value))
+            : null;
+    }
+
+    private static string RemoveGitSuffix(string repository)
+    {
         if (repository.EndsWith(".git", StringComparison.OrdinalIgnoreCase))
         {
             repository = repository[..^4];
         }
 
-        return $"{match.Groups["owner"].Value}/{repository}";
+        return repository;
     }
 
     private static ProcessResult RunProcess(
@@ -320,22 +194,15 @@ public sealed partial class RepositorySourceDiscoveryService : ISourceDiscoveryS
     private static string NormalizeTitle(string title) =>
         WhitespacePattern().Replace(title.Trim().ToUpperInvariant(), " ");
 
-    private static string? Truncate(string? value, int maximumLength) =>
-        string.IsNullOrWhiteSpace(value)
-            ? null
-            : value.Length <= maximumLength
-                ? value
-                : $"{value[..maximumLength]}…";
-
     [GeneratedRegex(@"(?:github\.com[:/])(?<owner>[^/\s]+)/(?<repo>[^/\s]+)$")]
     private static partial Regex GitHubRemotePattern();
+
+    [GeneratedRegex(@"(?:gitlab\.com[:/])(?<repo>[^\s]+)$")]
+    private static partial Regex GitLabRemotePattern();
 
     [GeneratedRegex(@"\s+")]
     private static partial Regex WhitespacePattern();
 
     private sealed record ProcessResult(bool Success, string Output, string Error);
 
-    private sealed record GitHubDiscovery(
-        IReadOnlyList<SourceDiscoveryCandidate> Candidates,
-        IReadOnlyList<string> Warnings);
 }

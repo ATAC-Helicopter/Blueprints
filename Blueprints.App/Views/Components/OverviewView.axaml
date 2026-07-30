@@ -1,6 +1,8 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Blueprints.App.ViewModels"
+             xmlns:models="using:Blueprints.App.Models"
+             xmlns:core="using:Blueprints.Core.Models"
              xmlns:views="using:Blueprints.App.Views.Components"
              x:Class="Blueprints.App.Views.Components.OverviewView"
              x:DataType="vm:MainWindowViewModel">
@@ -136,6 +138,104 @@
                           IsEnabled="{Binding HasSelectedItem}" />
                 </Grid>
               </StackPanel>
+
+              <Border Height="1" Background="#C7DDE8" />
+
+              <StackPanel Spacing="10">
+                <Grid ColumnDefinitions="*,Auto">
+                  <StackPanel Spacing="2">
+                    <TextBlock Classes="eyebrow" Text="TYPED RELATIONSHIPS" />
+                    <TextBlock Text="{Binding RelationshipRevisionSummary}" FontSize="11" Foreground="#4E7184" />
+                  </StackPanel>
+                  <Button Grid.Column="1"
+                          Classes="tool square"
+                          Content="＋"
+                          Command="{Binding BeginNewRelationshipTypeCommand}"
+                          ToolTip.Tip="Create a relationship type" />
+                </Grid>
+
+                <ComboBox ItemsSource="{Binding RelationshipTypes}"
+                          SelectedItem="{Binding SelectedRelationshipType}">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="core:RelationshipTypeDefinition">
+                      <TextBlock Text="{Binding Name}" />
+                    </DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                  <TextBox PlaceholderText="type-id"
+                           Text="{Binding RelationshipTypeId}"
+                           IsEnabled="{Binding CanMutateWorkspace}" />
+                  <TextBox Grid.Column="1"
+                           PlaceholderText="#52C7E8"
+                           Text="{Binding RelationshipTypeColor}"
+                           IsEnabled="{Binding CanMutateWorkspace}" />
+                </Grid>
+                <TextBox PlaceholderText="Relationship name"
+                         Text="{Binding RelationshipTypeName}"
+                         IsEnabled="{Binding CanMutateWorkspace}" />
+                <TextBox PlaceholderText="Meaning and usage"
+                         Text="{Binding RelationshipTypeDescription}"
+                         IsEnabled="{Binding CanMutateWorkspace}" />
+                <CheckBox Content="Directional"
+                          IsChecked="{Binding RelationshipTypeIsDirectional}"
+                          IsEnabled="{Binding CanMutateWorkspace}" />
+                <Button Classes="secondary"
+                        Content="Save relationship type"
+                        Command="{Binding SaveRelationshipTypeCommand}"
+                        IsEnabled="{Binding CanMutateWorkspace}" />
+
+                <ListBox ItemsSource="{Binding Relationships}"
+                         SelectedItem="{Binding SelectedRelationship}"
+                         MaxHeight="112">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="core:RelationshipEdge">
+                      <StackPanel Margin="2,4">
+                        <TextBlock Text="{Binding TypeId}" Classes="mono" FontWeight="Bold" />
+                        <TextBlock Text="{Binding Label}" FontSize="10" Foreground="#537487" TextTrimming="CharacterEllipsis" />
+                      </StackPanel>
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                  <ComboBox ItemsSource="{Binding RelationshipEndpoints}"
+                            SelectedItem="{Binding SelectedRelationshipSource}">
+                    <ComboBox.ItemTemplate>
+                      <DataTemplate x:DataType="models:RelationshipEndpointOption">
+                        <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
+                      </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                  </ComboBox>
+                  <ComboBox Grid.Column="1"
+                            ItemsSource="{Binding RelationshipEndpoints}"
+                            SelectedItem="{Binding SelectedRelationshipTarget}">
+                    <ComboBox.ItemTemplate>
+                      <DataTemplate x:DataType="models:RelationshipEndpointOption">
+                        <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
+                      </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                  </ComboBox>
+                </Grid>
+                <TextBox PlaceholderText="Optional relationship label"
+                         Text="{Binding RelationshipLabel}"
+                         IsEnabled="{Binding CanMutateWorkspace}" />
+                <Grid ColumnDefinitions="*,*,*" ColumnSpacing="6">
+                  <Button Classes="secondary"
+                          Content="New"
+                          Command="{Binding BeginNewRelationshipCommand}"
+                          IsEnabled="{Binding CanMutateWorkspace}" />
+                  <Button Grid.Column="1"
+                          Classes="primary"
+                          Content="Save"
+                          Command="{Binding SaveRelationshipCommand}"
+                          IsEnabled="{Binding CanSaveRelationship}" />
+                  <Button Grid.Column="2"
+                          Classes="secondary"
+                          Content="Remove"
+                          Command="{Binding RemoveSelectedRelationshipCommand}"
+                          IsEnabled="{Binding CanRemoveRelationship}" />
+                </Grid>
+              </StackPanel>
             </StackPanel>
           </ScrollViewer>
 
@@ -143,7 +243,11 @@
             <StackPanel Spacing="4">
               <TextBlock Text="{Binding WorkspaceMessage}" Foreground="White" FontSize="12" TextWrapping="Wrap" />
               <TextBlock Text="{Binding CanvasLayoutRevisionSummary}" Foreground="#6DD6EF" FontSize="10" />
-              <TextBlock Text="Drag nodes · Ctrl+Z / Ctrl+Shift+Z undo/redo · Middle-drag to pan · Ctrl+wheel to zoom"
+              <TextBlock x:Name="CanvasSelectionSummary"
+                         Foreground="#D7EEF7"
+                         FontSize="10"
+                         FontWeight="Bold" />
+              <TextBlock Text="Drag empty space to box-select · Ctrl/Shift-click adds nodes · arrows move · Shift+arrows move 10px · Ctrl+A selects all · Esc clears"
                          Foreground="#8FBAD0"
                          FontSize="10"
                          TextWrapping="Wrap" />

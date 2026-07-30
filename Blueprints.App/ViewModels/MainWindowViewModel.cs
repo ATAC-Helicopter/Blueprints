@@ -16,6 +16,8 @@ namespace Blueprints.App.ViewModels;
 
 public partial class MainWindowViewModel : ViewModelBase
 {
+    private const int MaximumLinkedRepositories = 8;
+    private const int MaximumCombinedSourceCandidates = 500;
     private readonly ProjectWorkspaceCoordinatorService? _coordinatorService;
     private readonly IntegrationStatusService _integrationStatusService;
     private readonly ISourceDiscoveryService _sourceDiscoveryService;
@@ -88,6 +90,17 @@ public partial class MainWindowViewModel : ViewModelBase
     private string _integrationMessage = string.Empty;
     private WorkspaceSection _selectedWorkspaceSection = WorkspaceSection.Overview;
     private CanvasLayoutDocument? _canvasLayout;
+    private RelationshipDocument? _relationshipDocument;
+    private RelationshipTypeDefinition? _selectedRelationshipType;
+    private RelationshipEdge? _selectedRelationship;
+    private RelationshipEndpointOption? _selectedRelationshipSource;
+    private RelationshipEndpointOption? _selectedRelationshipTarget;
+    private string _relationshipTypeId = string.Empty;
+    private string _relationshipTypeName = string.Empty;
+    private string _relationshipTypeDescription = string.Empty;
+    private string _relationshipTypeColor = "#52C7E8";
+    private bool _relationshipTypeIsDirectional;
+    private string _relationshipLabel = string.Empty;
     private CanvasViewState _canvasViewState = CanvasViewState.Default;
     private SourceImportProposal? _selectedSourceProposal;
     private string _sourceDiscoverySummary = "Connect a repository, then scan its planning sources.";
@@ -107,6 +120,10 @@ public partial class MainWindowViewModel : ViewModelBase
         TrustDiagnostics = new ObservableCollection<TrustDiagnosticCard>();
         Integrations = new ObservableCollection<IntegrationStatusCard>();
         VersionSourceChangeDiagnostics = new ObservableCollection<VersionSourceChangeDiagnostic>();
+        ReleaseReadinessDiagnostics = new ObservableCollection<ReleaseReadinessDiagnostic>();
+        RelationshipTypes = new ObservableCollection<RelationshipTypeDefinition>();
+        Relationships = new ObservableCollection<RelationshipEdge>();
+        RelationshipEndpoints = new ObservableCollection<RelationshipEndpointOption>();
         _integrationStatusService = new IntegrationStatusService();
         _sourceDiscoveryService = new RepositorySourceDiscoveryService();
         _canvasViewStateStore = new FileSystemCanvasViewStateStore();
@@ -136,6 +153,10 @@ public partial class MainWindowViewModel : ViewModelBase
         TrustDiagnostics = new ObservableCollection<TrustDiagnosticCard>();
         Integrations = new ObservableCollection<IntegrationStatusCard>();
         VersionSourceChangeDiagnostics = new ObservableCollection<VersionSourceChangeDiagnostic>();
+        ReleaseReadinessDiagnostics = new ObservableCollection<ReleaseReadinessDiagnostic>();
+        RelationshipTypes = new ObservableCollection<RelationshipTypeDefinition>();
+        Relationships = new ObservableCollection<RelationshipEdge>();
+        RelationshipEndpoints = new ObservableCollection<RelationshipEndpointOption>();
         SourceImportProposals = new ObservableCollection<SourceImportProposal>();
 
         RefreshRecentProjects();
@@ -167,7 +188,15 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public ObservableCollection<VersionSourceChangeDiagnostic> VersionSourceChangeDiagnostics { get; }
 
+    public ObservableCollection<ReleaseReadinessDiagnostic> ReleaseReadinessDiagnostics { get; }
+
     public ObservableCollection<SourceImportProposal> SourceImportProposals { get; }
+
+    public ObservableCollection<RelationshipTypeDefinition> RelationshipTypes { get; }
+
+    public ObservableCollection<RelationshipEdge> Relationships { get; }
+
+    public ObservableCollection<RelationshipEndpointOption> RelationshipEndpoints { get; }
 
     public SourceImportProposal? SelectedSourceProposal
     {
@@ -271,6 +300,132 @@ public partial class MainWindowViewModel : ViewModelBase
         CanvasLayout is null
             ? "Layout has not been saved yet"
             : $"Shared layout revision {CanvasLayout.Revision}";
+
+    public RelationshipDocument? RelationshipDocument
+    {
+        get => _relationshipDocument;
+        private set
+        {
+            if (SetProperty(ref _relationshipDocument, value))
+            {
+                OnPropertyChanged(nameof(RelationshipRevisionSummary));
+            }
+        }
+    }
+
+    public string RelationshipRevisionSummary =>
+        RelationshipDocument is null
+            ? "No custom relationship graph yet"
+            : $"Relationship revision {RelationshipDocument.Revision} · {Relationships.Count} links";
+
+    public RelationshipTypeDefinition? SelectedRelationshipType
+    {
+        get => _selectedRelationshipType;
+        set
+        {
+            if (SetProperty(ref _selectedRelationshipType, value) && value is not null)
+            {
+                RelationshipTypeId = value.TypeId;
+                RelationshipTypeName = value.Name;
+                RelationshipTypeDescription = value.Description ?? string.Empty;
+                RelationshipTypeColor = value.ColorHex;
+                RelationshipTypeIsDirectional = value.IsDirectional;
+                OnPropertyChanged(nameof(CanSaveRelationship));
+            }
+        }
+    }
+
+    public RelationshipEdge? SelectedRelationship
+    {
+        get => _selectedRelationship;
+        set
+        {
+            if (SetProperty(ref _selectedRelationship, value))
+            {
+                if (value is not null)
+                {
+                    SelectedRelationshipType = RelationshipTypes.FirstOrDefault(type =>
+                        type.TypeId == value.TypeId);
+                    SelectedRelationshipSource = RelationshipEndpoints.FirstOrDefault(option =>
+                        option.Endpoint == value.Source);
+                    SelectedRelationshipTarget = RelationshipEndpoints.FirstOrDefault(option =>
+                        option.Endpoint == value.Target);
+                    RelationshipLabel = value.Label ?? string.Empty;
+                }
+                OnPropertyChanged(nameof(CanRemoveRelationship));
+            }
+        }
+    }
+
+    public RelationshipEndpointOption? SelectedRelationshipSource
+    {
+        get => _selectedRelationshipSource;
+        set
+        {
+            if (SetProperty(ref _selectedRelationshipSource, value))
+            {
+                OnPropertyChanged(nameof(CanSaveRelationship));
+            }
+        }
+    }
+
+    public RelationshipEndpointOption? SelectedRelationshipTarget
+    {
+        get => _selectedRelationshipTarget;
+        set
+        {
+            if (SetProperty(ref _selectedRelationshipTarget, value))
+            {
+                OnPropertyChanged(nameof(CanSaveRelationship));
+            }
+        }
+    }
+
+    public string RelationshipTypeId
+    {
+        get => _relationshipTypeId;
+        set => SetProperty(ref _relationshipTypeId, value);
+    }
+
+    public string RelationshipTypeName
+    {
+        get => _relationshipTypeName;
+        set => SetProperty(ref _relationshipTypeName, value);
+    }
+
+    public string RelationshipTypeDescription
+    {
+        get => _relationshipTypeDescription;
+        set => SetProperty(ref _relationshipTypeDescription, value);
+    }
+
+    public string RelationshipTypeColor
+    {
+        get => _relationshipTypeColor;
+        set => SetProperty(ref _relationshipTypeColor, value);
+    }
+
+    public bool RelationshipTypeIsDirectional
+    {
+        get => _relationshipTypeIsDirectional;
+        set => SetProperty(ref _relationshipTypeIsDirectional, value);
+    }
+
+    public string RelationshipLabel
+    {
+        get => _relationshipLabel;
+        set => SetProperty(ref _relationshipLabel, value);
+    }
+
+    public bool CanSaveRelationship =>
+        CanMutateWorkspace &&
+        SelectedRelationshipType is not null &&
+        SelectedRelationshipSource is not null &&
+        SelectedRelationshipTarget is not null &&
+        SelectedRelationshipSource.Endpoint != SelectedRelationshipTarget.Endpoint;
+
+    public bool CanRemoveRelationship =>
+        CanMutateWorkspace && SelectedRelationship is not null;
 
     public CanvasViewState CanvasViewState
     {
@@ -925,6 +1080,22 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
+    public string ReleaseReadinessSummary
+    {
+        get
+        {
+            var blocking = ReleaseReadinessDiagnostics.Count(
+                static diagnostic => diagnostic.Level == ReleaseReadinessLevel.Blocking);
+            var attention = ReleaseReadinessDiagnostics.Count(
+                static diagnostic => diagnostic.Level == ReleaseReadinessLevel.Attention);
+            return blocking > 0
+                ? $"{blocking} blocking source-control checks · {attention} need attention"
+                : attention > 0
+                    ? $"No source-control blockers · {attention} checks need attention"
+                    : "Source-control checks are ready for human release review";
+        }
+    }
+
     public bool CanManageMembers =>
         CanMutateWorkspace &&
         _currentSession is not null &&
@@ -1531,15 +1702,20 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         try
         {
+            var repositoryPaths = ParseLocalGitRepositoryPaths(LocalGitRepositoryPath);
             var settings = _integrationStatusService.GetSettings();
             _integrationStatusService.SaveSettings(settings with
             {
-                LocalGitRepositoryPath = LocalGitRepositoryPath.Trim(),
+                LocalGitRepositoryPath = repositoryPaths.FirstOrDefault() ?? string.Empty,
+                LocalGitRepositoryPaths = repositoryPaths,
             });
             RefreshIntegrations();
-            IntegrationMessage = string.IsNullOrWhiteSpace(LocalGitRepositoryPath)
-                ? "Local Git repository link cleared."
-                : "Local Git repository link saved.";
+            IntegrationMessage = repositoryPaths.Count switch
+            {
+                0 => "Local Git repository links cleared.",
+                1 => "Local Git repository link saved.",
+                _ => $"{repositoryPaths.Count} Local Git repository links saved.",
+            };
         }
         catch (Exception exception)
         {
@@ -1574,7 +1750,8 @@ public partial class MainWindowViewModel : ViewModelBase
         IntegrationMessage = "Reading changelogs, roadmaps, GitHub issues, and project links…";
         try
         {
-            var result = await Task.Run(() => _sourceDiscoveryService.Discover(LocalGitRepositoryPath));
+            var repositoryPaths = ParseLocalGitRepositoryPaths(LocalGitRepositoryPath);
+            var result = await Task.Run(() => DiscoverSources(repositoryPaths));
             PopulateSourceProposals(result);
             IntegrationMessage = result.Candidates.Count == 0
                 ? "The scan completed, but no importable planning entries were found."
@@ -1934,6 +2111,128 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
+    [RelayCommand]
+    private void BeginNewRelationshipType()
+    {
+        SelectedRelationshipType = null;
+        RelationshipTypeId = string.Empty;
+        RelationshipTypeName = string.Empty;
+        RelationshipTypeDescription = string.Empty;
+        RelationshipTypeColor = "#52C7E8";
+        RelationshipTypeIsDirectional = false;
+    }
+
+    [RelayCommand]
+    private void SaveRelationshipType()
+    {
+        if (_coordinatorService is null || _currentSession is null)
+        {
+            WorkspaceMessage = "Open a workspace before creating relationship types.";
+            return;
+        }
+
+        try
+        {
+            var typeId = RelationshipTypeId.Trim().ToLowerInvariant();
+            ApplySession(
+                _coordinatorService.SaveRelationshipType(
+                    _currentSession.Paths.LocalWorkspaceRoot,
+                    _currentSession.Paths.SharedProjectRoot,
+                    new RelationshipTypeEditRequest(
+                        typeId,
+                        RelationshipTypeName,
+                        RelationshipTypeDescription,
+                        RelationshipTypeColor,
+                        RelationshipTypeIsDirectional)));
+            SelectedRelationshipType = RelationshipTypes.FirstOrDefault(type =>
+                type.TypeId == typeId);
+            WorkspaceMessage = $"Saved relationship type {RelationshipTypeName.Trim()}.";
+        }
+        catch (Exception exception)
+        {
+            WorkspaceMessage = exception.Message;
+        }
+    }
+
+    [RelayCommand]
+    private void BeginNewRelationship()
+    {
+        SelectedRelationship = null;
+        RelationshipLabel = string.Empty;
+        SelectedRelationshipSource ??= RelationshipEndpoints.FirstOrDefault();
+        SelectedRelationshipTarget ??= RelationshipEndpoints.Skip(1).FirstOrDefault();
+    }
+
+    [RelayCommand]
+    private void SaveRelationship()
+    {
+        if (_coordinatorService is null ||
+            _currentSession is null ||
+            SelectedRelationshipType is null ||
+            SelectedRelationshipSource is null ||
+            SelectedRelationshipTarget is null)
+        {
+            WorkspaceMessage = "Choose a type and two different endpoints.";
+            return;
+        }
+
+        try
+        {
+            var relationshipId = SelectedRelationship?.RelationshipId;
+            var typeId = SelectedRelationshipType.TypeId;
+            var source = SelectedRelationshipSource.Endpoint;
+            var target = SelectedRelationshipTarget.Endpoint;
+            ApplySession(
+                _coordinatorService.SaveRelationship(
+                    _currentSession.Paths.LocalWorkspaceRoot,
+                    _currentSession.Paths.SharedProjectRoot,
+                    new RelationshipEditRequest(
+                        relationshipId,
+                        typeId,
+                        source,
+                        target,
+                        RelationshipLabel)));
+            SelectedRelationship = relationshipId is Guid id
+                ? Relationships.FirstOrDefault(edge => edge.RelationshipId == id)
+                : Relationships.FirstOrDefault(edge =>
+                    edge.TypeId == typeId &&
+                    edge.Source == source &&
+                    edge.Target == target);
+            WorkspaceMessage = relationshipId is null
+                ? "Created a signed relationship."
+                : "Updated the signed relationship.";
+        }
+        catch (Exception exception)
+        {
+            WorkspaceMessage = exception.Message;
+        }
+    }
+
+    [RelayCommand]
+    private void RemoveSelectedRelationship()
+    {
+        if (_coordinatorService is null || _currentSession is null || SelectedRelationship is null)
+        {
+            WorkspaceMessage = "Select a relationship first.";
+            return;
+        }
+
+        try
+        {
+            ApplySession(
+                _coordinatorService.RemoveRelationship(
+                    _currentSession.Paths.LocalWorkspaceRoot,
+                    _currentSession.Paths.SharedProjectRoot,
+                    SelectedRelationship.RelationshipId));
+            SelectedRelationship = Relationships.FirstOrDefault();
+            WorkspaceMessage = "Removed the signed relationship.";
+        }
+        catch (Exception exception)
+        {
+            WorkspaceMessage = exception.Message;
+        }
+    }
+
     private void ApplySession(LocalWorkspaceSession session)
     {
         var wasActiveSession = HasActiveSession;
@@ -1984,6 +2283,51 @@ public partial class MainWindowViewModel : ViewModelBase
             AvailableCategories.Add(categoryId);
         }
 
+        RelationshipDocument = workspace.Relationships;
+        SelectedRelationship = null;
+        SelectedRelationshipType = null;
+        SelectedRelationshipSource = null;
+        SelectedRelationshipTarget = null;
+        RelationshipTypes.Clear();
+        foreach (var type in workspace.Relationships?.Types ?? [])
+        {
+            RelationshipTypes.Add(type);
+        }
+
+        Relationships.Clear();
+        foreach (var relationship in workspace.Relationships?.Relationships ?? [])
+        {
+            Relationships.Add(relationship);
+        }
+
+        RelationshipEndpoints.Clear();
+        RelationshipEndpoints.Add(
+            new RelationshipEndpointOption(
+                new RelationshipEndpoint("project", project.ProjectId),
+                $"Project · {project.Name}"));
+        foreach (var version in workspace.Versions.OrderBy(static value => value.Version.Name, StringComparer.OrdinalIgnoreCase))
+        {
+            RelationshipEndpoints.Add(
+                new RelationshipEndpointOption(
+                    new RelationshipEndpoint("version", version.Version.VersionId),
+                    $"Version · {version.Version.Name}"));
+            foreach (var item in version.Items.OrderBy(static value => value.ItemKey, StringComparer.OrdinalIgnoreCase))
+            {
+                RelationshipEndpoints.Add(
+                    new RelationshipEndpointOption(
+                        new RelationshipEndpoint("item", item.ItemId),
+                        $"{item.ItemKey} · {item.Title}"));
+            }
+        }
+        SelectedRelationship = Relationships.FirstOrDefault();
+        if (SelectedRelationship is null)
+        {
+            SelectedRelationshipType = RelationshipTypes.FirstOrDefault();
+            SelectedRelationshipSource = RelationshipEndpoints.FirstOrDefault();
+            SelectedRelationshipTarget = RelationshipEndpoints.Skip(1).FirstOrDefault();
+        }
+        OnPropertyChanged(nameof(RelationshipRevisionSummary));
+
         Members.Clear();
         foreach (var member in workspace.Members.Members
                      .Select(member => new WorkspaceMemberCard(
@@ -2021,6 +2365,7 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         VersionSourceChangeDiagnostics.Clear();
+        ReleaseReadinessDiagnostics.Clear();
 
         Title = $"{project.Name} ({project.ProjectCode})";
         TrustSummary = session.LoadResult.TrustReport.Summary;
@@ -2088,6 +2433,8 @@ public partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(HasSyncDiagnostics));
         OnPropertyChanged(nameof(HasTrustDiagnostics));
         OnPropertyChanged(nameof(CanApplyApprovedSourceProposals));
+        OnPropertyChanged(nameof(CanSaveRelationship));
+        OnPropertyChanged(nameof(CanRemoveRelationship));
         OnPropertyChanged(nameof(AdaptiveGuidanceTitle));
         OnPropertyChanged(nameof(AdaptiveGuidanceDetail));
         RefreshVersionSourceChangeDiagnostics();
@@ -2108,15 +2455,24 @@ public partial class MainWindowViewModel : ViewModelBase
         ActiveMemberCount = 0;
         MembershipRevision = 0;
         CanvasLayout = null;
+        RelationshipDocument = null;
         Sync = new SyncSummary(SyncHealth.Idle, 0, 0, 0);
         Versions.Clear();
         AvailableItemTypes.Clear();
         AvailableCategories.Clear();
+        RelationshipTypes.Clear();
+        Relationships.Clear();
+        RelationshipEndpoints.Clear();
+        SelectedRelationship = null;
+        SelectedRelationshipType = null;
+        SelectedRelationshipSource = null;
+        SelectedRelationshipTarget = null;
         Members.Clear();
         Conflicts.Clear();
         SyncDiagnostics.Clear();
         TrustDiagnostics.Clear();
         VersionSourceChangeDiagnostics.Clear();
+        ReleaseReadinessDiagnostics.Clear();
         SourceImportProposals.Clear();
         SelectedSourceProposal = null;
         SourceDiscoverySummary = "Connect a repository, then scan its planning sources.";
@@ -2189,7 +2545,9 @@ public partial class MainWindowViewModel : ViewModelBase
     private void RefreshIntegrations()
     {
         var settings = _integrationStatusService.GetSettings();
-        LocalGitRepositoryPath = settings.LocalGitRepositoryPath;
+        LocalGitRepositoryPath = string.Join(
+            Environment.NewLine,
+            settings.EffectiveLocalGitRepositoryPaths);
 
         Integrations.Clear();
         foreach (var integration in _integrationStatusService.GetIntegrationStatuses())
@@ -2265,7 +2623,7 @@ public partial class MainWindowViewModel : ViewModelBase
             new SourceDiscoveryResult(
                 [
                     new SourceDiscoveryCandidate(
-                        SourceArtifactKind.GitHubProject,
+                        SourceArtifactKind.Project,
                         "Interactive dependency map",
                         "Let users connect work visually and reveal release blockers.",
                         "feature",
@@ -2303,9 +2661,10 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     private IReadOnlyList<SourceChangeSummary> GetLocalGitRecentChanges() =>
-        Integrations.FirstOrDefault(static integration => integration.Provider == IntegrationProviderType.LocalGit)
-            ?.RecentChanges
-        ?? [];
+        Integrations
+            .Where(static integration => integration.Provider == IntegrationProviderType.LocalGit)
+            .SelectMany(static integration => integration.RecentChanges)
+            .ToArray();
 
     private void RefreshVersionSourceChangeDiagnostics()
     {
@@ -2316,7 +2675,98 @@ public partial class MainWindowViewModel : ViewModelBase
             VersionSourceChangeDiagnostics.Add(diagnostic);
         }
 
+        ReleaseReadinessDiagnostics.Clear();
+        var localGit = GetLocalGitReadinessStatus();
+        foreach (var diagnostic in ReleaseReadinessDiagnosticBuilder.Build(
+                     SelectedVersion,
+                     localGit,
+                     VersionSourceChangeDiagnostics))
+        {
+            ReleaseReadinessDiagnostics.Add(diagnostic);
+        }
+
         OnPropertyChanged(nameof(VersionSourceChangeSummary));
+        OnPropertyChanged(nameof(ReleaseReadinessSummary));
+    }
+
+    private IntegrationStatusCard? GetLocalGitReadinessStatus()
+    {
+        var repositories = Integrations
+            .Where(static integration => integration.Provider == IntegrationProviderType.LocalGit)
+            .ToArray();
+        if (repositories.Length <= 1)
+        {
+            return repositories.FirstOrDefault();
+        }
+
+        var state = repositories.Any(
+            static repository => repository.State == IntegrationConnectionState.Error)
+            ? IntegrationConnectionState.Error
+            : repositories.Any(
+                static repository => repository.State == IntegrationConnectionState.Warning)
+                ? IntegrationConnectionState.Warning
+                : IntegrationConnectionState.Connected;
+        return new IntegrationStatusCard(
+            IntegrationProviderType.LocalGit,
+            "Local Git repositories",
+            state,
+            string.Join(", ", repositories.Select(static repository => repository.Target)),
+            $"{repositories.Length} linked repositories; " +
+            $"{repositories.Count(static repository => repository.State == IntegrationConnectionState.Connected)} clean, " +
+            $"{repositories.Count(static repository => repository.State == IntegrationConnectionState.Warning)} dirty, " +
+            $"{repositories.Count(static repository => repository.State == IntegrationConnectionState.Error)} unavailable.",
+            "Resolve every dirty or unavailable repository before treating source history as a stable release baseline.",
+            repositories[0].TrustBoundary,
+            repositories.Max(static repository => repository.CheckedAtUtc),
+            GetLocalGitRecentChanges());
+    }
+
+    private SourceDiscoveryResult DiscoverSources(IReadOnlyList<string> repositoryPaths)
+    {
+        var results = repositoryPaths
+            .Select(path => (Path: path, Result: _sourceDiscoveryService.Discover(path)))
+            .ToArray();
+        var candidates = results
+            .SelectMany(pair => pair.Result.Candidates.Select(candidate => candidate with
+            {
+                SourceReference = $"{pair.Path}::{candidate.SourceReference}",
+                SourceContext = $"{Path.GetFileName(pair.Path)} · {candidate.SourceContext}",
+            }))
+            .ToArray();
+        var warnings = results
+            .SelectMany(pair => pair.Result.Warnings.Select(warning => $"{Path.GetFileName(pair.Path)}: {warning}"))
+            .ToList();
+        if (candidates.Length > MaximumCombinedSourceCandidates)
+        {
+            warnings.Add(
+                $"Combined discovery was limited to {MaximumCombinedSourceCandidates} proposals across all linked repositories.");
+        }
+
+        return new SourceDiscoveryResult(
+            candidates.Take(MaximumCombinedSourceCandidates).ToArray(),
+            warnings,
+            results.Sum(static pair => pair.Result.ChangelogCount),
+            results.Sum(static pair => pair.Result.RoadmapCount),
+            results.Sum(static pair => pair.Result.HostedIssueCount),
+            results.Sum(static pair => pair.Result.HostedPlanningCount),
+            results.Sum(static pair => pair.Result.ChangeRequestCount),
+            results.Sum(static pair => pair.Result.ReleaseCount));
+    }
+
+    private static IReadOnlyList<string> ParseLocalGitRepositoryPaths(string value)
+    {
+        var paths = value
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(Path.GetFullPath)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        if (paths.Length > MaximumLinkedRepositories)
+        {
+            throw new InvalidOperationException(
+                $"Link no more than {MaximumLinkedRepositories} local repositories to one Blueprints installation.");
+        }
+
+        return paths;
     }
 
     private void RefreshSuggestedPaths()
@@ -2629,6 +3079,18 @@ public partial class MainWindowViewModel : ViewModelBase
             ];
         }
 
+        if (string.Equals(normalizedPath, "project/relationships.json", StringComparison.Ordinal))
+        {
+            return
+            [
+                ("Revision", "revision"),
+                ("Relationship types", "types"),
+                ("Relationships", "relationships"),
+                ("Last modified UTC", "updatedUtc"),
+                ("Last modified by", "lastModifiedByName"),
+            ];
+        }
+
         if (normalizedPath.StartsWith("versions/", StringComparison.Ordinal) &&
             normalizedPath.EndsWith("/version.json", StringComparison.Ordinal))
         {
@@ -2687,6 +3149,11 @@ public partial class MainWindowViewModel : ViewModelBase
         if (string.Equals(normalizedPath, "project/members.json", StringComparison.Ordinal))
         {
             return "Membership";
+        }
+
+        if (string.Equals(normalizedPath, "project/relationships.json", StringComparison.Ordinal))
+        {
+            return "Typed relationship graph";
         }
 
         if (normalizedPath.StartsWith("versions/", StringComparison.Ordinal) &&

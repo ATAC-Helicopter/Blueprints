@@ -32,7 +32,18 @@ A new teammate can export a signed identity invitation directly from the setup s
 5. Drag nodes to arrange the working view, and use zoom or **Fit view** to navigate larger plans.
 6. Mark completed items as ready for release notes.
 
-The lines on the canvas represent real project relationships: a work item is connected to the version that owns it. Item keys are generated from project rules. Released versions are immutable.
+The standard lines on the canvas represent ownership: a work item belongs to its version. Item keys are generated from project rules. Released versions are immutable.
+
+## Connect typed relationships
+
+Use **Typed relationships** in the canvas inspector when the ownership hierarchy is not enough:
+
+1. Select **+**, enter a lowercase type ID such as `blocks`, a name, color, and optional meaning.
+2. Choose whether the type is directional, then save it.
+3. Choose a source and target node, add an optional label, and select **Save**.
+4. Select an existing relationship to edit or remove it.
+
+Typed connectors appear in their configured color. Their definitions and endpoints are signed shared project state, so changes participate in audit, push, pull, trust checks, and whole-document conflict resolution. An endpoint must exist in the current project and cannot point to itself. Archiving a node also removes relationships that would otherwise dangle.
 
 ## Arrange and share the canvas
 
@@ -60,6 +71,16 @@ See [canvas engine](canvas-engine.md) for the exact model and [troubleshooting](
 
 Incomplete items are excluded by the current default rules. When a local Git repository is linked, recent commit subjects and matching item keys are added as source context.
 
+Before freezing or releasing, review **Release readiness** in the release planner. It reports:
+
+- an unavailable or unconfigured repository;
+- uncommitted working-tree changes that make the source baseline unstable;
+- incomplete items in the selected version;
+- missing post-tag history;
+- recent commits that do not reference a completed item key in the selected version.
+
+Repository errors and dirty state are blockers. Unmatched commits and incomplete items require attention because they may be intentionally out of scope; Blueprints explains them but does not silently change source history or the release plan.
+
 ## Archive draft work
 
 Draft versions and items in Planned or In Progress state can be archived. Select the archive action twice to confirm. The entity leaves the active signed plan, its removal participates in sync, and its signed files remain under `.blueprints/archive/` for recovery. Frozen and released versions are immutable and cannot be archived.
@@ -67,8 +88,8 @@ Draft versions and items in Planned or In Progress state can be archived. Select
 ## Discover work with Source Lens
 
 1. Open **Source Lens** from the navigation.
-2. Enter the path to a Git worktree.
-3. Select **Save link**, then **Scan sources**.
+2. Enter up to eight Git worktree paths, one per line.
+3. Select **Save links**, then **Scan sources**.
 4. Review the proposal inbox produced from changelogs, roadmaps, GitHub issues, and issue-linked GitHub Projects.
 5. Edit the selected proposal’s title, context, target version, type, changelog group, and completion state.
 6. Exclude anything that should not enter Blueprints.
@@ -76,7 +97,9 @@ Draft versions and items in Planned or In Progress state can be archived. Select
 
 Discovery is read-only. It does not commit, push, edit issues, change Projects, or modify planning files. Proposals are not project data until Apply. Apply requires a trusted workspace, adds the reviewed proposals as signed work items, records their provenance, and writes one audit action.
 
-GitHub discovery requires the authenticated GitHub CLI. Local changelog and roadmap discovery remains available if GitHub is not configured. See [Source Lens](source-lens.md) for limits, duplicate behavior, and security details.
+Public GitHub issues, pull requests, and releases are read directly without requiring the GitHub CLI. For private repositories, draft releases, and GitHub Projects, start Blueprints with a read-only token in `BLUEPRINTS_GITHUB_TOKEN`. Blueprints reads that variable for the current process and does not store it in project or integration settings. Local changelog and roadmap discovery remains available when GitHub cannot be reached. See [Source Lens](source-lens.md) for limits, duplicate behavior, and security details.
+
+GitLab.com worktrees use the same flow for issues, merge requests, releases, and milestones. Public projects need no credential; private projects use a read-only `BLUEPRINTS_GITLAB_TOKEN` in the application environment. Nested GitLab group paths are supported.
 
 ## Exchange changes
 

@@ -61,7 +61,13 @@ public sealed partial class MarkdownSourceDiscoveryParser
                     isDone || kind == SourceArtifactKind.Changelog,
                     $"{kind.ToString().ToLowerInvariant()}:{relativeName}:{lineNumber}",
                     context,
-                    kind == SourceArtifactKind.Roadmap && checkbox.Length > 0 ? 0.94 : 0.82));
+                    kind == SourceArtifactKind.Roadmap && checkbox.Length > 0 ? 0.94 : 0.82,
+                    new ProviderReference(
+                        SourceProviderKind.Local,
+                        ProviderReferenceKind.PlanningDocument,
+                        Path.GetDirectoryName(Path.GetFullPath(filePath)) ?? string.Empty,
+                        $"{relativeName}:{lineNumber}",
+                        null)));
 
             if (candidates.Count >= MaximumCandidatesPerFile)
             {
