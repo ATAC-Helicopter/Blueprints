@@ -13,7 +13,7 @@ Blueprints should become the smallest trustworthy path from “we plan to ship t
 3. safe and explicit when a small team exchanges work;
 4. extensible toward GitHub, GitLab, and VaultSync without making a provider the source of truth.
 
-## Now — v0.2: coherent solo workflow
+## Completed — v0.2: coherent solo workflow
 
 Goal: a new contributor can build the app, and a developer can plan and export a release without implementation knowledge.
 
@@ -24,8 +24,6 @@ Goal: a new contributor can build the app, and a developer can plan and export a
 - [x] Persist, sign, audit, sync, validate, and restore shared node positions while keeping viewport preferences machine-local.
 - [x] Add approval-first Source Lens discovery for changelogs, roadmaps, GitHub issues, and issue-linked GitHub Projects.
 - [x] Replace icon-only navigation with a clear workflow rail and adaptive next-action guidance.
-- [ ] Expand canvas editing beyond the completed session undo/redo foundation with box selection, multi-select, keyboard movement, alignment guides, and a minimap.
-- [ ] Add user-created typed relationships after defining their domain and conflict semantics.
 - [x] Keep release, team, sync, trust, and integration operations in focused secondary tools.
 - [x] Add native folder pickers instead of requiring raw paths.
 - [x] Add explicit first-run identity setup and pre-project identity-invitation export.
@@ -42,7 +40,7 @@ Exit criteria:
 - all destructive or immutable actions explain their consequences;
 - the v0.2 milestone is recorded by a tag, changelog section, release-history entry, and lightweight GitHub prerelease.
 
-## Next — v0.3: understandable collaboration
+## Completed — v0.3: understandable collaboration
 
 Goal: two people can exchange signed changes through a shared directory and understand every blocked action.
 
@@ -68,6 +66,8 @@ Goal: connect release intent to source history without weakening local ownership
 
 - [x] Read local Git root, branch, remote, dirty state, tag, and recent commits.
 - [x] Match item keys in commit subjects for changelog context.
+- [ ] Expand canvas editing with box selection, multi-select, keyboard movement, alignment guides, and a minimap.
+- [ ] Add user-created typed relationships after defining their domain and conflict semantics.
 - [ ] Link a Blueprints project to one or more repositories.
 - [ ] Add release-readiness diagnostics for uncommitted and unmatched changes.
 - [ ] Define provider-neutral issue, pull-request, and release references.

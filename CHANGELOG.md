@@ -4,6 +4,12 @@ Notable changes to Blueprints are documented here. The project follows semantic 
 
 ## Unreleased
 
+No changes yet.
+
+## 0.3.0 — 2026-07-30
+
+Understandable collaboration milestone. This release lets distinct local identities join a signed project, exchange changes through an untrusted shared directory, understand conflicts, and recover from blocked or mistaken operations.
+
 ### Added
 
 - Session-scoped undo and redo for node drags and auto-arrangement, with toolbar controls and `Ctrl+Z`, `Ctrl+Shift+Z`, and `Ctrl+Y` shortcuts.
@@ -42,6 +48,30 @@ Notable changes to Blueprints are documented here. The project follows semantic 
 - Workspace exchange paths are contained beneath their expected roots.
 - Pull stages and revalidates a complete inbox before local mutation, records rollback pairs, and restores them if application or sync-state persistence fails.
 - Viewer and inactive-member keys are excluded from current workspace and incoming-change authority while remaining available for historical audit verification.
+
+### Security
+
+- Multi-member signatures resolve by key ID against machine-local project trust anchors established by project creation or a targeted signed invitation.
+- Identity invitations prove possession of the included private key; project invitations bind the target identity, inviter administrator, project, membership revision, exchange location hint, and trusted member keys.
+- Shared manifests reject invalid signatures, rollback, unknown same-version batches, content/hash discontinuity, missing required documents, and malformed document/signature pairs.
+- Pull validates shared content, stages it locally, revalidates the staged bytes, and retains rollback copies before changing trusted local state.
+- Deactivated and Viewer identities cannot mutate or publish current project content.
+
+### Workspace compatibility
+
+- Signed project schema remains version 1.
+- `ProjectMember.keyId` is an optional schema-1 field. Existing workspaces derive the legacy key ID from the member user ID.
+- Project trust anchors, archives, conflict recovery, canvas viewport state, and sync staging remain machine-local and are excluded from signed exchange snapshots.
+- Existing single-identity projects remain readable and gain a local trust-anchor file after successful validation.
+
+### Known limitations
+
+- This release contains no installers or application binaries.
+- Conflict resolution compares known fields but still applies a whole-document choice rather than a field merge.
+- Same-user automated key rotation, hardware-backed keys, and revocation timestamps are not implemented.
+- Shared-folder confidentiality and availability remain responsibilities of the underlying storage.
+- Advanced canvas multi-selection, alignment tools, minimap navigation, and user-defined relationship types are deferred.
+- GitHub Project discovery does not include standalone draft items, and provider integrations remain read-only.
 
 ## 0.2.0-alpha.2 — 2026-07-30
 
