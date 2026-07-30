@@ -77,8 +77,8 @@ Draft versions and items in Planned or In Progress state can be archived. Select
 ## Discover work with Source Lens
 
 1. Open **Source Lens** from the navigation.
-2. Enter the path to a Git worktree.
-3. Select **Save link**, then **Scan sources**.
+2. Enter up to eight Git worktree paths, one per line.
+3. Select **Save links**, then **Scan sources**.
 4. Review the proposal inbox produced from changelogs, roadmaps, GitHub issues, and issue-linked GitHub Projects.
 5. Edit the selected proposal’s title, context, target version, type, changelog group, and completion state.
 6. Exclude anything that should not enter Blueprints.

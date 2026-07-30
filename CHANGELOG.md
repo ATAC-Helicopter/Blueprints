@@ -8,12 +8,14 @@ Notable changes to Blueprints are documented here. The project follows semantic 
 
 - Canvas box selection, additive multi-selection, grouped node dragging, `Ctrl+A`, `Escape`, precise arrow-key movement, live alignment guides, and a viewport minimap.
 - Release-readiness diagnostics that surface unavailable or dirty repositories, incomplete items, missing post-tag history, and recent commits that do not map to completed items in the selected version.
+- Machine-local links for up to eight Git worktrees, with combined read-only health, source discovery, source trace, and release-readiness analysis.
 
 ### Changed
 
 - Alpha 4 development builds now identify themselves as `0.4.0-alpha.4-dev`.
 - Canvas guidance now exposes the active selection and the available multi-node keyboard controls; resulting layout changes keep using signed, audited persistence.
 - The release planner now presents source-control blockers and follow-up guidance next to source trace and changelog review.
+- Source Lens accepts one repository path per line and preserves the full repository-qualified provenance of combined proposals.
 
 ## 0.3.0 — 2026-07-30
 

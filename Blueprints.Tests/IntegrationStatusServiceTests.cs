@@ -106,6 +106,34 @@ public sealed class IntegrationStatusServiceTests
         Assert.Contains("uncommitted", localGit.Guidance, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void GetIntegrationStatuses_InspectsEveryDistinctLinkedRepository()
+    {
+        var settings = new IntegrationSettings("/repo-a", string.Empty)
+        {
+            LocalGitRepositoryPaths = ["/repo-a", "/repo-b"],
+        };
+        var service = CreateService(
+            settings,
+            new LocalGitRepositoryStatus(
+                true,
+                string.Empty,
+                "main",
+                "(no origin remote)",
+                false,
+                "(no tags)",
+                [],
+                "Repository working tree is clean."));
+
+        var localGit = service.GetIntegrationStatuses()
+            .Where(status => status.Provider == IntegrationProviderType.LocalGit)
+            .ToArray();
+
+        Assert.Equal(2, localGit.Length);
+        Assert.Equal(["/repo-a", "/repo-b"], localGit.Select(static status => status.Target));
+        Assert.All(localGit, status => Assert.Equal(IntegrationConnectionState.Connected, status.State));
+    }
+
     private static IntegrationStatusService CreateService(
         IntegrationSettings settings,
         LocalGitRepositoryStatus? gitStatus = null) =>
@@ -137,14 +165,16 @@ public sealed class IntegrationStatusServiceTests
         }
 
         public LocalGitRepositoryStatus Inspect(string repositoryPath) =>
-            _status ?? new LocalGitRepositoryStatus(
-                false,
-                repositoryPath,
-                string.Empty,
-                string.Empty,
-                false,
-                string.Empty,
-                [],
-                "Configured path is not a Git repository.");
+            _status is null
+                ? new LocalGitRepositoryStatus(
+                    false,
+                    repositoryPath,
+                    string.Empty,
+                    string.Empty,
+                    false,
+                    string.Empty,
+                    [],
+                    "Configured path is not a Git repository.")
+                : _status with { RepositoryRoot = repositoryPath };
     }
 }

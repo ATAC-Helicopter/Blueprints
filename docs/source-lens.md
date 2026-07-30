@@ -11,13 +11,13 @@ Source Lens converts existing project signals into editable Blueprints work-item
 | GitHub issues | Authenticated `gh issue list` request | Open and closed issue metadata |
 | GitHub Projects | `projectItems` attached to returned issues | Project-linked issues with project context |
 
-The scanner checks the repository root and its `docs` directory for common changelog and roadmap filename casing. It reads at most 5,000 lines and 100 candidates per Markdown file. GitHub reads are limited to 100 issues. A scan returns at most 250 deduplicated proposals.
+The scanner checks each linked repository root and its `docs` directory for common changelog and roadmap filename casing. It reads at most 5,000 lines and 100 candidates per Markdown file. GitHub reads are limited to 100 issues. A per-repository scan returns at most 250 deduplicated proposals, and combined discovery returns at most 500 proposals across up to eight worktrees.
 
 Standalone GitHub Project draft items are not imported yet. Only issues visible through the repository issue query and linked to a Project are recognized.
 
 ## Requirements
 
-- Link a local Git worktree in **Source Lens**.
+- Link one or more local Git worktrees in **Source Lens**, one path per line.
 - Install Git.
 - For GitHub discovery, install and authenticate the GitHub CLI with `gh auth login`.
 - The Git worktree must have a recognizable `github.com` origin remote.
@@ -27,7 +27,7 @@ Local Markdown discovery still works if GitHub is unavailable. Source Lens repor
 ## Approval workflow
 
 1. Open **Source Lens**.
-2. Link the local repository and select **Scan sources**.
+2. Link up to eight local repositories, one path per line, and select **Scan sources**.
 3. Select a proposal from the inbox.
 4. Review and edit its title, description, target version, work type, changelog category, and completion state.
 5. Include or exclude the proposal with **Approved**.
@@ -58,7 +58,7 @@ Applied items retain tags that identify:
 - the source kind;
 - a compact source reference such as `github:#42` or `roadmap:Roadmap.md:18`.
 
-Source content remains informational. It does not inherit authority from GitHub, a roadmap, or a changelog.
+When several repositories are scanned, the source reference is qualified with the full local worktree path before it enters the proposal inbox. Source content remains informational. It does not inherit authority from GitHub, a roadmap, or a changelog.
 
 ## Security and privacy
 

@@ -29,7 +29,7 @@ public sealed class IntegrationStatusService
 
         return
         [
-            GetLocalGitStatus(settings, checkedAtUtc),
+            .. GetLocalGitStatuses(settings, checkedAtUtc),
             new IntegrationStatusCard(
                 IntegrationProviderType.GitHub,
                 "GitHub",
@@ -67,13 +67,16 @@ public sealed class IntegrationStatusService
 
     public void SaveSettings(IntegrationSettings settings) => _settingsStore.Save(settings);
 
-    private IntegrationStatusCard GetLocalGitStatus(
+    private IReadOnlyList<IntegrationStatusCard> GetLocalGitStatuses(
         IntegrationSettings settings,
         DateTimeOffset checkedAtUtc)
     {
-        if (string.IsNullOrWhiteSpace(settings.LocalGitRepositoryPath))
+        var repositoryPaths = settings.EffectiveLocalGitRepositoryPaths;
+        if (repositoryPaths.Count == 0)
         {
-            return new IntegrationStatusCard(
+            return
+            [
+                new IntegrationStatusCard(
                 IntegrationProviderType.LocalGit,
                 "Local Git",
                 IntegrationConnectionState.NotConfigured,
@@ -82,10 +85,20 @@ public sealed class IntegrationStatusService
                 "Link a repository path to detect branch, origin remote, dirty state, and latest tag.",
                 BlueprintsTrustBoundary(),
                 checkedAtUtc,
-                []);
+                []),
+            ];
         }
 
-        var gitStatus = _localGitRepositoryInspector.Inspect(settings.LocalGitRepositoryPath);
+        return repositoryPaths
+            .Select(path => GetLocalGitStatus(path, checkedAtUtc))
+            .ToArray();
+    }
+
+    private IntegrationStatusCard GetLocalGitStatus(
+        string repositoryPath,
+        DateTimeOffset checkedAtUtc)
+    {
+        var gitStatus = _localGitRepositoryInspector.Inspect(repositoryPath);
         if (!gitStatus.IsRepository)
         {
             return new IntegrationStatusCard(
