@@ -8,6 +8,7 @@ using Blueprints.Core.Models;
 using Blueprints.Core.Services;
 using Blueprints.Security.Abstractions;
 using Blueprints.Security.Models;
+using Blueprints.Security.Services;
 using Blueprints.Storage.Abstractions;
 using Blueprints.Storage.Models;
 using Blueprints.Storage.Services;
@@ -25,6 +26,11 @@ public sealed class ProjectWorkspaceCoordinatorService
     private readonly RecentProjectsStore _recentProjectsStore;
     private readonly FileSystemAuditLogService _auditLogService;
     private readonly SharedFolderSafetyInspector _sharedFolderSafetyInspector;
+    private readonly FileSystemProjectTrustStore _projectTrustStore = new();
+    private readonly IdentityInvitationService _identityInvitationService =
+        new(new Ed25519SignatureService());
+    private readonly ProjectInvitationService _projectInvitationService =
+        new(new Ed25519SignatureService());
 
     public ProjectWorkspaceCoordinatorService(
         IIdentityService identityService,
@@ -49,6 +55,23 @@ public sealed class ProjectWorkspaceCoordinatorService
     public IReadOnlyList<RecentProjectReference> GetRecentProjects() =>
         _recentProjectsStore.Load();
 
+    public string ExportIdentityInvitation(string filePath)
+    {
+        var identity = _identityService.GetOrCreateDefaultIdentity("Local Admin");
+        return _identityInvitationService.Write(filePath, identity);
+    }
+
+    public MemberInviteRequest ReadIdentityInvitation(string filePath)
+    {
+        var invitation = _identityInvitationService.Read(filePath);
+        return new MemberInviteRequest(
+            invitation.UserId.ToString(),
+            invitation.DisplayName,
+            invitation.PublicKeyBase64,
+            MemberRole.Editor,
+            invitation.KeyId);
+    }
+
     public LocalWorkspaceSession CreateProject(ProjectCreateRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -65,6 +88,17 @@ public sealed class ProjectWorkspaceCoordinatorService
 
         var snapshot = CreateProjectSnapshot(identity, request);
         _workspaceStore.Save(localRoot, snapshot, identity.SigningKey);
+        _projectTrustStore.Initialize(
+            localRoot,
+            snapshot.Project.ProjectId,
+            [
+                new TrustedProjectKey(
+                    identity.Profile.UserId,
+                    identity.Profile.DisplayName,
+                    identity.Profile.KeyId,
+                    identity.Profile.PublicKeyBase64,
+                    DateTimeOffset.UtcNow),
+            ]);
         AppendAuditEntry(localRoot, identity, snapshot, "project.create", $"Created project {snapshot.Project.Name}.");
         Directory.CreateDirectory(sharedRoot);
 
@@ -81,10 +115,18 @@ public sealed class ProjectWorkspaceCoordinatorService
         var paths = WorkspacePathResolver.Create(localWorkspaceRoot, sharedWorkspaceRoot);
         Directory.CreateDirectory(paths.SharedProjectRoot);
         var safetyReport = _sharedFolderSafetyInspector.Inspect(paths.SharedProjectRoot, paths.LocalWorkspaceRoot);
+        var trustedKeys = _projectTrustStore.LoadKeys(paths.LocalWorkspaceRoot, identity);
 
-        var loadResult = _workspaceStore.Load(paths.LocalWorkspaceRoot, identity.PublicKey);
-        var auditValidation = _auditLogService.Validate(paths.LocalWorkspaceRoot, identity.PublicKey);
+        var loadResult = _workspaceStore.Load(paths.LocalWorkspaceRoot, trustedKeys);
+        var auditValidation = _auditLogService.Validate(paths.LocalWorkspaceRoot, trustedKeys);
         loadResult = ApplyWorkspaceSafety(loadResult, safetyReport, auditValidation);
+        if (loadResult.TrustReport.State == TrustState.Trusted)
+        {
+            _projectTrustStore.MergeVerifiedMembers(
+                paths.LocalWorkspaceRoot,
+                loadResult.Workspace.Project.ProjectId,
+                loadResult.Workspace.Members.Members);
+        }
         var syncState = _syncStateStore.Load(paths.LocalWorkspaceRoot);
         var analysis = _syncAnalyzer.Analyze(paths, syncState.TrackedEntries);
         var conflictPaths = syncState.UnresolvedConflicts
@@ -515,6 +557,9 @@ public sealed class ProjectWorkspaceCoordinatorService
 
         var displayName = request.DisplayName.Trim();
         var publicKey = request.PublicKey.Trim();
+        var keyId = string.IsNullOrWhiteSpace(request.KeyId)
+            ? invitedUserId.ToString("N")
+            : request.KeyId.Trim();
         if (string.IsNullOrWhiteSpace(displayName))
         {
             throw new InvalidOperationException("Invitee display name is required.");
@@ -523,6 +568,11 @@ public sealed class ProjectWorkspaceCoordinatorService
         if (string.IsNullOrWhiteSpace(publicKey))
         {
             throw new InvalidOperationException("Invitee public key is required.");
+        }
+
+        if (keyId.Length > 128)
+        {
+            throw new InvalidOperationException("Invitee key ID is too long.");
         }
 
         ValidatePublicKey(publicKey);
@@ -545,7 +595,8 @@ public sealed class ProjectWorkspaceCoordinatorService
                 publicKey,
                 request.Role,
                 DateTimeOffset.UtcNow,
-                true));
+                true,
+                keyId));
 
         return SaveMembers(localWorkspaceRoot, sharedWorkspaceRoot, identity, session.LoadResult.Workspace, members);
     }
@@ -590,6 +641,139 @@ public sealed class ProjectWorkspaceCoordinatorService
         return SaveMembers(localWorkspaceRoot, sharedWorkspaceRoot, identity, session.LoadResult.Workspace, members);
     }
 
+    public string ExportProjectInvitation(
+        string localWorkspaceRoot,
+        string sharedWorkspaceRoot,
+        Guid invitedUserId,
+        string filePath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(localWorkspaceRoot);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sharedWorkspaceRoot);
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+
+        var identity = _identityService.GetOrCreateDefaultIdentity("Local Admin");
+        var session = OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
+        EnsureTrustedWorkspace(session);
+        EnsureCurrentIdentityIsAdmin(session);
+        EnsureNoSyncConflicts(session);
+
+        var invitedMember = session.LoadResult.Workspace.Members.Members
+            .FirstOrDefault(member => member.UserId == invitedUserId && member.IsActive)
+            ?? throw new InvalidOperationException(
+                "Select an active invited member before exporting a project invitation.");
+        var members = session.LoadResult.Workspace.Members;
+        var trustedKeys = members.Members
+            .Select(member => new TrustedProjectKey(
+                member.UserId,
+                member.DisplayName,
+                ResolveMemberKeyId(member),
+                member.PublicKey,
+                member.JoinedUtc))
+            .ToArray();
+        var project = session.LoadResult.Workspace.Project;
+        var payload = new ProjectInvitationPayload(
+            1,
+            project.ProjectId,
+            project.Name,
+            project.ProjectCode,
+            session.Paths.SharedProjectRoot,
+            members.MembershipRevision,
+            invitedMember.UserId,
+            ResolveMemberKeyId(invitedMember),
+            identity.Profile.UserId,
+            identity.Profile.DisplayName,
+            identity.Profile.KeyId,
+            identity.Profile.PublicKeyBase64,
+            trustedKeys,
+            DateTimeOffset.UtcNow);
+        return _projectInvitationService.Write(filePath, payload, identity.SigningKey);
+    }
+
+    public LocalWorkspaceSession JoinProjectFromInvitation(
+        string invitationFilePath,
+        string localWorkspaceRoot,
+        string? sharedWorkspaceRoot = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(invitationFilePath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(localWorkspaceRoot);
+
+        var identity = _identityService.GetOrCreateDefaultIdentity("Local Admin");
+        var invitation = _projectInvitationService.Read(invitationFilePath);
+        if (invitation.InvitedUserId != identity.Profile.UserId ||
+            !string.Equals(
+                invitation.InvitedKeyId,
+                identity.Profile.KeyId,
+                StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "This project invitation targets a different local identity.");
+        }
+
+        var resolvedSharedRoot = string.IsNullOrWhiteSpace(sharedWorkspaceRoot)
+            ? invitation.SharedWorkspaceRoot
+            : sharedWorkspaceRoot.Trim();
+        ArgumentException.ThrowIfNullOrWhiteSpace(resolvedSharedRoot);
+        EnsureSharedFolderSafe(localWorkspaceRoot, resolvedSharedRoot);
+        if (Directory.Exists(localWorkspaceRoot) &&
+            Directory.EnumerateFileSystemEntries(localWorkspaceRoot).Any())
+        {
+            throw new InvalidOperationException(
+                "The selected local workspace folder must be empty before joining.");
+        }
+
+        var fullLocalRoot = Path.GetFullPath(localWorkspaceRoot);
+        var parent = Path.GetDirectoryName(fullLocalRoot)
+            ?? throw new InvalidOperationException("Local workspace path has no parent.");
+        Directory.CreateDirectory(parent);
+        var stageRoot = Path.Combine(
+            parent,
+            $".blueprints-join-{Guid.NewGuid():N}");
+
+        try
+        {
+            _projectTrustStore.Initialize(
+                stageRoot,
+                invitation.ProjectId,
+                invitation.TrustedKeys);
+            var trustedKeys = _projectTrustStore.LoadKeys(stageRoot, identity);
+            var pull = _workspaceSyncService.Pull(
+                new WorkspacePaths(stageRoot, resolvedSharedRoot),
+                trustedKeys);
+            if (!pull.Success)
+            {
+                throw new InvalidOperationException(
+                    $"Project join was blocked: {pull.Summary}");
+            }
+
+            var loadResult = _workspaceStore.Load(stageRoot, trustedKeys);
+            var auditValidation = _auditLogService.Validate(stageRoot, trustedKeys);
+            if (loadResult.TrustReport.State != TrustState.Trusted ||
+                !auditValidation.IsValid)
+            {
+                throw new InvalidOperationException(
+                    "Project join was blocked because the staged workspace did not validate.");
+            }
+
+            ValidateJoinedWorkspace(invitation, identity, loadResult.Workspace);
+            if (Directory.Exists(fullLocalRoot))
+            {
+                Directory.Delete(fullLocalRoot);
+            }
+
+            Directory.Move(stageRoot, fullLocalRoot);
+            return OpenProject(fullLocalRoot, resolvedSharedRoot);
+        }
+        catch
+        {
+            if (Directory.Exists(stageRoot))
+            {
+                Directory.Delete(stageRoot, recursive: true);
+            }
+
+            throw;
+        }
+    }
+
     public LocalWorkspaceSession RefreshProject(
         string localWorkspaceRoot,
         string sharedWorkspaceRoot) =>
@@ -605,12 +789,13 @@ public sealed class ProjectWorkspaceCoordinatorService
         var identity = _identityService.GetOrCreateDefaultIdentity("Local Admin");
         var session = OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
         EnsureTrustedWorkspace(session);
+        var trustedKeys = _projectTrustStore.LoadKeys(localWorkspaceRoot, identity);
 
         return _workspaceSyncService.Push(
             session.Paths,
             session.LoadResult.Workspace.Project.ProjectId,
             identity.SigningKey,
-            identity.PublicKey);
+            trustedKeys);
     }
 
     public WorkspaceSyncResult PullWorkspace(
@@ -623,8 +808,9 @@ public sealed class ProjectWorkspaceCoordinatorService
         var identity = _identityService.GetOrCreateDefaultIdentity("Local Admin");
         var session = OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
         EnsureTrustedWorkspace(session);
+        var trustedKeys = _projectTrustStore.LoadKeys(localWorkspaceRoot, identity);
 
-        return _workspaceSyncService.Pull(session.Paths, identity.PublicKey);
+        return _workspaceSyncService.Pull(session.Paths, trustedKeys);
     }
 
     public ConflictResolutionResult ResolveConflict(
@@ -774,7 +960,8 @@ public sealed class ProjectWorkspaceCoordinatorService
                         identity.Profile.PublicKeyBase64,
                         MemberRole.Admin,
                         createdUtc,
-                        true),
+                        true,
+                        identity.Profile.KeyId),
                 ]),
             []);
     }
@@ -1001,6 +1188,48 @@ public sealed class ProjectWorkspaceCoordinatorService
             throw new InvalidOperationException("At least one active admin must remain in the project.");
         }
     }
+
+    private static void ValidateJoinedWorkspace(
+        ProjectInvitationPayload invitation,
+        Security.Models.StoredIdentity identity,
+        ProjectWorkspaceSnapshot workspace)
+    {
+        if (workspace.Project.ProjectId != invitation.ProjectId ||
+            workspace.Members.ProjectId != invitation.ProjectId ||
+            workspace.Members.MembershipRevision < invitation.MembershipRevision)
+        {
+            throw new InvalidOperationException(
+                "The shared workspace does not match the project invitation.");
+        }
+
+        var invitedMember = workspace.Members.Members.FirstOrDefault(member =>
+            member.UserId == identity.Profile.UserId &&
+            member.IsActive &&
+            string.Equals(member.PublicKey, identity.Profile.PublicKeyBase64, StringComparison.Ordinal) &&
+            string.Equals(ResolveMemberKeyId(member), identity.Profile.KeyId, StringComparison.Ordinal));
+        if (invitedMember is null)
+        {
+            throw new InvalidOperationException(
+                "The current identity is not an active member of the invited project.");
+        }
+
+        var inviter = workspace.Members.Members.FirstOrDefault(member =>
+            member.UserId == invitation.InviterUserId &&
+            member.IsActive &&
+            member.Role == MemberRole.Admin &&
+            string.Equals(member.PublicKey, invitation.InviterPublicKeyBase64, StringComparison.Ordinal) &&
+            string.Equals(ResolveMemberKeyId(member), invitation.InviterKeyId, StringComparison.Ordinal));
+        if (inviter is null)
+        {
+            throw new InvalidOperationException(
+                "The project invitation signer is not an active project administrator.");
+        }
+    }
+
+    private static string ResolveMemberKeyId(ProjectMember member) =>
+        string.IsNullOrWhiteSpace(member.KeyId)
+            ? member.UserId.ToString("N")
+            : member.KeyId;
 
     private static void EnsureConflictExists(LocalWorkspaceSession session, string documentPath)
     {

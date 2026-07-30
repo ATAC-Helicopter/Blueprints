@@ -10,18 +10,24 @@ Notable changes to Blueprints are documented here. The project follows semantic 
 - Every applied undo or redo is saved as a new signed, audited canvas-layout revision so history never bypasses workspace integrity.
 - A two-workspace collaboration harness covering push, pull, sequential edits, overlapping edits, and preservation of the blocked local copy.
 - Automatic machine-local conflict recovery snapshots containing both available document/signature pairs and resolution metadata before a whole-document choice is applied.
+- Signed identity-request and project-invitation files with proof-of-key-possession validation.
+- Member-key-aware workspace, manifest, incoming-document, and audit validation for distinct local identities.
+- A staged join flow that validates invitation targets, trust anchors, membership, signatures, manifest continuity, and audit history before creating the final local workspace.
 
 ### Changed
 
 - Alpha 3 development builds now identify themselves as `0.3.0-alpha.3-dev`.
 - Conflict resolution reports the recovery-copy location and writes its status metadata atomically.
 - The exchange view now shows the last pulled and pushed manifest versions and the last successful trust-validation time persisted for the local workspace.
+- Team setup now uses native invitation-file import/export instead of identity-bundle copy and paste.
 
 ### Fixed
 
 - Canvas nodes can no longer be dragged when workspace trust or sync-conflict state forbids mutation.
 - Clean test builds now reference the command toolkit explicitly instead of relying on a transitive compile asset.
 - Conflict recovery rejects paths that escape the expected workspace root.
+- Project invitations targeting another local identity are rejected before a workspace is created.
+- Tampered identity invitation fields are rejected when their proof no longer verifies.
 
 ## 0.2.0-alpha.2 — 2026-07-30
 

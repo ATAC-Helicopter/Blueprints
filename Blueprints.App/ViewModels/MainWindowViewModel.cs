@@ -43,6 +43,9 @@ public partial class MainWindowViewModel : ViewModelBase
     private string _createSharedWorkspaceRoot = string.Empty;
     private string _openLocalWorkspaceRoot = string.Empty;
     private string _openSharedWorkspaceRoot = string.Empty;
+    private string _joinInvitationFilePath = string.Empty;
+    private string _joinLocalWorkspaceRoot = string.Empty;
+    private string _joinSharedWorkspaceRoot = string.Empty;
     private RecentProjectReference? _selectedRecentProject;
     private WorkspaceVersionCard? _selectedVersion;
     private WorkspaceItemCard? _selectedItem;
@@ -63,6 +66,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private string _inviteUserId = string.Empty;
     private string _inviteDisplayName = string.Empty;
     private string _invitePublicKey = string.Empty;
+    private string _inviteKeyId = string.Empty;
     private MemberRole _inviteRole = MemberRole.Editor;
     private string _memberEditorDisplayName = string.Empty;
     private MemberRole _memberEditorRole = MemberRole.Editor;
@@ -489,6 +493,24 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         get => _openSharedWorkspaceRoot;
         set => SetProperty(ref _openSharedWorkspaceRoot, value);
+    }
+
+    public string JoinInvitationFilePath
+    {
+        get => _joinInvitationFilePath;
+        set => SetProperty(ref _joinInvitationFilePath, value);
+    }
+
+    public string JoinLocalWorkspaceRoot
+    {
+        get => _joinLocalWorkspaceRoot;
+        set => SetProperty(ref _joinLocalWorkspaceRoot, value);
+    }
+
+    public string JoinSharedWorkspaceRoot
+    {
+        get => _joinSharedWorkspaceRoot;
+        set => SetProperty(ref _joinSharedWorkspaceRoot, value);
     }
 
     public RecentProjectReference? SelectedRecentProject
@@ -1047,6 +1069,37 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    private void JoinProject()
+    {
+        if (_coordinatorService is null)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(JoinInvitationFilePath) ||
+            string.IsNullOrWhiteSpace(JoinLocalWorkspaceRoot))
+        {
+            SetupMessage = "Choose a project invitation and an empty local workspace folder.";
+            return;
+        }
+
+        try
+        {
+            ApplySession(
+                _coordinatorService.JoinProjectFromInvitation(
+                    JoinInvitationFilePath,
+                    JoinLocalWorkspaceRoot,
+                    JoinSharedWorkspaceRoot));
+            RefreshRecentProjects();
+            SetupMessage = $"Joined project {CurrentProject.Name}.";
+        }
+        catch (Exception exception)
+        {
+            SetupMessage = exception.Message;
+        }
+    }
+
+    [RelayCommand]
     private void ReturnToProjectSetup()
     {
         ApplySetupState("Choose a project to create or open.");
@@ -1413,9 +1466,82 @@ public partial class MainWindowViewModel : ViewModelBase
                         InviteUserId,
                         InviteDisplayName,
                         InvitePublicKey,
-                        InviteRole)));
+                        InviteRole,
+                        _inviteKeyId)));
             WorkspaceMessage = $"Invited member {InviteDisplayName.Trim()}.";
             ClearInviteEditor();
+        }
+        catch (Exception exception)
+        {
+            WorkspaceMessage = exception.Message;
+        }
+    }
+
+    [RelayCommand]
+    private void ExportIdentityInvitation(string? filePath)
+    {
+        if (_coordinatorService is null || string.IsNullOrWhiteSpace(filePath))
+        {
+            return;
+        }
+
+        try
+        {
+            var exportedPath = _coordinatorService.ExportIdentityInvitation(filePath);
+            WorkspaceMessage = $"Exported signed identity invitation to {exportedPath}.";
+        }
+        catch (Exception exception)
+        {
+            WorkspaceMessage = exception.Message;
+        }
+    }
+
+    [RelayCommand]
+    private void ImportIdentityInvitation(string? filePath)
+    {
+        if (_coordinatorService is null || string.IsNullOrWhiteSpace(filePath))
+        {
+            return;
+        }
+
+        try
+        {
+            var request = _coordinatorService.ReadIdentityInvitation(filePath);
+            InviteUserId = request.UserId;
+            InviteDisplayName = request.DisplayName;
+            InvitePublicKey = request.PublicKey;
+            InviteRole = request.Role;
+            _inviteKeyId = request.KeyId ?? string.Empty;
+            WorkspaceMessage =
+                $"Verified {request.DisplayName}'s signed identity invitation. Review the role, then invite.";
+        }
+        catch (Exception exception)
+        {
+            WorkspaceMessage = exception.Message;
+        }
+    }
+
+    [RelayCommand]
+    private void ExportProjectInvitation(string? filePath)
+    {
+        if (_coordinatorService is null ||
+            _currentSession is null ||
+            SelectedMember is null ||
+            string.IsNullOrWhiteSpace(filePath))
+        {
+            WorkspaceMessage = "Select an active invited member first.";
+            return;
+        }
+
+        try
+        {
+            var exportedPath = _coordinatorService.ExportProjectInvitation(
+                _currentSession.Paths.LocalWorkspaceRoot,
+                _currentSession.Paths.SharedProjectRoot,
+                SelectedMember.UserId,
+                filePath);
+            WorkspaceMessage =
+                $"Exported signed project invitation for {SelectedMember.DisplayName} to {exportedPath}.";
         }
         catch (Exception exception)
         {
@@ -1973,6 +2099,7 @@ public partial class MainWindowViewModel : ViewModelBase
         InviteUserId = string.Empty;
         InviteDisplayName = string.Empty;
         InvitePublicKey = string.Empty;
+        _inviteKeyId = string.Empty;
         InviteRole = MemberRole.Editor;
     }
 

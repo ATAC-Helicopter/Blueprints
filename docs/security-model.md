@@ -19,6 +19,8 @@ Blueprints uses signatures and explicit validation to detect unauthorized or inc
 | Local workspace | Editable only while required content validates |
 | Shared sync root | Untrusted exchange input until manifest and signatures validate |
 | Local identity directory | Sensitive local state protected by OS permissions and key protection |
+| Project invitation | Out-of-band signed trust bootstrap targeted to one local identity |
+| Local project trust anchors | Machine-local accepted member keys; never sourced from unverified shared data |
 | Git/provider integration | Informational; not authoritative project truth |
 | Source Lens proposals | Untrusted transient suggestions; no persistence before explicit approval |
 | UI input | Validated by application workflows before persistence |
@@ -36,6 +38,10 @@ Blueprints uses signatures and explicit validation to detect unauthorized or inc
 ## Security invariants
 
 - Private keys are never written into a workspace or shared root.
+- Identity invitations prove possession of their included private key.
+- Project invitations bind the target identity, inviter administrator, project, membership revision, and initial member-key set.
+- A join is staged and fully validated before the final local workspace is created.
+- Documents, manifests, and audit entries are verified against their signer key ID in the locally trusted project-key set.
 - Invalid incoming signatures block pull.
 - Invalid or missing signed local content produces untrusted or corrupt read-only state.
 - Conflicting concurrent changes block further mutation.

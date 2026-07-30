@@ -26,6 +26,7 @@ This document describes the current schema-1 layout. The format is pre-release a
 └── .blueprints/
     ├── sync-state.json
     ├── canvas-view.json
+    ├── trusted-project-keys.json
     └── recovery/
         └── conflicts/
             └── <recovery-id>/
@@ -35,6 +36,8 @@ This document describes the current schema-1 layout. The format is pre-release a
 ```
 
 The collaboration layer also writes a signed manifest in the shared project root. Files under `.blueprints/` are local bookkeeping and are not signed project truth or exchange input.
+
+`trusted-project-keys.json` is the machine-local trust-anchor set established when a project is created or a signed project invitation is accepted. It lets documents and audit entries signed by different project members validate without placing trust in the shared folder itself. A verified membership revision may extend this set, but unverified shared membership data cannot.
 
 Before applying a whole-document conflict choice, Blueprints creates a conflict recovery directory. Its metadata records the selected path, choice, presence of each source file, and whether the operation was prepared, applied, or failed. Recovery data stays local and is excluded from exchange manifests.
 
@@ -125,3 +128,5 @@ There is no general migration engine yet. Optional schema-1 documents, including
 - provider access tokens;
 - machine-specific integration settings;
 - arbitrary repository content.
+
+Signed `*.blueprints-identity.json` and `*.blueprints-project.json` invitation files are deliberate out-of-band handoff artifacts, not workspace documents. Identity invitations prove possession of the included private key. Project invitations bind a target identity, project identity, membership revision, exchange hint, inviter administrator, and trusted member-key set under the inviter's signature.

@@ -47,6 +47,57 @@ public partial class SetupView : UserControl
         }
     }
 
+    private async void BrowseJoinInvitation_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (DataContext is MainWindowViewModel viewModel &&
+            await PickInvitationAsync() is { } path)
+        {
+            viewModel.JoinInvitationFilePath = path;
+        }
+    }
+
+    private async void BrowseJoinLocal_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (DataContext is MainWindowViewModel viewModel &&
+            await PickFolderAsync("Choose a new empty local workspace") is { } path)
+        {
+            viewModel.JoinLocalWorkspaceRoot = path;
+        }
+    }
+
+    private async void BrowseJoinShared_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (DataContext is MainWindowViewModel viewModel &&
+            await PickFolderAsync("Override the invitation's shared exchange folder") is { } path)
+        {
+            viewModel.JoinSharedWorkspaceRoot = path;
+        }
+    }
+
+    private async Task<string?> PickInvitationAsync()
+    {
+        var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
+        if (storageProvider is null)
+        {
+            return null;
+        }
+
+        var files = await storageProvider.OpenFilePickerAsync(
+            new FilePickerOpenOptions
+            {
+                Title = "Choose a signed Blueprints project invitation",
+                AllowMultiple = false,
+                FileTypeFilter =
+                [
+                    new FilePickerFileType("Blueprints project invitation")
+                    {
+                        Patterns = ["*.blueprints-project.json"],
+                    },
+                ],
+            });
+        return files.FirstOrDefault()?.TryGetLocalPath();
+    }
+
     private async Task<string?> PickFolderAsync(string title)
     {
         var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;

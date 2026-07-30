@@ -50,7 +50,7 @@ Goal: two people can exchange signed changes through a shared directory and unde
 - [ ] Replace raw JSON conflict previews with document-aware field comparisons.
 - [x] Add guided whole-document conflict resolution and machine-local recovery copies.
 - [ ] Show manifest version, last push/pull, audit status, and actionable recovery steps.
-- [ ] Replace identity-bundle copy/paste with invitation files or QR/text import.
+- [x] Replace identity-bundle copy/paste with signed identity and project invitation files.
 - [ ] Define behavior for member key rotation and lost keys.
 - [ ] Test network-share interruption, partial copies, deleted files, and stale manifests.
 - [ ] Document backup and disaster-recovery procedures.

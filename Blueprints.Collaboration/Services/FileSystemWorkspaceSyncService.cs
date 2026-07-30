@@ -35,9 +35,26 @@ public sealed class FileSystemWorkspaceSyncService
         SignatureKeyMaterial signingKey,
         SignaturePublicKey publicKey)
     {
+        ArgumentNullException.ThrowIfNull(publicKey);
+        return Push(
+            workspacePaths,
+            projectId,
+            signingKey,
+            new Dictionary<string, SignaturePublicKey>(StringComparer.Ordinal)
+            {
+                [publicKey.KeyId] = publicKey,
+            });
+    }
+
+    public WorkspaceSyncResult Push(
+        WorkspacePaths workspacePaths,
+        Guid projectId,
+        SignatureKeyMaterial signingKey,
+        IReadOnlyDictionary<string, SignaturePublicKey> publicKeys)
+    {
         ArgumentNullException.ThrowIfNull(workspacePaths);
         ArgumentNullException.ThrowIfNull(signingKey);
-        ArgumentNullException.ThrowIfNull(publicKey);
+        ArgumentNullException.ThrowIfNull(publicKeys);
 
         Directory.CreateDirectory(workspacePaths.SharedProjectRoot);
 
@@ -78,7 +95,7 @@ public sealed class FileSystemWorkspaceSyncService
             CopyDocumentPair(workspacePaths.LocalWorkspaceRoot, packRoot, documentPath);
         }
 
-        var currentManifestVersion = TryReadManifestVersion(workspacePaths.SharedProjectRoot, publicKey);
+        var currentManifestVersion = TryReadManifestVersion(workspacePaths.SharedProjectRoot, publicKeys);
         var nextManifestVersion = currentManifestVersion + 1;
         var manifestWrite = _manifestStore.Write(
             workspacePaths.SharedProjectRoot,
@@ -116,15 +133,28 @@ public sealed class FileSystemWorkspaceSyncService
         WorkspacePaths workspacePaths,
         SignaturePublicKey publicKey)
     {
-        ArgumentNullException.ThrowIfNull(workspacePaths);
         ArgumentNullException.ThrowIfNull(publicKey);
+        return Pull(
+            workspacePaths,
+            new Dictionary<string, SignaturePublicKey>(StringComparer.Ordinal)
+            {
+                [publicKey.KeyId] = publicKey,
+            });
+    }
+
+    public WorkspaceSyncResult Pull(
+        WorkspacePaths workspacePaths,
+        IReadOnlyDictionary<string, SignaturePublicKey> publicKeys)
+    {
+        ArgumentNullException.ThrowIfNull(workspacePaths);
+        ArgumentNullException.ThrowIfNull(publicKeys);
 
         var state = _syncStateStore.Load(workspacePaths.LocalWorkspaceRoot);
         SignedManifestReadResult manifestResult;
 
         try
         {
-            manifestResult = ReadManifest(workspacePaths.SharedProjectRoot, publicKey);
+            manifestResult = ReadManifest(workspacePaths.SharedProjectRoot, publicKeys);
         }
         catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException)
         {
@@ -165,7 +195,7 @@ public sealed class FileSystemWorkspaceSyncService
                 "Pull blocked because the shared manifest no longer matches the shared folder content.");
         }
 
-        var auditValidation = _auditLogService.Validate(workspacePaths.SharedProjectRoot, publicKey);
+        var auditValidation = _auditLogService.Validate(workspacePaths.SharedProjectRoot, publicKeys);
         if (!auditValidation.IsValid)
         {
             return new WorkspaceSyncResult(
@@ -213,7 +243,7 @@ public sealed class FileSystemWorkspaceSyncService
         var validationResult = _exchangeValidator.Validate(
             workspacePaths.SharedProjectRoot,
             analysis.IncomingDocumentPaths,
-            publicKey);
+            publicKeys);
         if (!validationResult.IsValid)
         {
             return new WorkspaceSyncResult(
@@ -256,17 +286,21 @@ public sealed class FileSystemWorkspaceSyncService
             $"Pulled {analysis.IncomingDocumentPaths.Count} documents from manifest {manifestResult.Document.ManifestVersion}.");
     }
 
-    private SignedManifestReadResult ReadManifest(string sharedProjectRoot, SignaturePublicKey publicKey)
+    private SignedManifestReadResult ReadManifest(
+        string sharedProjectRoot,
+        IReadOnlyDictionary<string, SignaturePublicKey> publicKeys)
     {
-        var result = _manifestStore.Read(sharedProjectRoot, publicKey);
+        var result = _manifestStore.Read(sharedProjectRoot, publicKeys);
         return new SignedManifestReadResult(result.Document, result.IsSignatureValid);
     }
 
-    private int TryReadManifestVersion(string sharedProjectRoot, SignaturePublicKey publicKey)
+    private int TryReadManifestVersion(
+        string sharedProjectRoot,
+        IReadOnlyDictionary<string, SignaturePublicKey> publicKeys)
     {
         try
         {
-            var result = _manifestStore.Read(sharedProjectRoot, publicKey);
+            var result = _manifestStore.Read(sharedProjectRoot, publicKeys);
             return result.IsSignatureValid ? result.Document.ManifestVersion : 0;
         }
         catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException)

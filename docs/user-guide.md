@@ -19,7 +19,7 @@ Blueprints is a desktop application for planning releases in signed local files.
 4. Use **Browse** to choose different local and shared roots. Neither may contain the other.
 5. Select **Create signed project**.
 
-Blueprints creates the first local identity automatically in the current preview. Identity onboarding is planned.
+Blueprints creates the first local identity automatically in the current preview. Explicit first-run identity naming is still planned.
 
 ## Plan a release
 
@@ -74,6 +74,17 @@ GitHub discovery requires the authenticated GitHub CLI. Local changelog and road
 ## Exchange changes
 
 The shared root is an exchange layer, not the editable workspace.
+
+To add a second person:
+
+1. The new person opens **Team** in any local project and exports a signed identity invitation.
+2. An existing project administrator imports that file, reviews the requested display name and role, and adds the member.
+3. The administrator pushes the membership revision.
+4. With the new member selected, the administrator exports a signed project invitation.
+5. The new member chooses **Join a team project** on the setup screen and selects an empty local workspace.
+6. Blueprints stages and validates the shared project before promoting it to the chosen local location.
+
+Project invitations are targeted to one local identity. Treat them as sensitive team coordination records and transfer them through an authenticated channel.
 
 - **Refresh comparison** compares local, shared, and last-synced baselines.
 - **Push** copies valid outgoing signed documents and updates the signed manifest.

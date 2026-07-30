@@ -147,6 +147,40 @@
                            TextWrapping="Wrap" />
               </StackPanel>
             </Border>
+
+            <Border Height="1" Background="#BED8E8" Margin="0,4" />
+            <StackPanel Spacing="3">
+              <TextBlock Classes="eyebrow" Text="JOIN A TEAM PROJECT" />
+              <TextBlock Text="Use a signed project invitation" FontSize="18" FontWeight="Bold" />
+              <TextBlock Text="The invitation anchors the administrator and member keys before any shared content enters the local workspace."
+                         Classes="muted"
+                         TextWrapping="Wrap" />
+            </StackPanel>
+            <StackPanel Spacing="5">
+              <TextBlock Text="Project invitation" FontWeight="SemiBold" />
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <TextBox Text="{Binding JoinInvitationFilePath}" IsReadOnly="True" />
+                <Button Grid.Column="1" Classes="secondary" Content="Choose…" Click="BrowseJoinInvitation_Click" />
+              </Grid>
+            </StackPanel>
+            <StackPanel Spacing="5">
+              <TextBlock Text="New empty local workspace" FontWeight="SemiBold" />
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <TextBox Text="{Binding JoinLocalWorkspaceRoot}" />
+                <Button Grid.Column="1" Classes="secondary" Content="Browse…" Click="BrowseJoinLocal_Click" />
+              </Grid>
+            </StackPanel>
+            <StackPanel Spacing="5">
+              <TextBlock Text="Shared exchange override (optional)" FontWeight="SemiBold" />
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <TextBox Text="{Binding JoinSharedWorkspaceRoot}" />
+                <Button Grid.Column="1" Classes="secondary" Content="Browse…" Click="BrowseJoinShared_Click" />
+              </Grid>
+            </StackPanel>
+            <Button Classes="primary"
+                    Content="Validate invitation and join  →"
+                    Command="{Binding JoinProjectCommand}"
+                    HorizontalAlignment="Left" />
           </StackPanel>
         </Border>
       </Grid>
