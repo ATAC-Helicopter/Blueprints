@@ -88,6 +88,17 @@ Discovery never mutates the repository, provider, or Blueprints workspace. Provi
 
 The hosted-provider operation policy allows discovery reads without a write approval. Future provider mutations must present a fresh approval matching one exact provider, repository, operation, and target; approval expires within ten minutes and is consumed once.
 
+### Passive VaultSync health
+
+1. Load the machine-local configured VaultSync destination or metadata path.
+2. Resolve only the documented `.vaultsync/meta/vaultsync.meta.db` path forms.
+3. Confirm the portable metadata store exists without opening or parsing its SQLite contents.
+4. Read the optional sibling `blueprints.status.json` through a schema-1, 1 MiB-bounded adapter.
+5. Project reachability, backup, verification, restore-readiness, index, conflict, and warning evidence into the Integrations workspace.
+6. Keep all evidence informational and outside signed project truth.
+
+The reader boundary is injectable so a future stable VaultSync CLI/API adapter can replace the file contract without changing integration presentation or Blueprints trust semantics.
+
 ### Push
 
 1. Build local and shared snapshots.
@@ -116,6 +127,7 @@ The hosted-provider operation policy allows discovery reads without a write appr
 - Local-only integration credentials and paths stay outside project files.
 - Canvas layout is shared signed presentation state; version and item documents remain authoritative content.
 - Source-discovery proposals are transient and untrusted; only reviewed, approved, signed Blueprints items become project truth.
+- VaultSync metadata enriches recovery diagnostics but cannot establish Blueprints workspace trust.
 
 ## Known structural debt
 

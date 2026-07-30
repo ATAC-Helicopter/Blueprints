@@ -1,0 +1,72 @@
+# VaultSync integration
+
+Blueprints treats VaultSync as an optional transport and recovery system. Blueprints continues to own release semantics, signed project documents, membership, manifests, audit continuity, and conflict decisions. Either application remains usable when the other is absent.
+
+## Passive health contract
+
+The VaultSync link is a machine-local path stored with other application integration settings. It is never written into the signed project or shared exchange root.
+
+Blueprints accepts any of these configured locations:
+
+- a destination containing `.vaultsync/meta/vaultsync.meta.db`;
+- the destination's `.vaultsync` directory;
+- the `.vaultsync/meta` directory;
+- the exact `vaultsync.meta.db` file.
+
+Detection is deliberately shallow and deterministic. Blueprints confirms the database exists but does not open or parse SQLite because that would couple this application to VaultSync's private storage schema.
+
+Detailed health is optional. A producer may place this file beside the database:
+
+```text
+<destination>/.vaultsync/meta/blueprints.status.json
+```
+
+Schema 1:
+
+```json
+{
+  "schemaVersion": 1,
+  "projectExternalId": "stable-vaultsync-project-id",
+  "projectName": "Example",
+  "destinationAlias": "Studio NAS",
+  "destinationReachable": true,
+  "latestSnapshotUtc": "2026-07-30T20:00:00Z",
+  "latestBackupUtc": "2026-07-30T21:00:00Z",
+  "latestVerificationUtc": "2026-07-30T22:00:00Z",
+  "backupIndexConsistent": true,
+  "restoreReadiness": "Ready",
+  "metadataConflictCount": 0,
+  "warnings": []
+}
+```
+
+The document is read-only input. Blueprints accepts at most 1 MiB, JSON depth 16, 32 distinct non-empty warnings, and 256 characters for displayed identity fields. Unsupported or malformed schemas become warnings and never affect workspace trust.
+
+Connection states:
+
+- **Connected:** metadata and a risk-free schema-1 health document are available.
+- **Warning:** metadata exists but detailed health is absent, reports risk, contains warnings or conflicts, or says the destination/index is unhealthy.
+- **Error:** the configured location does not contain a supported metadata store.
+- **Not configured:** no machine-local link is set.
+
+Timestamps and readiness values are evidence reported by the producer. Passive awareness does not independently inspect backup payloads or claim verification.
+
+## Exchange-root contract
+
+When explicit registration is implemented, a Blueprints exchange root managed beneath a VaultSync destination will use:
+
+```text
+<destination>/.blueprints/projects/<project-id>/
+```
+
+`<project-id>` is the lowercase canonical Blueprints project GUID. The directory contains the same signed documents, signatures, and manifest expected from any Blueprints shared root.
+
+The ownership boundary is:
+
+- Blueprints creates and validates content only under its project-specific directory after explicit opt-in.
+- VaultSync owns transport, destination reachability, backup, verification, and restore operations for the parent destination.
+- Blueprints never mixes exchange state into the backed-up project payload.
+- VaultSync metadata cannot make unsigned or invalid Blueprints documents trusted.
+- Registration and any future VaultSync command remain explicit and reversible; passive health detection never writes.
+
+The registration adapter, release safety gate, and end-to-end restore exercise remain v0.5 work.
