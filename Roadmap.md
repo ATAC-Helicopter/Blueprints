@@ -70,7 +70,7 @@ Goal: connect release intent to source history without weakening local ownership
 - [ ] Add user-created typed relationships after defining their domain and conflict semantics.
 - [x] Link a Blueprints project to one or more repositories.
 - [x] Add release-readiness diagnostics for uncommitted and unmatched changes.
-- [ ] Define provider-neutral issue, pull-request, and release references.
+- [x] Define provider-neutral issue, pull-request, and release references.
 - [x] Add a bounded read-only GitHub issue/Project discovery adapter through the authenticated GitHub CLI.
 - [ ] Replace the CLI-backed reader with a provider-neutral authenticated adapter and add pull-request/release references.
 - [ ] Add standalone GitHub Project draft-item discovery.

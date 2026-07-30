@@ -60,6 +60,16 @@ Applied items retain tags that identify:
 
 When several repositories are scanned, the source reference is qualified with the full local worktree path before it enters the proposal inbox. Source content remains informational. It does not inherit authority from GitHub, a roadmap, or a changelog.
 
+Internally, Source Lens classifies references without making one hosted provider the domain model. A reference records:
+
+- provider (`Local`, `GitHub`, or `GitLab`);
+- artifact kind (planning document, commit, issue, pull request, release, or project);
+- repository identity;
+- provider identifier;
+- an optional web location.
+
+Local Markdown and GitHub issue discovery already emit this structure. Pull-request, release, standalone project, and GitLab readers can use the same contract without changing signed Blueprints project truth.
+
 ## Security and privacy
 
 - Discovery is read-only for the repository and GitHub.

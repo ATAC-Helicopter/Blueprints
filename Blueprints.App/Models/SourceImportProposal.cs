@@ -36,6 +36,9 @@ public sealed class SourceImportProposal : ObservableObject
 
     public string SourceContext => Candidate.SourceContext;
 
+    public string ProviderReferenceSummary =>
+        Candidate.ProviderReference?.DisplaySummary ?? "Unclassified source reference";
+
     public string ConfidenceSummary => $"{Candidate.Confidence:P0} confidence";
 
     public bool IsDuplicate { get; }

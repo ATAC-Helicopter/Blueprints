@@ -33,6 +33,10 @@ public sealed class MarkdownSourceDiscoveryParserTests : IDisposable
                 Assert.False(first.IsDone);
                 Assert.Equal("feature", first.SuggestedItemTypeId);
                 Assert.Equal("Canvas interaction", first.SourceContext);
+                var reference = Assert.IsType<ProviderReference>(first.ProviderReference);
+                Assert.Equal(SourceProviderKind.Local, reference.Provider);
+                Assert.Equal(ProviderReferenceKind.PlanningDocument, reference.Kind);
+                Assert.Equal("Roadmap.md:3", reference.Identifier);
             },
             second =>
             {

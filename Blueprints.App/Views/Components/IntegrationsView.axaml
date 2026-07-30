@@ -137,6 +137,7 @@
                 <StackPanel Spacing="3">
                   <TextBlock Text="{Binding SelectedSourceProposal.Kind}" Classes="eyebrow" />
                   <TextBlock Text="{Binding SelectedSourceProposal.SourceReference}" Classes="mono muted" FontSize="10" />
+                  <TextBlock Text="{Binding SelectedSourceProposal.ProviderReferenceSummary}" Classes="muted" FontSize="10" TextWrapping="Wrap" />
                 </StackPanel>
                 <CheckBox Grid.Column="1"
                           Content="Approved"

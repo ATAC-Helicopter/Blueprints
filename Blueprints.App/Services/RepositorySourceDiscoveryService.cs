@@ -126,7 +126,7 @@ public sealed partial class RepositorySourceDiscoveryService : ISourceDiscoveryS
             using var document = JsonDocument.Parse(command.Output);
             var candidates = document.RootElement
                 .EnumerateArray()
-                .Select(ParseGitHubIssue)
+                .Select(issue => ParseGitHubIssue(issue, repositoryName))
                 .ToArray();
             return new GitHubDiscovery(candidates, []);
         }
@@ -136,7 +136,9 @@ public sealed partial class RepositorySourceDiscoveryService : ISourceDiscoveryS
         }
     }
 
-    private static SourceDiscoveryCandidate ParseGitHubIssue(JsonElement issue)
+    private static SourceDiscoveryCandidate ParseGitHubIssue(
+        JsonElement issue,
+        string repositoryName)
     {
         var number = issue.GetProperty("number").GetInt32();
         var title = issue.GetProperty("title").GetString()?.Trim() ?? $"Issue #{number}";
@@ -180,7 +182,13 @@ public sealed partial class RepositorySourceDiscoveryService : ISourceDiscoveryS
             string.Equals(state, "CLOSED", StringComparison.OrdinalIgnoreCase),
             $"github:#{number}",
             string.Join(" · ", contextParts.DefaultIfEmpty($"GitHub issue #{number}")),
-            isProjectLinked ? 0.97 : 0.93);
+            isProjectLinked ? 0.97 : 0.93,
+            new ProviderReference(
+                SourceProviderKind.GitHub,
+                ProviderReferenceKind.Issue,
+                repositoryName,
+                $"#{number}",
+                url));
     }
 
     private static IReadOnlyList<string> ReadProjectNames(JsonElement issue)
