@@ -21,6 +21,7 @@ public partial class BlueprintCanvasSurface : UserControl
     private const double ItemNodeHeight = 82;
     private readonly Dictionary<Guid, Point> _positions = [];
     private readonly Dictionary<Guid, Control> _nodes = [];
+    private readonly Dictionary<(string Type, Guid Id), Control> _typedNodes = [];
     private readonly HashSet<Guid> _selectedNodeIds = [];
     private readonly List<ConnectionVisual> _connections = [];
     private readonly List<Line> _alignmentGuideVisuals = [];
@@ -210,6 +211,10 @@ public partial class BlueprintCanvasSurface : UserControl
             RestoreLayout();
             RenderGraph();
         }
+        else if (eventArgs.PropertyName is nameof(MainWindowViewModel.RelationshipDocument))
+        {
+            RenderGraph();
+        }
         else if (eventArgs.PropertyName is nameof(MainWindowViewModel.CanvasViewState))
         {
             RestoreViewState();
@@ -271,6 +276,7 @@ public partial class BlueprintCanvasSurface : UserControl
     {
         Surface.Children.Clear();
         _nodes.Clear();
+        _typedNodes.Clear();
         _connections.Clear();
         _alignmentGuideVisuals.Clear();
         DrawGrid();
@@ -320,6 +326,30 @@ public partial class BlueprintCanvasSurface : UserControl
             }
         }
 
+        if (_viewModel.RelationshipDocument is { } relationshipDocument)
+        {
+            var types = relationshipDocument.Types.ToDictionary(
+                static type => type.TypeId,
+                StringComparer.Ordinal);
+            foreach (var relationship in relationshipDocument.Relationships)
+            {
+                if (_typedNodes.TryGetValue(
+                        (relationship.Source.NodeType, relationship.Source.EntityId),
+                        out var source) &&
+                    _typedNodes.TryGetValue(
+                        (relationship.Target.NodeType, relationship.Target.EntityId),
+                        out var target) &&
+                    types.TryGetValue(relationship.TypeId, out var type))
+                {
+                    AddConnection(
+                        source,
+                        target,
+                        type.ColorHex,
+                        type.IsDirectional ? 3.25 : 2.5);
+                }
+            }
+        }
+
         foreach (var connection in _connections)
         {
             Surface.Children.Insert(FindGridVisualCount(), connection.Line);
@@ -351,9 +381,10 @@ public partial class BlueprintCanvasSurface : UserControl
 
     private void RegisterNode(Control node)
     {
-        if (node.Tag is NodeTag { Id: Guid nodeId })
+        if (node.Tag is NodeTag { Type: var nodeType, Id: Guid nodeId })
         {
             _nodes[nodeId] = node;
+            _typedNodes[(nodeType, nodeId)] = node;
         }
     }
 

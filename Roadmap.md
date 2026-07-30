@@ -67,7 +67,7 @@ Goal: connect release intent to source history without weakening local ownership
 - [x] Read local Git root, branch, remote, dirty state, tag, and recent commits.
 - [x] Match item keys in commit subjects for changelog context.
 - [x] Expand canvas editing with box selection, multi-select, keyboard movement, alignment guides, and a minimap.
-- [ ] Add user-created typed relationships after defining their domain and conflict semantics.
+- [x] Add user-created typed relationships after defining their domain and conflict semantics.
 - [x] Link a Blueprints project to one or more repositories.
 - [x] Add release-readiness diagnostics for uncommitted and unmatched changes.
 - [x] Define provider-neutral issue, pull-request, and release references.

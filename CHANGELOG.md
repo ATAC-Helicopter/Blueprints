@@ -13,6 +13,8 @@ Notable changes to Blueprints are documented here. The project follows semantic 
 - Bounded read-only discovery for up to 100 GitHub pull requests and 50 GitHub release records per linked repository, including merge/publication state and provider-neutral provenance.
 - Repository-linked GitHub Project discovery for standalone draft items through a bounded read-only GraphQL query covering at most 10 projects, 100 items per project, and 100 returned drafts.
 - An injectable provider-neutral hosted-source reader boundary, keeping repository discovery and approval workflows independent from the current authenticated GitHub CLI implementation.
+- User-defined directional or undirected relationship types with validated colors and optional descriptions, plus signed relationships between project, version, and work-item nodes.
+- Relationship authoring and removal in the canvas inspector, colored relationship projection on the canvas, archive cleanup, audit operations, and document-aware conflict summaries.
 
 ### Changed
 
@@ -22,6 +24,7 @@ Notable changes to Blueprints are documented here. The project follows semantic 
 - Source Lens accepts one repository path per line and preserves the full repository-qualified provenance of combined proposals.
 - Source Lens proposals now expose structured provider, repository, artifact kind, identifier, and optional web location instead of relying only on GitHub-specific display strings.
 - Combined Source Lens summaries now separate issue, pull-request, release, and project-linked proposal counts.
+- Schema-1 workspaces may contain an optional signed `project/relationships.json`; missing files remain compatible with earlier workspaces and the complete relationship graph is one revisioned conflict domain.
 
 ## 0.3.0 — 2026-07-30
 

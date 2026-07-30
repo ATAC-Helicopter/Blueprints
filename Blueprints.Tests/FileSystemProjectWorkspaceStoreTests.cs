@@ -185,6 +185,93 @@ public sealed class FileSystemProjectWorkspaceStoreTests : IDisposable
         Assert.Contains("does not reference", result.TrustReport.Summary, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void SaveAndLoad_RoundTripsOptionalSignedRelationships()
+    {
+        Directory.CreateDirectory(_workspaceRoot);
+
+        var keyPair = new Ed25519KeyPairGenerator().Generate("workspace-admin");
+        var signedStore = new FileSystemSignedDocumentStore(
+            new CanonicalJsonSerializer(),
+            new Ed25519SignatureService());
+        var workspaceStore = new FileSystemProjectWorkspaceStore(signedStore);
+        var workspace = CreateWorkspaceSnapshot();
+        var version = workspace.Versions.Single();
+        var relationships = new RelationshipDocument(
+            1,
+            workspace.Project.ProjectId,
+            2,
+            [new RelationshipTypeDefinition("blocks", "Blocks", null, "#E05A47", true)],
+            [
+                new RelationshipEdge(
+                    Guid.NewGuid(),
+                    "blocks",
+                    new RelationshipEndpoint("item", version.Items.Single().ItemId),
+                    new RelationshipEndpoint("version", version.Version.VersionId),
+                    "Required for release"),
+            ],
+            DateTimeOffset.UtcNow,
+            Guid.NewGuid(),
+            "Relationship Author");
+
+        workspaceStore.Save(
+            _workspaceRoot,
+            workspace with { Relationships = relationships },
+            new SignatureKeyMaterial(keyPair.KeyId, keyPair.PrivateKeyBytes));
+
+        var result = workspaceStore.Load(
+            _workspaceRoot,
+            new SignaturePublicKey(keyPair.KeyId, keyPair.PublicKeyBytes));
+
+        Assert.Equal(TrustState.Trusted, result.TrustReport.State);
+        var loaded = Assert.IsType<RelationshipDocument>(result.Workspace.Relationships);
+        Assert.Equal(relationships.Types, loaded.Types);
+        Assert.Equal(relationships.Relationships, loaded.Relationships);
+        Assert.True(File.Exists(Path.Combine(_workspaceRoot, "project", "relationships.sig")));
+    }
+
+    [Fact]
+    public void Load_RejectsValidlySignedRelationshipsOutsideWorkspace()
+    {
+        Directory.CreateDirectory(_workspaceRoot);
+
+        var keyPair = new Ed25519KeyPairGenerator().Generate("workspace-admin");
+        var workspaceStore = new FileSystemProjectWorkspaceStore(
+            new FileSystemSignedDocumentStore(
+                new CanonicalJsonSerializer(),
+                new Ed25519SignatureService()));
+        var workspace = CreateWorkspaceSnapshot();
+        workspaceStore.Save(
+            _workspaceRoot,
+            workspace with
+            {
+                Relationships = new RelationshipDocument(
+                    1,
+                    workspace.Project.ProjectId,
+                    1,
+                    [new RelationshipTypeDefinition("related", "Related", null, "#52C7E8", false)],
+                    [
+                        new RelationshipEdge(
+                            Guid.NewGuid(),
+                            "related",
+                            new RelationshipEndpoint("project", workspace.Project.ProjectId),
+                            new RelationshipEndpoint("item", Guid.NewGuid()),
+                            null),
+                    ],
+                    DateTimeOffset.UtcNow,
+                    Guid.NewGuid(),
+                    "Relationship Author"),
+            },
+            new SignatureKeyMaterial(keyPair.KeyId, keyPair.PrivateKeyBytes));
+
+        var result = workspaceStore.Load(
+            _workspaceRoot,
+            new SignaturePublicKey(keyPair.KeyId, keyPair.PublicKeyBytes));
+
+        Assert.Equal(TrustState.Corrupt, result.TrustReport.State);
+        Assert.Contains("does not exist", result.TrustReport.Summary, StringComparison.OrdinalIgnoreCase);
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_workspaceRoot))

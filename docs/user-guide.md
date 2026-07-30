@@ -32,7 +32,18 @@ A new teammate can export a signed identity invitation directly from the setup s
 5. Drag nodes to arrange the working view, and use zoom or **Fit view** to navigate larger plans.
 6. Mark completed items as ready for release notes.
 
-The lines on the canvas represent real project relationships: a work item is connected to the version that owns it. Item keys are generated from project rules. Released versions are immutable.
+The standard lines on the canvas represent ownership: a work item belongs to its version. Item keys are generated from project rules. Released versions are immutable.
+
+## Connect typed relationships
+
+Use **Typed relationships** in the canvas inspector when the ownership hierarchy is not enough:
+
+1. Select **+**, enter a lowercase type ID such as `blocks`, a name, color, and optional meaning.
+2. Choose whether the type is directional, then save it.
+3. Choose a source and target node, add an optional label, and select **Save**.
+4. Select an existing relationship to edit or remove it.
+
+Typed connectors appear in their configured color. Their definitions and endpoints are signed shared project state, so changes participate in audit, push, pull, trust checks, and whole-document conflict resolution. An endpoint must exist in the current project and cannot point to itself. Archiving a node also removes relationships that would otherwise dangle.
 
 ## Arrange and share the canvas
 

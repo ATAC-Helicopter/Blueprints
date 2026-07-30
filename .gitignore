@@ -4,6 +4,7 @@ obj/
 .vscode/
 .idea/
 .sonarlint/
+.DS_Store
 *.user
 *.suo
 *.userprefs

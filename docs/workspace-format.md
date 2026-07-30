@@ -12,7 +12,9 @@ This document describes the current schema-1 layout. The format is pre-release a
 │   ├── members.json
 │   ├── members.sig
 │   ├── canvas-layout.json      # optional until first layout save
-│   └── canvas-layout.sig
+│   ├── canvas-layout.sig
+│   ├── relationships.json      # optional until first relationship type save
+│   └── relationships.sig
 ├── versions/
 │   └── <version-id-without-dashes>/
 │       ├── version.json
@@ -105,6 +107,43 @@ The real project ID replaces the illustrative zero GUIDs. The file is optional f
 
 See [canvas engine](canvas-engine.md) for validation limits and interaction behavior.
 
+### `relationships.json`
+
+Contains user-defined relationship types and edges without changing the ownership hierarchy:
+
+```json
+{
+  "schemaVersion": 1,
+  "projectId": "00000000-0000-0000-0000-000000000000",
+  "revision": 1,
+  "types": [
+    {
+      "typeId": "blocks",
+      "name": "Blocks",
+      "description": "Must complete first",
+      "colorHex": "#E05A47",
+      "isDirectional": true
+    }
+  ],
+  "relationships": [
+    {
+      "relationshipId": "00000000-0000-0000-0000-000000000000",
+      "typeId": "blocks",
+      "source": { "nodeType": "item", "entityId": "00000000-0000-0000-0000-000000000000" },
+      "target": { "nodeType": "version", "entityId": "00000000-0000-0000-0000-000000000000" },
+      "label": "Release gate"
+    }
+  ],
+  "updatedUtc": "2026-07-30T00:00:00+00:00",
+  "lastModifiedByUserId": "00000000-0000-0000-0000-000000000000",
+  "lastModifiedByName": "Local Admin"
+}
+```
+
+Real entity IDs replace the illustrative zero GUIDs. Type IDs are lowercase slugs, colors use `#RRGGBB`, endpoints must be different existing project/version/item nodes, and duplicate logical edges are rejected. Undirected edges treat A–B and B–A as the same relationship. Archiving an entity removes every edge that references it and advances the relationship revision.
+
+The file is signed, audited, synchronized, and optional for schema-1 compatibility. The complete document is one conflict domain: conflict resolution chooses the local or shared type-and-edge graph as a whole.
+
 ### `.blueprints/canvas-view.json`
 
 Contains machine-local zoom and scroll offsets. It is deliberately unsigned and excluded from exchange snapshots. Invalid or missing view state falls back to zoom `1` and zero offsets without changing workspace trust.
@@ -125,7 +164,7 @@ Contains a unique change ID, operation, human summary, author, membership revisi
 
 ## Compatibility
 
-There is no general migration engine yet. Optional schema-1 documents, including the canvas layout, use explicit missing-file compatibility. Do not manually change `schemaVersion`. Before adopting a future schema, preserve a complete copy of the workspace and identity data.
+There is no general migration engine yet. Optional schema-1 documents, including the canvas layout and relationship graph, use explicit missing-file compatibility. Do not manually change `schemaVersion`. Before adopting a future schema, preserve a complete copy of the workspace and identity data.
 
 ## Files that must never be shared as project data
 

@@ -23,4 +23,9 @@ public interface IProjectWorkspaceStore
         string workspaceRoot,
         CanvasLayoutDocument layout,
         SignatureKeyMaterial signingKey);
+
+    void SaveRelationships(
+        string workspaceRoot,
+        RelationshipDocument relationships,
+        SignatureKeyMaterial signingKey);
 }
