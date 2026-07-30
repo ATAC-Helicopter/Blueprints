@@ -28,11 +28,11 @@ Goal: a new contributor can build the app, and a developer can plan and export a
 - [ ] Add user-created typed relationships after defining their domain and conflict semantics.
 - [x] Keep release, team, sync, trust, and integration operations in focused secondary tools.
 - [x] Add native folder pickers instead of requiring raw paths.
-- [ ] Add first-run identity setup instead of silently creating a default identity.
-- [ ] Add delete/archive flows for draft versions and items.
-- [ ] Group items by changelog category and improve empty states.
-- [ ] Preview changelogs before writing a file; expose current changelog options.
-- [ ] Add view-model workflow tests for create, edit, freeze, release, and export.
+- [x] Add explicit first-run identity setup and pre-project identity-invitation export.
+- [x] Add two-step recoverable archive flows for draft versions and items.
+- [x] Group release items by changelog category and improve version/item empty states.
+- [x] Preview changelogs before writing a file and expose incomplete, key, description, and compact options.
+- [x] Add view-model workflow tests for identity setup, create, edit, freeze, release, preview, and export.
 - [x] Establish lightweight milestone tags and accomplishment records without binary packaging.
 
 Exit criteria:

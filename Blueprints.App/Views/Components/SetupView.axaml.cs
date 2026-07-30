@@ -74,6 +74,38 @@ public partial class SetupView : UserControl
         }
     }
 
+    private async void ExportSetupIdentityInvitation_Click(
+        object? sender,
+        Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (DataContext is MainWindowViewModel viewModel)
+        {
+            var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
+            if (storageProvider is null)
+            {
+                return;
+            }
+
+            var file = await storageProvider.SaveFilePickerAsync(
+                new FilePickerSaveOptions
+                {
+                    Title = "Export signed identity invitation",
+                    SuggestedFileName = "identity.blueprints-identity.json",
+                    FileTypeChoices =
+                    [
+                        new FilePickerFileType("Blueprints identity invitation")
+                        {
+                            Patterns = ["*.blueprints-identity.json"],
+                        },
+                    ],
+                });
+            if (file?.TryGetLocalPath() is { } path)
+            {
+                viewModel.ExportSetupIdentityInvitationCommand.Execute(path);
+            }
+        }
+    }
+
     private async Task<string?> PickInvitationAsync()
     {
         var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;

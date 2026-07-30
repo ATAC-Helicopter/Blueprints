@@ -55,6 +55,24 @@ public sealed class ProjectWorkspaceCoordinatorService
     public IReadOnlyList<RecentProjectReference> GetRecentProjects() =>
         _recentProjectsStore.Load();
 
+    public bool HasLocalIdentity => _identityService.ListProfiles().Count > 0;
+
+    public IdentitySummary CreateInitialIdentity(string displayName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
+        if (HasLocalIdentity)
+        {
+            throw new InvalidOperationException(
+                "A local signing identity is already configured.");
+        }
+
+        var identity = _identityService.CreateIdentity(displayName.Trim());
+        return new IdentitySummary(
+            identity.Profile.DisplayName,
+            identity.Profile.UserId.ToString(),
+            identity.Profile.KeyStorageProvider);
+    }
+
     public string ExportIdentityInvitation(string filePath)
     {
         var identity = _identityService.GetOrCreateDefaultIdentity("Local Admin");
@@ -515,11 +533,195 @@ public sealed class ProjectWorkspaceCoordinatorService
         }, "version.release", $"Released version {existing.Version.Name}.");
     }
 
+    public WorkspaceArchiveResult ArchiveVersion(
+        string localWorkspaceRoot,
+        string sharedWorkspaceRoot,
+        Guid versionId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(localWorkspaceRoot);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sharedWorkspaceRoot);
+
+        var identity = _identityService.GetOrCreateDefaultIdentity("Local Admin");
+        var session = OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
+        EnsureWorkspaceMutable(session);
+        var workspace = session.LoadResult.Workspace;
+        var version = workspace.Versions.FirstOrDefault(entry =>
+            entry.Version.VersionId == versionId)
+            ?? throw new InvalidOperationException("The selected version was not found.");
+        EnsureArchivable(version.Version.Status, "version");
+
+        var archiveDirectory = CreateArchiveDirectory(
+            localWorkspaceRoot,
+            "version",
+            versionId);
+        var versionDirectory = Path.Combine(
+            localWorkspaceRoot,
+            "versions",
+            versionId.ToString("N"));
+        var archivedVersionDirectory = Path.Combine(
+            archiveDirectory,
+            "versions",
+            versionId.ToString("N"));
+        CopyDirectory(versionDirectory, archivedVersionDirectory);
+        WriteArchiveRecord(
+            archiveDirectory,
+            new WorkspaceArchiveRecord(
+                CurrentSchemaVersion,
+                Path.GetFileName(archiveDirectory),
+                "version",
+                versionId,
+                version.Version.Name,
+                DateTimeOffset.UtcNow,
+                identity.Profile.UserId,
+                identity.Profile.DisplayName,
+                "Prepared"));
+
+        Directory.Delete(versionDirectory, recursive: true);
+        try
+        {
+            var removedEntityIds = version.Items
+                .Select(static item => item.ItemId)
+                .Append(versionId)
+                .ToHashSet();
+            var updatedWorkspace = workspace with
+            {
+                Versions = workspace.Versions
+                    .Where(entry => entry.Version.VersionId != versionId)
+                    .ToArray(),
+                CanvasLayout = RemoveArchivedLayoutNodes(
+                    workspace.CanvasLayout,
+                    removedEntityIds,
+                    identity),
+            };
+            var updatedSession = SaveWorkspace(
+                localWorkspaceRoot,
+                sharedWorkspaceRoot,
+                identity,
+                updatedWorkspace,
+                "version.archive",
+                $"Archived draft version {version.Version.Name}.");
+            UpdateArchiveStatus(archiveDirectory, "Applied");
+            return new WorkspaceArchiveResult(
+                updatedSession,
+                archiveDirectory,
+                $"Archived version {version.Version.Name}. Recovery copy: {archiveDirectory}");
+        }
+        catch
+        {
+            if (!Directory.Exists(versionDirectory))
+            {
+                CopyDirectory(archivedVersionDirectory, versionDirectory);
+            }
+
+            UpdateArchiveStatus(archiveDirectory, "Failed and restored");
+            throw;
+        }
+    }
+
+    public WorkspaceArchiveResult ArchiveItem(
+        string localWorkspaceRoot,
+        string sharedWorkspaceRoot,
+        Guid versionId,
+        Guid itemId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(localWorkspaceRoot);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sharedWorkspaceRoot);
+
+        var identity = _identityService.GetOrCreateDefaultIdentity("Local Admin");
+        var session = OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
+        EnsureWorkspaceMutable(session);
+        var workspace = session.LoadResult.Workspace;
+        var versionIndex = workspace.Versions
+            .Select((entry, index) => (entry, index))
+            .FirstOrDefault(pair => pair.entry.Version.VersionId == versionId);
+        if (versionIndex.entry is null)
+        {
+            throw new InvalidOperationException("The selected version was not found.");
+        }
+
+        EnsureArchivable(versionIndex.entry.Version.Status, "item");
+        var item = versionIndex.entry.Items.FirstOrDefault(candidate =>
+            candidate.ItemId == itemId)
+            ?? throw new InvalidOperationException("The selected item was not found.");
+        var relativeDocumentPath =
+            $"versions/{versionId:N}/items/{itemId:N}.json";
+        var archiveDirectory = CreateArchiveDirectory(
+            localWorkspaceRoot,
+            "item",
+            itemId);
+        CopyDocumentPair(
+            localWorkspaceRoot,
+            archiveDirectory,
+            relativeDocumentPath);
+        WriteArchiveRecord(
+            archiveDirectory,
+            new WorkspaceArchiveRecord(
+                CurrentSchemaVersion,
+                Path.GetFileName(archiveDirectory),
+                "item",
+                itemId,
+                item.ItemKey,
+                DateTimeOffset.UtcNow,
+                identity.Profile.UserId,
+                identity.Profile.DisplayName,
+                "Prepared"));
+        DeleteFileIfPresent(localWorkspaceRoot, relativeDocumentPath);
+        DeleteFileIfPresent(
+            localWorkspaceRoot,
+            Path.ChangeExtension(relativeDocumentPath, ".sig"));
+
+        try
+        {
+            var versions = workspace.Versions.ToArray();
+            versions[versionIndex.index] = versionIndex.entry with
+            {
+                Version = versionIndex.entry.Version with
+                {
+                    ManualOrder = versionIndex.entry.Version.ManualOrder
+                        .Where(id => id != itemId)
+                        .ToArray(),
+                },
+                Items = versionIndex.entry.Items
+                    .Where(candidate => candidate.ItemId != itemId)
+                    .ToArray(),
+            };
+            var updatedSession = SaveWorkspace(
+                localWorkspaceRoot,
+                sharedWorkspaceRoot,
+                identity,
+                workspace with
+                {
+                    Versions = versions,
+                    CanvasLayout = RemoveArchivedLayoutNodes(
+                        workspace.CanvasLayout,
+                        new HashSet<Guid> { itemId },
+                        identity),
+                },
+                "item.archive",
+                $"Archived item {item.ItemKey}.");
+            UpdateArchiveStatus(archiveDirectory, "Applied");
+            return new WorkspaceArchiveResult(
+                updatedSession,
+                archiveDirectory,
+                $"Archived item {item.ItemKey}. Recovery copy: {archiveDirectory}");
+        }
+        catch
+        {
+            CopyDocumentPair(
+                archiveDirectory,
+                localWorkspaceRoot,
+                relativeDocumentPath);
+            UpdateArchiveStatus(archiveDirectory, "Failed and restored");
+            throw;
+        }
+    }
+
     public ChangelogExportResult ExportVersionChangelog(
         string localWorkspaceRoot,
         string sharedWorkspaceRoot,
         Guid versionId,
-        IReadOnlyList<SourceChangeSummary>? sourceChanges = null)
+        IReadOnlyList<SourceChangeSummary>? sourceChanges = null,
+        ChangelogRules? rulesOverride = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(localWorkspaceRoot);
         ArgumentException.ThrowIfNullOrWhiteSpace(sharedWorkspaceRoot);
@@ -533,7 +735,11 @@ public sealed class ProjectWorkspaceCoordinatorService
             throw new InvalidOperationException("The selected version was not found.");
         }
 
-        var markdown = MarkdownChangelogBuilder.Build(session.LoadResult.Workspace, version, sourceChanges);
+        var markdown = MarkdownChangelogBuilder.Build(
+            session.LoadResult.Workspace,
+            version,
+            sourceChanges,
+            rulesOverride);
         var exportsRoot = Path.Combine(localWorkspaceRoot, "exports");
         Directory.CreateDirectory(exportsRoot);
 
@@ -546,6 +752,28 @@ public sealed class ProjectWorkspaceCoordinatorService
             version.Version.Name,
             filePath,
             markdown);
+    }
+
+    public string PreviewVersionChangelog(
+        string localWorkspaceRoot,
+        string sharedWorkspaceRoot,
+        Guid versionId,
+        IReadOnlyList<SourceChangeSummary>? sourceChanges = null,
+        ChangelogRules? rulesOverride = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(localWorkspaceRoot);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sharedWorkspaceRoot);
+
+        var session = OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
+        EnsureTrustedWorkspace(session);
+        var version = session.LoadResult.Workspace.Versions
+            .FirstOrDefault(entry => entry.Version.VersionId == versionId)
+            ?? throw new InvalidOperationException("The selected version was not found.");
+        return MarkdownChangelogBuilder.Build(
+            session.LoadResult.Workspace,
+            version,
+            sourceChanges,
+            rulesOverride);
     }
 
     public LocalWorkspaceSession InviteMember(
@@ -1147,6 +1375,37 @@ public sealed class ProjectWorkspaceCoordinatorService
         }
     }
 
+    private static void EnsureArchivable(ReleaseStatus status, string entityType)
+    {
+        if (status is ReleaseStatus.Frozen or ReleaseStatus.Released)
+        {
+            throw new InvalidOperationException(
+                $"Cannot archive a {entityType} from a frozen or released version.");
+        }
+    }
+
+    private static CanvasLayoutDocument? RemoveArchivedLayoutNodes(
+        CanvasLayoutDocument? layout,
+        IReadOnlySet<Guid> removedEntityIds,
+        Security.Models.StoredIdentity identity)
+    {
+        if (layout is null)
+        {
+            return null;
+        }
+
+        return layout with
+        {
+            Revision = layout.Revision + 1,
+            Nodes = layout.Nodes
+                .Where(node => !removedEntityIds.Contains(node.EntityId))
+                .ToArray(),
+            UpdatedUtc = DateTimeOffset.UtcNow,
+            LastModifiedByUserId = identity.Profile.UserId,
+            LastModifiedByName = identity.Profile.DisplayName,
+        };
+    }
+
     private static (int Major, int Minor) ParseVersion(string versionName)
     {
         var parts = versionName.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
@@ -1353,6 +1612,94 @@ public sealed class ProjectWorkspaceCoordinatorService
             "Prepared");
         WriteConflictRecoveryRecord(recoveryDirectory, record);
         return recoveryDirectory;
+    }
+
+    private static string CreateArchiveDirectory(
+        string localWorkspaceRoot,
+        string entityType,
+        Guid entityId)
+    {
+        var archiveId =
+            $"{DateTimeOffset.UtcNow:yyyyMMddTHHmmssfffZ}-{entityType}-{entityId:N}-{Guid.NewGuid():N}";
+        var archiveDirectory = Path.Combine(
+            localWorkspaceRoot,
+            ".blueprints",
+            "archive",
+            archiveId);
+        Directory.CreateDirectory(archiveDirectory);
+        return archiveDirectory;
+    }
+
+    private static void UpdateArchiveStatus(
+        string archiveDirectory,
+        string status)
+    {
+        var recordPath = Path.Combine(archiveDirectory, "archive.json");
+        var record = JsonSerializer.Deserialize<WorkspaceArchiveRecord>(
+            File.ReadAllText(recordPath),
+            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })
+            ?? throw new InvalidOperationException("Archive metadata could not be read.");
+        WriteArchiveRecord(
+            archiveDirectory,
+            record with { Status = status });
+    }
+
+    private static void WriteArchiveRecord(
+        string archiveDirectory,
+        WorkspaceArchiveRecord record)
+    {
+        Directory.CreateDirectory(archiveDirectory);
+        var path = Path.Combine(archiveDirectory, "archive.json");
+        var tempPath = path + ".tmp";
+        File.WriteAllText(
+            tempPath,
+            JsonSerializer.Serialize(
+                record,
+                new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                    WriteIndented = true,
+                }));
+        File.Move(tempPath, path, overwrite: true);
+    }
+
+    private static void CopyDirectory(
+        string sourceDirectory,
+        string destinationDirectory)
+    {
+        if (!Directory.Exists(sourceDirectory))
+        {
+            throw new DirectoryNotFoundException(
+                $"Archive source directory was not found: {sourceDirectory}");
+        }
+
+        Directory.CreateDirectory(destinationDirectory);
+        foreach (var directory in Directory.EnumerateDirectories(
+                     sourceDirectory,
+                     "*",
+                     SearchOption.AllDirectories))
+        {
+            Directory.CreateDirectory(Path.Combine(
+                destinationDirectory,
+                Path.GetRelativePath(sourceDirectory, directory)));
+        }
+
+        foreach (var file in Directory.EnumerateFiles(
+                     sourceDirectory,
+                     "*",
+                     SearchOption.AllDirectories))
+        {
+            var destination = Path.Combine(
+                destinationDirectory,
+                Path.GetRelativePath(sourceDirectory, file));
+            var parent = Path.GetDirectoryName(destination);
+            if (!string.IsNullOrWhiteSpace(parent))
+            {
+                Directory.CreateDirectory(parent);
+            }
+
+            File.Copy(file, destination, overwrite: true);
+        }
     }
 
     private static (bool DocumentPresent, bool SignaturePresent) SnapshotDocumentPair(

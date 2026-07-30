@@ -16,6 +16,11 @@ Notable changes to Blueprints are documented here. The project follows semantic 
 - Document-aware conflict comparisons for project configuration, membership, versions, items, and audit entries, with bounded raw evidence retained for diagnosis.
 - Explicit member-key rotation, compromise, and lost-key operating rules.
 - Backup, shared-exchange restoration, conflict reversal, identity recovery, and recovery-drill procedures.
+- Explicit first-run identity creation and pre-project signed identity-invitation export.
+- Two-step recoverable archive flows for draft versions and items, including layout cleanup and signed audit records.
+- Changelog preview without file output plus incomplete-item, item-key, description, and compact export controls.
+- End-to-end view-model command coverage for identity setup, project creation, version editing, freezing, releasing, previewing, and exporting.
+- Category-grouped release items and actionable empty states for projects without versions or connected accomplishments.
 
 ### Changed
 

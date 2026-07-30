@@ -19,7 +19,9 @@ Blueprints is a desktop application for planning releases in signed local files.
 4. Use **Browse** to choose different local and shared roots. Neither may contain the other.
 5. Select **Create signed project**.
 
-Blueprints creates the first local identity automatically in the current preview. Explicit first-run identity naming is still planned.
+Before creating or joining a project, enter the display name teammates should see and select **Create identity**. Blueprints creates protected local Ed25519 key material. Back up the complete Blueprints application-data directory before relying on that identity.
+
+A new teammate can export a signed identity invitation directly from the setup screen before they belong to any project.
 
 ## Plan a release
 
@@ -52,10 +54,15 @@ See [canvas engine](canvas-engine.md) for the exact model and [troubleshooting](
 
 1. Select a version node.
 2. Open the **Versions and releases** tool from the rail.
-3. Select **Export notes**.
-4. Review the changelog preview and saved path.
+3. Choose whether to include incomplete items, item keys, descriptions, or compact output.
+4. Select **Preview notes** to review the exact Markdown without writing a file.
+5. Select **Export notes** and review the saved path.
 
 Incomplete items are excluded by the current default rules. When a local Git repository is linked, recent commit subjects and matching item keys are added as source context.
+
+## Archive draft work
+
+Draft versions and items in Planned or In Progress state can be archived. Select the archive action twice to confirm. The entity leaves the active signed plan, its removal participates in sync, and its signed files remain under `.blueprints/archive/` for recovery. Frozen and released versions are immutable and cannot be archived.
 
 ## Discover work with Source Lens
 

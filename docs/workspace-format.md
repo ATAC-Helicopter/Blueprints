@@ -30,6 +30,7 @@ This document describes the current schema-1 layout. The format is pre-release a
 └── .blueprints/
     ├── canvas-view.json
     ├── trusted-project-keys.json
+    ├── archive/                 # recoverable draft version/item archives
     └── recovery/
         └── conflicts/
             └── <recovery-id>/
@@ -43,6 +44,8 @@ The collaboration layer also writes a signed manifest in the shared project root
 `trusted-project-keys.json` is the machine-local trust-anchor set established when a project is created or a signed project invitation is accepted. It lets documents and audit entries signed by different project members validate without placing trust in the shared folder itself. A verified membership revision may extend this set, but unverified shared membership data cannot.
 
 Before applying a whole-document conflict choice, Blueprints creates a conflict recovery directory. Its metadata records the selected path, choice, presence of each source file, and whether the operation was prepared, applied, or failed. Recovery data stays local and is excluded from exchange manifests.
+
+Archiving a draft version or item first copies its signed data beneath `.blueprints/archive/<archive-id>/`, writes `archive.json`, removes it from active signed project state, and records an audit entry. The UI requires the archive action twice for confirmation. Frozen and released content cannot be archived.
 
 ## Serialization
 

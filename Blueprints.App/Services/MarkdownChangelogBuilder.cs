@@ -10,14 +10,15 @@ public static class MarkdownChangelogBuilder
     public static string Build(
         ProjectWorkspaceSnapshot workspace,
         VersionWorkspaceSnapshot versionSnapshot,
-        IReadOnlyList<SourceChangeSummary>? sourceChanges = null)
+        IReadOnlyList<SourceChangeSummary>? sourceChanges = null,
+        ChangelogRules? rulesOverride = null)
     {
         ArgumentNullException.ThrowIfNull(workspace);
         ArgumentNullException.ThrowIfNull(versionSnapshot);
 
         var builder = new StringBuilder();
         var project = workspace.Project;
-        var rules = project.ChangelogRules;
+        var rules = rulesOverride ?? project.ChangelogRules;
         var manualOrder = versionSnapshot.Version.ManualOrder
             .Select((itemId, index) => new { itemId, index })
             .ToDictionary(static entry => entry.itemId, static entry => entry.index);
@@ -39,24 +40,27 @@ public static class MarkdownChangelogBuilder
             .Append(' ')
             .Append(versionSnapshot.Version.Name)
             .AppendLine();
-        builder.AppendLine();
-        builder.Append("Generated: ")
-            .AppendLine(DateTimeOffset.UtcNow.ToString("yyyy-MM-dd HH:mm 'UTC'"));
-        builder.Append("Status: ")
-            .AppendLine(versionSnapshot.Version.Status.ToString());
-
-        if (versionSnapshot.Version.ReleasedUtc is DateTimeOffset releasedUtc)
-        {
-            builder.Append("Released: ")
-                .AppendLine(releasedUtc.ToString("yyyy-MM-dd HH:mm 'UTC'"));
-        }
-
-        if (!string.IsNullOrWhiteSpace(versionSnapshot.Version.Notes))
+        if (!rules.CompactModeByDefault)
         {
             builder.AppendLine();
-            builder.AppendLine("## Notes");
-            builder.AppendLine();
-            builder.AppendLine(versionSnapshot.Version.Notes.Trim());
+            builder.Append("Generated: ")
+                .AppendLine(DateTimeOffset.UtcNow.ToString("yyyy-MM-dd HH:mm 'UTC'"));
+            builder.Append("Status: ")
+                .AppendLine(versionSnapshot.Version.Status.ToString());
+
+            if (versionSnapshot.Version.ReleasedUtc is DateTimeOffset releasedUtc)
+            {
+                builder.Append("Released: ")
+                    .AppendLine(releasedUtc.ToString("yyyy-MM-dd HH:mm 'UTC'"));
+            }
+
+            if (!string.IsNullOrWhiteSpace(versionSnapshot.Version.Notes))
+            {
+                builder.AppendLine();
+                builder.AppendLine("## Notes");
+                builder.AppendLine();
+                builder.AppendLine(versionSnapshot.Version.Notes.Trim());
+            }
         }
 
         if (includedItems.Length == 0)
