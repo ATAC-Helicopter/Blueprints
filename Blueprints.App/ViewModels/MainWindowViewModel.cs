@@ -107,6 +107,7 @@ public partial class MainWindowViewModel : ViewModelBase
         TrustDiagnostics = new ObservableCollection<TrustDiagnosticCard>();
         Integrations = new ObservableCollection<IntegrationStatusCard>();
         VersionSourceChangeDiagnostics = new ObservableCollection<VersionSourceChangeDiagnostic>();
+        ReleaseReadinessDiagnostics = new ObservableCollection<ReleaseReadinessDiagnostic>();
         _integrationStatusService = new IntegrationStatusService();
         _sourceDiscoveryService = new RepositorySourceDiscoveryService();
         _canvasViewStateStore = new FileSystemCanvasViewStateStore();
@@ -136,6 +137,7 @@ public partial class MainWindowViewModel : ViewModelBase
         TrustDiagnostics = new ObservableCollection<TrustDiagnosticCard>();
         Integrations = new ObservableCollection<IntegrationStatusCard>();
         VersionSourceChangeDiagnostics = new ObservableCollection<VersionSourceChangeDiagnostic>();
+        ReleaseReadinessDiagnostics = new ObservableCollection<ReleaseReadinessDiagnostic>();
         SourceImportProposals = new ObservableCollection<SourceImportProposal>();
 
         RefreshRecentProjects();
@@ -166,6 +168,8 @@ public partial class MainWindowViewModel : ViewModelBase
     public ObservableCollection<IntegrationStatusCard> Integrations { get; }
 
     public ObservableCollection<VersionSourceChangeDiagnostic> VersionSourceChangeDiagnostics { get; }
+
+    public ObservableCollection<ReleaseReadinessDiagnostic> ReleaseReadinessDiagnostics { get; }
 
     public ObservableCollection<SourceImportProposal> SourceImportProposals { get; }
 
@@ -922,6 +926,22 @@ public partial class MainWindowViewModel : ViewModelBase
             var unmatchedCount = VersionSourceChangeDiagnostics.Count - matchedCount;
 
             return $"{matchedCount} matched source changes, {unmatchedCount} unmatched recent changes.";
+        }
+    }
+
+    public string ReleaseReadinessSummary
+    {
+        get
+        {
+            var blocking = ReleaseReadinessDiagnostics.Count(
+                static diagnostic => diagnostic.Level == ReleaseReadinessLevel.Blocking);
+            var attention = ReleaseReadinessDiagnostics.Count(
+                static diagnostic => diagnostic.Level == ReleaseReadinessLevel.Attention);
+            return blocking > 0
+                ? $"{blocking} blocking source-control checks · {attention} need attention"
+                : attention > 0
+                    ? $"No source-control blockers · {attention} checks need attention"
+                    : "Source-control checks are ready for human release review";
         }
     }
 
@@ -2021,6 +2041,7 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         VersionSourceChangeDiagnostics.Clear();
+        ReleaseReadinessDiagnostics.Clear();
 
         Title = $"{project.Name} ({project.ProjectCode})";
         TrustSummary = session.LoadResult.TrustReport.Summary;
@@ -2117,6 +2138,7 @@ public partial class MainWindowViewModel : ViewModelBase
         SyncDiagnostics.Clear();
         TrustDiagnostics.Clear();
         VersionSourceChangeDiagnostics.Clear();
+        ReleaseReadinessDiagnostics.Clear();
         SourceImportProposals.Clear();
         SelectedSourceProposal = null;
         SourceDiscoverySummary = "Connect a repository, then scan its planning sources.";
@@ -2316,7 +2338,19 @@ public partial class MainWindowViewModel : ViewModelBase
             VersionSourceChangeDiagnostics.Add(diagnostic);
         }
 
+        ReleaseReadinessDiagnostics.Clear();
+        var localGit = Integrations.FirstOrDefault(
+            static integration => integration.Provider == IntegrationProviderType.LocalGit);
+        foreach (var diagnostic in ReleaseReadinessDiagnosticBuilder.Build(
+                     SelectedVersion,
+                     localGit,
+                     VersionSourceChangeDiagnostics))
+        {
+            ReleaseReadinessDiagnostics.Add(diagnostic);
+        }
+
         OnPropertyChanged(nameof(VersionSourceChangeSummary));
+        OnPropertyChanged(nameof(ReleaseReadinessSummary));
     }
 
     private void RefreshSuggestedPaths()

@@ -132,6 +132,40 @@
           </Grid>
         </Border>
 
+        <Border Classes="card">
+          <StackPanel Spacing="10">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+              <StackPanel Spacing="3">
+                <TextBlock Classes="eyebrow" Text="RELEASE READINESS" />
+                <TextBlock Text="{Binding ReleaseReadinessSummary}" FontSize="17" FontWeight="Bold" TextWrapping="Wrap" />
+              </StackPanel>
+              <Button Grid.Column="1"
+                      Classes="secondary"
+                      Content="Open Source Lens"
+                      Command="{Binding NavigateToIntegrationsCommand}" />
+            </Grid>
+            <ItemsControl ItemsSource="{Binding ReleaseReadinessDiagnostics}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="models:ReleaseReadinessDiagnostic">
+                  <Border Background="#F3F9FC"
+                          BorderBrush="#BED8E8"
+                          BorderThickness="1"
+                          CornerRadius="4"
+                          Padding="11"
+                          Margin="0,0,0,6">
+                    <Grid ColumnDefinitions="90,220,*,*" ColumnSpacing="10">
+                      <TextBlock Text="{Binding Level}" Classes="eyebrow" VerticalAlignment="Top" />
+                      <TextBlock Grid.Column="1" Text="{Binding Title}" FontWeight="Bold" TextWrapping="Wrap" />
+                      <TextBlock Grid.Column="2" Text="{Binding Detail}" Classes="muted" TextWrapping="Wrap" />
+                      <TextBlock Grid.Column="3" Text="{Binding Guidance}" Foreground="#0B5D8B" TextWrapping="Wrap" />
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+
         <Grid ColumnDefinitions="340,*" ColumnSpacing="16">
           <Border Classes="card">
             <StackPanel Spacing="10">

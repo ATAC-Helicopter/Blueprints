@@ -60,6 +60,16 @@ See [canvas engine](canvas-engine.md) for the exact model and [troubleshooting](
 
 Incomplete items are excluded by the current default rules. When a local Git repository is linked, recent commit subjects and matching item keys are added as source context.
 
+Before freezing or releasing, review **Release readiness** in the release planner. It reports:
+
+- an unavailable or unconfigured repository;
+- uncommitted working-tree changes that make the source baseline unstable;
+- incomplete items in the selected version;
+- missing post-tag history;
+- recent commits that do not reference a completed item key in the selected version.
+
+Repository errors and dirty state are blockers. Unmatched commits and incomplete items require attention because they may be intentionally out of scope; Blueprints explains them but does not silently change source history or the release plan.
+
 ## Archive draft work
 
 Draft versions and items in Planned or In Progress state can be archived. Select the archive action twice to confirm. The entity leaves the active signed plan, its removal participates in sync, and its signed files remain under `.blueprints/archive/` for recovery. Frozen and released versions are immutable and cannot be archived.
