@@ -43,7 +43,10 @@ public sealed class LocalWorkspaceSessionService
             DetermineHealth(analysis),
             analysis.OutgoingDocumentPaths.Count,
             analysis.IncomingDocumentPaths.Count,
-            analysis.PotentialConflictDocumentPaths.Count);
+            analysis.PotentialConflictDocumentPaths.Count,
+            syncState.LastPulledManifestVersion,
+            syncState.LastPushedManifestVersion,
+            syncState.LastSuccessfulTrustValidationUtc);
 
         return workspaceSession with
         {

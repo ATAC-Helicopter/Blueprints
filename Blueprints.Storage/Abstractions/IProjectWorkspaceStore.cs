@@ -15,6 +15,10 @@ public interface IProjectWorkspaceStore
         string workspaceRoot,
         SignaturePublicKey publicKey);
 
+    ProjectWorkspaceLoadResult Load(
+        string workspaceRoot,
+        IReadOnlyDictionary<string, SignaturePublicKey> publicKeys);
+
     void SaveCanvasLayout(
         string workspaceRoot,
         CanvasLayoutDocument layout,

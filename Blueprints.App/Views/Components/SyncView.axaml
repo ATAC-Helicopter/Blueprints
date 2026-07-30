@@ -11,6 +11,7 @@
           <TextBlock Classes="eyebrow" Text="EXCHANGE CIRCUIT" Foreground="#62D3F0" />
           <TextBlock Text="{Binding SyncStatus}" FontSize="21" FontWeight="Bold" Foreground="White" TextWrapping="Wrap" />
           <TextBlock Text="{Binding WorkspaceModeSummary}" Foreground="#A9C8DC" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding SyncEvidenceSummary}" Foreground="#A9C8DC" FontSize="11" TextWrapping="Wrap" />
 
           <Grid ColumnDefinitions="*,48,*" VerticalAlignment="Center" Margin="0,8">
             <Border Background="#0F4F7A" BorderBrush="#3C88B5" BorderThickness="1" CornerRadius="4" Padding="10">
@@ -50,10 +51,18 @@
                      TextWrapping="Wrap" />
         </StackPanel>
       </Border>
+
+      <Border Classes="card">
+        <StackPanel Spacing="7">
+          <TextBlock Classes="eyebrow" Text="TRUSTED EXCHANGE EVIDENCE" />
+          <TextBlock Text="{Binding SyncAuditSummary}" FontWeight="Bold" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding SyncRecoveryGuidance}" Classes="muted" FontSize="12" TextWrapping="Wrap" />
+        </StackPanel>
+      </Border>
     </StackPanel>
 
     <Border Grid.Column="1" Classes="card">
-      <Grid RowDefinitions="Auto,160,Auto,*" RowSpacing="12">
+      <Grid RowDefinitions="Auto,160,Auto,*,Auto" RowSpacing="12">
         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
           <StackPanel Spacing="3">
             <TextBlock Classes="eyebrow" Text="DIAGNOSTIC LAYER" />
@@ -86,9 +95,21 @@
         </ListBox>
 
         <Border Grid.Row="2" Background="#E7F3F9" BorderBrush="#9AC7DE" BorderThickness="1" CornerRadius="4" Padding="12">
-          <ScrollViewer MaxHeight="110">
-            <TextBlock Text="{Binding SelectedConflictSemanticSummary}" TextWrapping="Wrap" Classes="mono" FontSize="11" Foreground="#214A64" />
-          </ScrollViewer>
+          <StackPanel Spacing="8">
+            <TextBlock Text="{Binding SelectedConflictSemanticSummary}" TextWrapping="Wrap" FontWeight="Bold" Foreground="#214A64" />
+            <ItemsControl ItemsSource="{Binding ConflictFieldComparisons}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="models:ConflictFieldComparison">
+                  <Grid ColumnDefinitions="110,72,*,*" ColumnSpacing="8" Margin="0,2">
+                    <TextBlock Text="{Binding Field}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                    <TextBlock Grid.Column="1" Text="{Binding Status}" Classes="mono" FontSize="10" Foreground="#A63D40" />
+                    <TextBlock Grid.Column="2" Text="{Binding LocalValue}" Classes="mono" FontSize="10" TextWrapping="Wrap" />
+                    <TextBlock Grid.Column="3" Text="{Binding SharedValue}" Classes="mono" FontSize="10" TextWrapping="Wrap" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
         </Border>
 
         <Grid Grid.Row="3" ColumnDefinitions="*,*" ColumnSpacing="12" MinHeight="240">
@@ -117,6 +138,11 @@
                      FontSize="11" />
           </StackPanel>
         </Grid>
+        <TextBlock Grid.Row="4"
+                   Text="Raw evidence is bounded to 8,000 characters per side. Resolution still replaces the whole signed document."
+                   Classes="muted"
+                   FontSize="11"
+                   TextWrapping="Wrap" />
       </Grid>
     </Border>
   </Grid>

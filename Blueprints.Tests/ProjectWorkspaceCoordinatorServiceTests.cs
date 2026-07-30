@@ -21,6 +21,20 @@ public sealed class ProjectWorkspaceCoordinatorServiceTests : IDisposable
         Guid.NewGuid().ToString("N"));
 
     [Fact]
+    public void CreateInitialIdentity_RequiresAnExplicitNameAndCreatesItOnce()
+    {
+        var service = CreateService();
+
+        Assert.False(service.HasLocalIdentity);
+        var identity = service.CreateInitialIdentity("Flavio");
+
+        Assert.True(service.HasLocalIdentity);
+        Assert.Equal("Flavio", identity.DisplayName);
+        Assert.Throws<InvalidOperationException>(
+            () => service.CreateInitialIdentity("Replacement"));
+    }
+
+    [Fact]
     public void CreateProject_CreatesConfiguredWorkspaceAndRecordsRecentProject()
     {
         var localRoot = Path.Combine(_rootDirectory, "local", "AP");
@@ -344,6 +358,10 @@ public sealed class ProjectWorkspaceCoordinatorServiceTests : IDisposable
         var refreshed = service.OpenProject(localRoot, sharedRoot);
         Assert.Equal(0, refreshed.Sync.PendingOutgoingChanges);
         Assert.Equal(0, refreshed.Sync.PendingIncomingChanges);
+        Assert.Equal(1, refreshed.Sync.LastPushedManifestVersion);
+        Assert.Equal(1, refreshed.Sync.SharedManifestVersion);
+        Assert.True(refreshed.Sync.SharedManifestSignatureValid);
+        Assert.NotNull(refreshed.Sync.LastSuccessfulTrustValidationUtc);
     }
 
     [Fact]
@@ -388,6 +406,10 @@ public sealed class ProjectWorkspaceCoordinatorServiceTests : IDisposable
         Assert.Contains(refreshed.LoadResult.Workspace.Versions, static version => version.Version.Name == "1.1.0");
         Assert.Equal(0, refreshed.Sync.PendingIncomingChanges);
         Assert.Equal(0, refreshed.Sync.PendingOutgoingChanges);
+        Assert.Equal(2, refreshed.Sync.LastPulledManifestVersion);
+        Assert.Equal(2, refreshed.Sync.SharedManifestVersion);
+        Assert.True(refreshed.Sync.SharedManifestSignatureValid);
+        Assert.NotNull(refreshed.Sync.LastSuccessfulTrustValidationUtc);
     }
 
     [Fact]
@@ -448,6 +470,81 @@ public sealed class ProjectWorkspaceCoordinatorServiceTests : IDisposable
     }
 
     [Fact]
+    public void ArchiveDrafts_RemovesThemFromThePlanAndKeepsRecoveryCopies()
+    {
+        var localRoot = Path.Combine(_rootDirectory, "archive-local", "BP");
+        var sharedRoot = Path.Combine(_rootDirectory, "archive-shared", "BP");
+        var service = CreateService();
+        service.CreateProject(
+            new ProjectCreateRequest(
+                "Blueprints",
+                "BP",
+                "SemVer",
+                localRoot,
+                sharedRoot));
+        var versionSession = service.SaveVersion(
+            localRoot,
+            sharedRoot,
+            new VersionEditRequest(
+                null,
+                "0.3.0",
+                ReleaseStatus.InProgress,
+                "Archive coverage"));
+        var version = Assert.Single(versionSession.LoadResult.Workspace.Versions);
+        var itemSession = service.SaveItem(
+            localRoot,
+            sharedRoot,
+            new ItemEditRequest(
+                version.Version.VersionId,
+                null,
+                "feature",
+                "added",
+                "Recoverable archive",
+                null,
+                false));
+        var item = Assert.Single(itemSession.LoadResult.Workspace.Versions.Single().Items);
+
+        var itemArchive = service.ArchiveItem(
+            localRoot,
+            sharedRoot,
+            version.Version.VersionId,
+            item.ItemId);
+
+        Assert.Empty(itemArchive.Session.LoadResult.Workspace.Versions.Single().Items);
+        Assert.True(File.Exists(Path.Combine(itemArchive.ArchiveDirectory, "archive.json")));
+        Assert.True(Directory.EnumerateFiles(
+            itemArchive.ArchiveDirectory,
+            $"{item.ItemId:N}.json",
+            SearchOption.AllDirectories).Any());
+        Assert.False(File.Exists(Path.Combine(
+            localRoot,
+            "versions",
+            version.Version.VersionId.ToString("N"),
+            "items",
+            $"{item.ItemId:N}.json")));
+
+        var versionArchive = service.ArchiveVersion(
+            localRoot,
+            sharedRoot,
+            version.Version.VersionId);
+
+        Assert.Empty(versionArchive.Session.LoadResult.Workspace.Versions);
+        Assert.True(File.Exists(Path.Combine(versionArchive.ArchiveDirectory, "archive.json")));
+        Assert.False(Directory.Exists(Path.Combine(
+            localRoot,
+            "versions",
+            version.Version.VersionId.ToString("N"))));
+        Assert.Contains(
+            Directory.EnumerateFiles(Path.Combine(localRoot, "log"), "*.json")
+                .Select(File.ReadAllText),
+            text => text.Contains("\"operation\":\"item.archive\"", StringComparison.Ordinal));
+        Assert.Contains(
+            Directory.EnumerateFiles(Path.Combine(localRoot, "log"), "*.json")
+                .Select(File.ReadAllText),
+            text => text.Contains("\"operation\":\"version.archive\"", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void ExportVersionChangelog_WritesMarkdownAndExcludesIncompleteItemsByDefault()
     {
         var localRoot = Path.Combine(_rootDirectory, "changelog-local", "BP");
@@ -495,6 +592,18 @@ public sealed class ProjectWorkspaceCoordinatorServiceTests : IDisposable
                 "Deferred bugfix",
                 "Still in progress.",
                 false));
+
+        var preview = service.PreviewVersionChangelog(
+            localRoot,
+            sharedRoot,
+            versionId,
+            rulesOverride: new ChangelogRules(true, false, true, true));
+
+        Assert.False(Directory.Exists(Path.Combine(localRoot, "exports")));
+        Assert.Contains("Deferred bugfix", preview, StringComparison.Ordinal);
+        Assert.Contains("Still in progress.", preview, StringComparison.Ordinal);
+        Assert.DoesNotContain("Generated:", preview, StringComparison.Ordinal);
+        Assert.DoesNotContain("`BP-", preview, StringComparison.Ordinal);
 
         var export = service.ExportVersionChangelog(localRoot, sharedRoot, versionId);
 
@@ -749,10 +858,55 @@ public sealed class ProjectWorkspaceCoordinatorServiceTests : IDisposable
             ConflictResolutionChoice.KeepLocal);
 
         Assert.Contains("Kept local", resolution.Summary, StringComparison.Ordinal);
+        Assert.True(Directory.Exists(resolution.RecoveryDirectory));
+        Assert.True(File.Exists(Path.Combine(resolution.RecoveryDirectory, "resolution.json")));
+        Assert.True(File.Exists(Path.Combine(
+            resolution.RecoveryDirectory,
+            "local",
+            conflictPath.Replace('/', Path.DirectorySeparatorChar))));
+        Assert.True(File.Exists(Path.Combine(
+            resolution.RecoveryDirectory,
+            "shared",
+            conflictPath.Replace('/', Path.DirectorySeparatorChar))));
+        Assert.Contains(
+            "\"status\": \"Applied\"",
+            File.ReadAllText(Path.Combine(resolution.RecoveryDirectory, "resolution.json")),
+            StringComparison.Ordinal);
 
         var refreshed = service.OpenProject(localRoot, sharedRoot);
         Assert.Empty(refreshed.ConflictPaths);
         Assert.Equal(TrustState.Trusted, refreshed.LoadResult.TrustReport.State);
+    }
+
+    [Fact]
+    public void ResolveConflict_RejectsAConflictPathOutsideTheWorkspace()
+    {
+        var localRoot = Path.Combine(_rootDirectory, "conflict-path-local", "BP");
+        var sharedRoot = Path.Combine(_rootDirectory, "conflict-path-shared", "BP");
+        var service = CreateService();
+        service.CreateProject(
+            new ProjectCreateRequest(
+                "Blueprints",
+                "BP",
+                "SemVer",
+                localRoot,
+                sharedRoot));
+
+        var stateStore = new Blueprints.Collaboration.Services.FileSystemSyncStateStore();
+        var state = stateStore.Load(localRoot);
+        stateStore.Save(
+            localRoot,
+            state with { UnresolvedConflicts = ["../outside.json"] });
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => service.ResolveConflict(
+                localRoot,
+                sharedRoot,
+                "../outside.json",
+                ConflictResolutionChoice.KeepLocal));
+
+        Assert.Contains("escapes", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.False(File.Exists(Path.Combine(_rootDirectory, "conflict-path-local", "outside.json")));
     }
 
     [Fact]

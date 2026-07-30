@@ -13,7 +13,7 @@ Blueprints should become the smallest trustworthy path from “we plan to ship t
 3. safe and explicit when a small team exchanges work;
 4. extensible toward GitHub, GitLab, and VaultSync without making a provider the source of truth.
 
-## Now — v0.2: coherent solo workflow
+## Completed — v0.2: coherent solo workflow
 
 Goal: a new contributor can build the app, and a developer can plan and export a release without implementation knowledge.
 
@@ -24,15 +24,13 @@ Goal: a new contributor can build the app, and a developer can plan and export a
 - [x] Persist, sign, audit, sync, validate, and restore shared node positions while keeping viewport preferences machine-local.
 - [x] Add approval-first Source Lens discovery for changelogs, roadmaps, GitHub issues, and issue-linked GitHub Projects.
 - [x] Replace icon-only navigation with a clear workflow rail and adaptive next-action guidance.
-- [ ] Add undo/redo, box selection, multi-select, keyboard movement, alignment guides, and a minimap.
-- [ ] Add user-created typed relationships after defining their domain and conflict semantics.
 - [x] Keep release, team, sync, trust, and integration operations in focused secondary tools.
 - [x] Add native folder pickers instead of requiring raw paths.
-- [ ] Add first-run identity setup instead of silently creating a default identity.
-- [ ] Add delete/archive flows for draft versions and items.
-- [ ] Group items by changelog category and improve empty states.
-- [ ] Preview changelogs before writing a file; expose current changelog options.
-- [ ] Add view-model workflow tests for create, edit, freeze, release, and export.
+- [x] Add explicit first-run identity setup and pre-project identity-invitation export.
+- [x] Add two-step recoverable archive flows for draft versions and items.
+- [x] Group release items by changelog category and improve version/item empty states.
+- [x] Preview changelogs before writing a file and expose incomplete, key, description, and compact options.
+- [x] Add view-model workflow tests for identity setup, create, edit, freeze, release, preview, and export.
 - [x] Establish lightweight milestone tags and accomplishment records without binary packaging.
 
 Exit criteria:
@@ -42,18 +40,18 @@ Exit criteria:
 - all destructive or immutable actions explain their consequences;
 - the v0.2 milestone is recorded by a tag, changelog section, release-history entry, and lightweight GitHub prerelease.
 
-## Next — v0.3: understandable collaboration
+## Completed — v0.3: understandable collaboration
 
 Goal: two people can exchange signed changes through a shared directory and understand every blocked action.
 
-- [ ] Add a two-workspace end-to-end collaboration test harness.
-- [ ] Replace raw JSON conflict previews with document-aware field comparisons.
-- [ ] Add guided conflict resolution and safe recovery copies.
-- [ ] Show manifest version, last push/pull, audit status, and actionable recovery steps.
-- [ ] Replace identity-bundle copy/paste with invitation files or QR/text import.
-- [ ] Define behavior for member key rotation and lost keys.
-- [ ] Test network-share interruption, partial copies, deleted files, and stale manifests.
-- [ ] Document backup and disaster-recovery procedures.
+- [x] Add a two-workspace end-to-end collaboration test harness.
+- [x] Replace raw-first conflict previews with bounded document-aware field comparisons and retained raw evidence.
+- [x] Add guided whole-document conflict resolution and machine-local recovery copies.
+- [x] Show shared/last push/last pull manifest evidence, audit status, and actionable recovery steps.
+- [x] Replace identity-bundle copy/paste with signed identity and project invitation files.
+- [x] Define behavior for member key rotation, compromise, and lost keys.
+- [x] Test interrupted/partial shared copies, deleted files, required-file deletion, and stale or replayed manifests.
+- [x] Document backup and disaster-recovery procedures.
 
 Exit criteria:
 
@@ -68,6 +66,8 @@ Goal: connect release intent to source history without weakening local ownership
 
 - [x] Read local Git root, branch, remote, dirty state, tag, and recent commits.
 - [x] Match item keys in commit subjects for changelog context.
+- [ ] Expand canvas editing with box selection, multi-select, keyboard movement, alignment guides, and a minimap.
+- [ ] Add user-created typed relationships after defining their domain and conflict semantics.
 - [ ] Link a Blueprints project to one or more repositories.
 - [ ] Add release-readiness diagnostics for uncommitted and unmatched changes.
 - [ ] Define provider-neutral issue, pull-request, and release references.

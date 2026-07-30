@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Blueprints.App.Models;
 using Blueprints.Collaboration.Enums;
 using Blueprints.Collaboration.Models;
@@ -7,6 +8,7 @@ using Blueprints.Core.Models;
 using Blueprints.Core.Services;
 using Blueprints.Security.Abstractions;
 using Blueprints.Security.Models;
+using Blueprints.Security.Services;
 using Blueprints.Storage.Abstractions;
 using Blueprints.Storage.Models;
 using Blueprints.Storage.Services;
@@ -24,6 +26,11 @@ public sealed class ProjectWorkspaceCoordinatorService
     private readonly RecentProjectsStore _recentProjectsStore;
     private readonly FileSystemAuditLogService _auditLogService;
     private readonly SharedFolderSafetyInspector _sharedFolderSafetyInspector;
+    private readonly FileSystemProjectTrustStore _projectTrustStore = new();
+    private readonly IdentityInvitationService _identityInvitationService =
+        new(new Ed25519SignatureService());
+    private readonly ProjectInvitationService _projectInvitationService =
+        new(new Ed25519SignatureService());
 
     public ProjectWorkspaceCoordinatorService(
         IIdentityService identityService,
@@ -48,6 +55,41 @@ public sealed class ProjectWorkspaceCoordinatorService
     public IReadOnlyList<RecentProjectReference> GetRecentProjects() =>
         _recentProjectsStore.Load();
 
+    public bool HasLocalIdentity => _identityService.ListProfiles().Count > 0;
+
+    public IdentitySummary CreateInitialIdentity(string displayName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
+        if (HasLocalIdentity)
+        {
+            throw new InvalidOperationException(
+                "A local signing identity is already configured.");
+        }
+
+        var identity = _identityService.CreateIdentity(displayName.Trim());
+        return new IdentitySummary(
+            identity.Profile.DisplayName,
+            identity.Profile.UserId.ToString(),
+            identity.Profile.KeyStorageProvider);
+    }
+
+    public string ExportIdentityInvitation(string filePath)
+    {
+        var identity = _identityService.GetOrCreateDefaultIdentity("Local Admin");
+        return _identityInvitationService.Write(filePath, identity);
+    }
+
+    public MemberInviteRequest ReadIdentityInvitation(string filePath)
+    {
+        var invitation = _identityInvitationService.Read(filePath);
+        return new MemberInviteRequest(
+            invitation.UserId.ToString(),
+            invitation.DisplayName,
+            invitation.PublicKeyBase64,
+            MemberRole.Editor,
+            invitation.KeyId);
+    }
+
     public LocalWorkspaceSession CreateProject(ProjectCreateRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -64,6 +106,19 @@ public sealed class ProjectWorkspaceCoordinatorService
 
         var snapshot = CreateProjectSnapshot(identity, request);
         _workspaceStore.Save(localRoot, snapshot, identity.SigningKey);
+        _projectTrustStore.Initialize(
+            localRoot,
+            snapshot.Project.ProjectId,
+            [
+                new TrustedProjectKey(
+                    identity.Profile.UserId,
+                    identity.Profile.DisplayName,
+                    identity.Profile.KeyId,
+                    identity.Profile.PublicKeyBase64,
+                    DateTimeOffset.UtcNow,
+                    MemberRole.Admin,
+                    true),
+            ]);
         AppendAuditEntry(localRoot, identity, snapshot, "project.create", $"Created project {snapshot.Project.Name}.");
         Directory.CreateDirectory(sharedRoot);
 
@@ -80,21 +135,43 @@ public sealed class ProjectWorkspaceCoordinatorService
         var paths = WorkspacePathResolver.Create(localWorkspaceRoot, sharedWorkspaceRoot);
         Directory.CreateDirectory(paths.SharedProjectRoot);
         var safetyReport = _sharedFolderSafetyInspector.Inspect(paths.SharedProjectRoot, paths.LocalWorkspaceRoot);
+        var trustedKeys = _projectTrustStore.LoadKeys(paths.LocalWorkspaceRoot, identity);
+        var activeContributorKeys = _projectTrustStore.LoadActiveContributorKeys(
+            paths.LocalWorkspaceRoot,
+            identity);
 
-        var loadResult = _workspaceStore.Load(paths.LocalWorkspaceRoot, identity.PublicKey);
-        var auditValidation = _auditLogService.Validate(paths.LocalWorkspaceRoot, identity.PublicKey);
+        var loadResult = _workspaceStore.Load(paths.LocalWorkspaceRoot, activeContributorKeys);
+        var auditValidation = _auditLogService.Validate(paths.LocalWorkspaceRoot, trustedKeys);
         loadResult = ApplyWorkspaceSafety(loadResult, safetyReport, auditValidation);
+        if (loadResult.TrustReport.State == TrustState.Trusted)
+        {
+            _projectTrustStore.MergeVerifiedMembers(
+                paths.LocalWorkspaceRoot,
+                loadResult.Workspace.Project.ProjectId,
+                loadResult.Workspace.Members.Members);
+        }
         var syncState = _syncStateStore.Load(paths.LocalWorkspaceRoot);
         var analysis = _syncAnalyzer.Analyze(paths, syncState.TrackedEntries);
         var conflictPaths = syncState.UnresolvedConflicts
             .Union(analysis.PotentialConflictDocumentPaths, StringComparer.Ordinal)
             .OrderBy(static path => path, StringComparer.Ordinal)
             .ToArray();
+        var sharedManifest = _workspaceSyncService.InspectSharedManifest(
+            paths.SharedProjectRoot,
+            activeContributorKeys);
         var sync = new SyncSummary(
             DetermineHealth(analysis, conflictPaths.Length),
             analysis.OutgoingDocumentPaths.Count,
             analysis.IncomingDocumentPaths.Count,
-            conflictPaths.Length);
+            conflictPaths.Length,
+            syncState.LastPulledManifestVersion,
+            syncState.LastPushedManifestVersion,
+            syncState.LastSuccessfulTrustValidationUtc,
+            sharedManifest.ManifestVersion,
+            sharedManifest.BatchId,
+            sharedManifest.Exists ? sharedManifest.SignatureValid : null,
+            auditValidation.IsValid,
+            auditValidation.EntryCount);
 
         var session = new LocalWorkspaceSession(
             identity,
@@ -456,11 +533,195 @@ public sealed class ProjectWorkspaceCoordinatorService
         }, "version.release", $"Released version {existing.Version.Name}.");
     }
 
+    public WorkspaceArchiveResult ArchiveVersion(
+        string localWorkspaceRoot,
+        string sharedWorkspaceRoot,
+        Guid versionId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(localWorkspaceRoot);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sharedWorkspaceRoot);
+
+        var identity = _identityService.GetOrCreateDefaultIdentity("Local Admin");
+        var session = OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
+        EnsureWorkspaceMutable(session);
+        var workspace = session.LoadResult.Workspace;
+        var version = workspace.Versions.FirstOrDefault(entry =>
+            entry.Version.VersionId == versionId)
+            ?? throw new InvalidOperationException("The selected version was not found.");
+        EnsureArchivable(version.Version.Status, "version");
+
+        var archiveDirectory = CreateArchiveDirectory(
+            localWorkspaceRoot,
+            "version",
+            versionId);
+        var versionDirectory = Path.Combine(
+            localWorkspaceRoot,
+            "versions",
+            versionId.ToString("N"));
+        var archivedVersionDirectory = Path.Combine(
+            archiveDirectory,
+            "versions",
+            versionId.ToString("N"));
+        CopyDirectory(versionDirectory, archivedVersionDirectory);
+        WriteArchiveRecord(
+            archiveDirectory,
+            new WorkspaceArchiveRecord(
+                CurrentSchemaVersion,
+                Path.GetFileName(archiveDirectory),
+                "version",
+                versionId,
+                version.Version.Name,
+                DateTimeOffset.UtcNow,
+                identity.Profile.UserId,
+                identity.Profile.DisplayName,
+                "Prepared"));
+
+        Directory.Delete(versionDirectory, recursive: true);
+        try
+        {
+            var removedEntityIds = version.Items
+                .Select(static item => item.ItemId)
+                .Append(versionId)
+                .ToHashSet();
+            var updatedWorkspace = workspace with
+            {
+                Versions = workspace.Versions
+                    .Where(entry => entry.Version.VersionId != versionId)
+                    .ToArray(),
+                CanvasLayout = RemoveArchivedLayoutNodes(
+                    workspace.CanvasLayout,
+                    removedEntityIds,
+                    identity),
+            };
+            var updatedSession = SaveWorkspace(
+                localWorkspaceRoot,
+                sharedWorkspaceRoot,
+                identity,
+                updatedWorkspace,
+                "version.archive",
+                $"Archived draft version {version.Version.Name}.");
+            UpdateArchiveStatus(archiveDirectory, "Applied");
+            return new WorkspaceArchiveResult(
+                updatedSession,
+                archiveDirectory,
+                $"Archived version {version.Version.Name}. Recovery copy: {archiveDirectory}");
+        }
+        catch
+        {
+            if (!Directory.Exists(versionDirectory))
+            {
+                CopyDirectory(archivedVersionDirectory, versionDirectory);
+            }
+
+            UpdateArchiveStatus(archiveDirectory, "Failed and restored");
+            throw;
+        }
+    }
+
+    public WorkspaceArchiveResult ArchiveItem(
+        string localWorkspaceRoot,
+        string sharedWorkspaceRoot,
+        Guid versionId,
+        Guid itemId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(localWorkspaceRoot);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sharedWorkspaceRoot);
+
+        var identity = _identityService.GetOrCreateDefaultIdentity("Local Admin");
+        var session = OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
+        EnsureWorkspaceMutable(session);
+        var workspace = session.LoadResult.Workspace;
+        var versionIndex = workspace.Versions
+            .Select((entry, index) => (entry, index))
+            .FirstOrDefault(pair => pair.entry.Version.VersionId == versionId);
+        if (versionIndex.entry is null)
+        {
+            throw new InvalidOperationException("The selected version was not found.");
+        }
+
+        EnsureArchivable(versionIndex.entry.Version.Status, "item");
+        var item = versionIndex.entry.Items.FirstOrDefault(candidate =>
+            candidate.ItemId == itemId)
+            ?? throw new InvalidOperationException("The selected item was not found.");
+        var relativeDocumentPath =
+            $"versions/{versionId:N}/items/{itemId:N}.json";
+        var archiveDirectory = CreateArchiveDirectory(
+            localWorkspaceRoot,
+            "item",
+            itemId);
+        CopyDocumentPair(
+            localWorkspaceRoot,
+            archiveDirectory,
+            relativeDocumentPath);
+        WriteArchiveRecord(
+            archiveDirectory,
+            new WorkspaceArchiveRecord(
+                CurrentSchemaVersion,
+                Path.GetFileName(archiveDirectory),
+                "item",
+                itemId,
+                item.ItemKey,
+                DateTimeOffset.UtcNow,
+                identity.Profile.UserId,
+                identity.Profile.DisplayName,
+                "Prepared"));
+        DeleteFileIfPresent(localWorkspaceRoot, relativeDocumentPath);
+        DeleteFileIfPresent(
+            localWorkspaceRoot,
+            Path.ChangeExtension(relativeDocumentPath, ".sig"));
+
+        try
+        {
+            var versions = workspace.Versions.ToArray();
+            versions[versionIndex.index] = versionIndex.entry with
+            {
+                Version = versionIndex.entry.Version with
+                {
+                    ManualOrder = versionIndex.entry.Version.ManualOrder
+                        .Where(id => id != itemId)
+                        .ToArray(),
+                },
+                Items = versionIndex.entry.Items
+                    .Where(candidate => candidate.ItemId != itemId)
+                    .ToArray(),
+            };
+            var updatedSession = SaveWorkspace(
+                localWorkspaceRoot,
+                sharedWorkspaceRoot,
+                identity,
+                workspace with
+                {
+                    Versions = versions,
+                    CanvasLayout = RemoveArchivedLayoutNodes(
+                        workspace.CanvasLayout,
+                        new HashSet<Guid> { itemId },
+                        identity),
+                },
+                "item.archive",
+                $"Archived item {item.ItemKey}.");
+            UpdateArchiveStatus(archiveDirectory, "Applied");
+            return new WorkspaceArchiveResult(
+                updatedSession,
+                archiveDirectory,
+                $"Archived item {item.ItemKey}. Recovery copy: {archiveDirectory}");
+        }
+        catch
+        {
+            CopyDocumentPair(
+                archiveDirectory,
+                localWorkspaceRoot,
+                relativeDocumentPath);
+            UpdateArchiveStatus(archiveDirectory, "Failed and restored");
+            throw;
+        }
+    }
+
     public ChangelogExportResult ExportVersionChangelog(
         string localWorkspaceRoot,
         string sharedWorkspaceRoot,
         Guid versionId,
-        IReadOnlyList<SourceChangeSummary>? sourceChanges = null)
+        IReadOnlyList<SourceChangeSummary>? sourceChanges = null,
+        ChangelogRules? rulesOverride = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(localWorkspaceRoot);
         ArgumentException.ThrowIfNullOrWhiteSpace(sharedWorkspaceRoot);
@@ -474,7 +735,11 @@ public sealed class ProjectWorkspaceCoordinatorService
             throw new InvalidOperationException("The selected version was not found.");
         }
 
-        var markdown = MarkdownChangelogBuilder.Build(session.LoadResult.Workspace, version, sourceChanges);
+        var markdown = MarkdownChangelogBuilder.Build(
+            session.LoadResult.Workspace,
+            version,
+            sourceChanges,
+            rulesOverride);
         var exportsRoot = Path.Combine(localWorkspaceRoot, "exports");
         Directory.CreateDirectory(exportsRoot);
 
@@ -487,6 +752,28 @@ public sealed class ProjectWorkspaceCoordinatorService
             version.Version.Name,
             filePath,
             markdown);
+    }
+
+    public string PreviewVersionChangelog(
+        string localWorkspaceRoot,
+        string sharedWorkspaceRoot,
+        Guid versionId,
+        IReadOnlyList<SourceChangeSummary>? sourceChanges = null,
+        ChangelogRules? rulesOverride = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(localWorkspaceRoot);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sharedWorkspaceRoot);
+
+        var session = OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
+        EnsureTrustedWorkspace(session);
+        var version = session.LoadResult.Workspace.Versions
+            .FirstOrDefault(entry => entry.Version.VersionId == versionId)
+            ?? throw new InvalidOperationException("The selected version was not found.");
+        return MarkdownChangelogBuilder.Build(
+            session.LoadResult.Workspace,
+            version,
+            sourceChanges,
+            rulesOverride);
     }
 
     public LocalWorkspaceSession InviteMember(
@@ -511,6 +798,9 @@ public sealed class ProjectWorkspaceCoordinatorService
 
         var displayName = request.DisplayName.Trim();
         var publicKey = request.PublicKey.Trim();
+        var keyId = string.IsNullOrWhiteSpace(request.KeyId)
+            ? invitedUserId.ToString("N")
+            : request.KeyId.Trim();
         if (string.IsNullOrWhiteSpace(displayName))
         {
             throw new InvalidOperationException("Invitee display name is required.");
@@ -519,6 +809,11 @@ public sealed class ProjectWorkspaceCoordinatorService
         if (string.IsNullOrWhiteSpace(publicKey))
         {
             throw new InvalidOperationException("Invitee public key is required.");
+        }
+
+        if (keyId.Length > 128)
+        {
+            throw new InvalidOperationException("Invitee key ID is too long.");
         }
 
         ValidatePublicKey(publicKey);
@@ -541,7 +836,8 @@ public sealed class ProjectWorkspaceCoordinatorService
                 publicKey,
                 request.Role,
                 DateTimeOffset.UtcNow,
-                true));
+                true,
+                keyId));
 
         return SaveMembers(localWorkspaceRoot, sharedWorkspaceRoot, identity, session.LoadResult.Workspace, members);
     }
@@ -586,6 +882,145 @@ public sealed class ProjectWorkspaceCoordinatorService
         return SaveMembers(localWorkspaceRoot, sharedWorkspaceRoot, identity, session.LoadResult.Workspace, members);
     }
 
+    public string ExportProjectInvitation(
+        string localWorkspaceRoot,
+        string sharedWorkspaceRoot,
+        Guid invitedUserId,
+        string filePath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(localWorkspaceRoot);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sharedWorkspaceRoot);
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+
+        var identity = _identityService.GetOrCreateDefaultIdentity("Local Admin");
+        var session = OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
+        EnsureTrustedWorkspace(session);
+        EnsureCurrentIdentityIsAdmin(session);
+        EnsureNoSyncConflicts(session);
+
+        var invitedMember = session.LoadResult.Workspace.Members.Members
+            .FirstOrDefault(member => member.UserId == invitedUserId && member.IsActive)
+            ?? throw new InvalidOperationException(
+                "Select an active invited member before exporting a project invitation.");
+        var members = session.LoadResult.Workspace.Members;
+        var trustedKeys = members.Members
+            .Select(member => new TrustedProjectKey(
+                member.UserId,
+                member.DisplayName,
+                ResolveMemberKeyId(member),
+                member.PublicKey,
+                member.JoinedUtc,
+                member.Role,
+                member.IsActive))
+            .ToArray();
+        var project = session.LoadResult.Workspace.Project;
+        var payload = new ProjectInvitationPayload(
+            1,
+            project.ProjectId,
+            project.Name,
+            project.ProjectCode,
+            session.Paths.SharedProjectRoot,
+            members.MembershipRevision,
+            invitedMember.UserId,
+            ResolveMemberKeyId(invitedMember),
+            identity.Profile.UserId,
+            identity.Profile.DisplayName,
+            identity.Profile.KeyId,
+            identity.Profile.PublicKeyBase64,
+            trustedKeys,
+            DateTimeOffset.UtcNow);
+        return _projectInvitationService.Write(filePath, payload, identity.SigningKey);
+    }
+
+    public LocalWorkspaceSession JoinProjectFromInvitation(
+        string invitationFilePath,
+        string localWorkspaceRoot,
+        string? sharedWorkspaceRoot = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(invitationFilePath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(localWorkspaceRoot);
+
+        var identity = _identityService.GetOrCreateDefaultIdentity("Local Admin");
+        var invitation = _projectInvitationService.Read(invitationFilePath);
+        if (invitation.InvitedUserId != identity.Profile.UserId ||
+            !string.Equals(
+                invitation.InvitedKeyId,
+                identity.Profile.KeyId,
+                StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "This project invitation targets a different local identity.");
+        }
+
+        var resolvedSharedRoot = string.IsNullOrWhiteSpace(sharedWorkspaceRoot)
+            ? invitation.SharedWorkspaceRoot
+            : sharedWorkspaceRoot.Trim();
+        ArgumentException.ThrowIfNullOrWhiteSpace(resolvedSharedRoot);
+        EnsureSharedFolderSafe(localWorkspaceRoot, resolvedSharedRoot);
+        if (Directory.Exists(localWorkspaceRoot) &&
+            Directory.EnumerateFileSystemEntries(localWorkspaceRoot).Any())
+        {
+            throw new InvalidOperationException(
+                "The selected local workspace folder must be empty before joining.");
+        }
+
+        var fullLocalRoot = Path.GetFullPath(localWorkspaceRoot);
+        var parent = Path.GetDirectoryName(fullLocalRoot)
+            ?? throw new InvalidOperationException("Local workspace path has no parent.");
+        Directory.CreateDirectory(parent);
+        var stageRoot = Path.Combine(
+            parent,
+            $".blueprints-join-{Guid.NewGuid():N}");
+
+        try
+        {
+            _projectTrustStore.Initialize(
+                stageRoot,
+                invitation.ProjectId,
+                invitation.TrustedKeys);
+            var trustedKeys = _projectTrustStore.LoadKeys(stageRoot, identity);
+            var activeContributorKeys = _projectTrustStore.LoadActiveContributorKeys(
+                stageRoot,
+                identity);
+            var pull = _workspaceSyncService.Pull(
+                new WorkspacePaths(stageRoot, resolvedSharedRoot),
+                activeContributorKeys,
+                trustedKeys);
+            if (!pull.Success)
+            {
+                throw new InvalidOperationException(
+                    $"Project join was blocked: {pull.Summary}");
+            }
+
+            var loadResult = _workspaceStore.Load(stageRoot, activeContributorKeys);
+            var auditValidation = _auditLogService.Validate(stageRoot, trustedKeys);
+            if (loadResult.TrustReport.State != TrustState.Trusted ||
+                !auditValidation.IsValid)
+            {
+                throw new InvalidOperationException(
+                    "Project join was blocked because the staged workspace did not validate.");
+            }
+
+            ValidateJoinedWorkspace(invitation, identity, loadResult.Workspace);
+            if (Directory.Exists(fullLocalRoot))
+            {
+                Directory.Delete(fullLocalRoot);
+            }
+
+            Directory.Move(stageRoot, fullLocalRoot);
+            return OpenProject(fullLocalRoot, resolvedSharedRoot);
+        }
+        catch
+        {
+            if (Directory.Exists(stageRoot))
+            {
+                Directory.Delete(stageRoot, recursive: true);
+            }
+
+            throw;
+        }
+    }
+
     public LocalWorkspaceSession RefreshProject(
         string localWorkspaceRoot,
         string sharedWorkspaceRoot) =>
@@ -601,12 +1036,14 @@ public sealed class ProjectWorkspaceCoordinatorService
         var identity = _identityService.GetOrCreateDefaultIdentity("Local Admin");
         var session = OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
         EnsureTrustedWorkspace(session);
+        EnsureCurrentIdentityCanContribute(session);
+        var trustedKeys = _projectTrustStore.LoadKeys(localWorkspaceRoot, identity);
 
         return _workspaceSyncService.Push(
             session.Paths,
             session.LoadResult.Workspace.Project.ProjectId,
             identity.SigningKey,
-            identity.PublicKey);
+            trustedKeys);
     }
 
     public WorkspaceSyncResult PullWorkspace(
@@ -619,8 +1056,12 @@ public sealed class ProjectWorkspaceCoordinatorService
         var identity = _identityService.GetOrCreateDefaultIdentity("Local Admin");
         var session = OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
         EnsureTrustedWorkspace(session);
+        var trustedKeys = _projectTrustStore.LoadActiveContributorKeys(
+            localWorkspaceRoot,
+            identity);
+        var auditKeys = _projectTrustStore.LoadKeys(localWorkspaceRoot, identity);
 
-        return _workspaceSyncService.Pull(session.Paths, identity.PublicKey);
+        return _workspaceSyncService.Pull(session.Paths, trustedKeys, auditKeys);
     }
 
     public ConflictResolutionResult ResolveConflict(
@@ -635,17 +1076,34 @@ public sealed class ProjectWorkspaceCoordinatorService
 
         var session = OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
         EnsureConflictExists(session, documentPath);
+        EnsureCurrentIdentityCanContribute(session);
 
-        switch (choice)
+        var recoveryDirectory = CreateConflictRecovery(
+            localWorkspaceRoot,
+            sharedWorkspaceRoot,
+            documentPath,
+            choice);
+
+        try
         {
-            case ConflictResolutionChoice.KeepLocal:
-                CopyDocumentPair(localWorkspaceRoot, sharedWorkspaceRoot, documentPath);
-                break;
-            case ConflictResolutionChoice.AcceptShared:
-                CopyDocumentPair(sharedWorkspaceRoot, localWorkspaceRoot, documentPath);
-                break;
-            default:
-                throw new InvalidOperationException("Unknown conflict resolution choice.");
+            switch (choice)
+            {
+                case ConflictResolutionChoice.KeepLocal:
+                    MirrorDocumentPair(localWorkspaceRoot, sharedWorkspaceRoot, documentPath);
+                    break;
+                case ConflictResolutionChoice.AcceptShared:
+                    MirrorDocumentPair(sharedWorkspaceRoot, localWorkspaceRoot, documentPath);
+                    break;
+                default:
+                    throw new InvalidOperationException("Unknown conflict resolution choice.");
+            }
+
+            UpdateConflictRecoveryStatus(recoveryDirectory, "Applied");
+        }
+        catch (Exception exception)
+        {
+            UpdateConflictRecoveryStatus(recoveryDirectory, $"Failed: {exception.Message}");
+            throw;
         }
 
         var state = _syncStateStore.Load(localWorkspaceRoot);
@@ -662,9 +1120,10 @@ public sealed class ProjectWorkspaceCoordinatorService
         return new ConflictResolutionResult(
             documentPath,
             choice,
+            recoveryDirectory,
             choice == ConflictResolutionChoice.KeepLocal
-                ? $"Kept local copy for {documentPath}."
-                : $"Accepted shared copy for {documentPath}.");
+                ? $"Kept local copy for {documentPath}. Recovery copy: {recoveryDirectory}"
+                : $"Accepted shared copy for {documentPath}. Recovery copy: {recoveryDirectory}");
     }
 
     public string GetSuggestedLocalWorkspaceRoot(string projectName, string projectCode) =>
@@ -753,7 +1212,8 @@ public sealed class ProjectWorkspaceCoordinatorService
                         identity.Profile.PublicKeyBase64,
                         MemberRole.Admin,
                         createdUtc,
-                        true),
+                        true,
+                        identity.Profile.KeyId),
                 ]),
             []);
     }
@@ -915,6 +1375,37 @@ public sealed class ProjectWorkspaceCoordinatorService
         }
     }
 
+    private static void EnsureArchivable(ReleaseStatus status, string entityType)
+    {
+        if (status is ReleaseStatus.Frozen or ReleaseStatus.Released)
+        {
+            throw new InvalidOperationException(
+                $"Cannot archive a {entityType} from a frozen or released version.");
+        }
+    }
+
+    private static CanvasLayoutDocument? RemoveArchivedLayoutNodes(
+        CanvasLayoutDocument? layout,
+        IReadOnlySet<Guid> removedEntityIds,
+        Security.Models.StoredIdentity identity)
+    {
+        if (layout is null)
+        {
+            return null;
+        }
+
+        return layout with
+        {
+            Revision = layout.Revision + 1,
+            Nodes = layout.Nodes
+                .Where(node => !removedEntityIds.Contains(node.EntityId))
+                .ToArray(),
+            UpdatedUtc = DateTimeOffset.UtcNow,
+            LastModifiedByUserId = identity.Profile.UserId,
+            LastModifiedByName = identity.Profile.DisplayName,
+        };
+    }
+
     private static (int Major, int Minor) ParseVersion(string versionName)
     {
         var parts = versionName.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
@@ -951,6 +1442,7 @@ public sealed class ProjectWorkspaceCoordinatorService
         }
 
         EnsureNoSyncConflicts(session);
+        EnsureCurrentIdentityCanContribute(session);
     }
 
     private static void EnsureNoSyncConflicts(LocalWorkspaceSession session)
@@ -973,6 +1465,20 @@ public sealed class ProjectWorkspaceCoordinatorService
         }
     }
 
+    private static void EnsureCurrentIdentityCanContribute(LocalWorkspaceSession session)
+    {
+        var currentMember = session.LoadResult.Workspace.Members.Members
+            .FirstOrDefault(member =>
+                member.UserId == session.Identity.Profile.UserId &&
+                member.IsActive);
+        if (currentMember is null ||
+            currentMember.Role is not MemberRole.Editor and not MemberRole.Admin)
+        {
+            throw new InvalidOperationException(
+                "Only active editors or administrators can change or publish this project.");
+        }
+    }
+
     private static void EnsureAdminCoverage(IReadOnlyCollection<ProjectMember> members)
     {
         if (!members.Any(member => member.IsActive && member.Role == MemberRole.Admin))
@@ -980,6 +1486,48 @@ public sealed class ProjectWorkspaceCoordinatorService
             throw new InvalidOperationException("At least one active admin must remain in the project.");
         }
     }
+
+    private static void ValidateJoinedWorkspace(
+        ProjectInvitationPayload invitation,
+        Security.Models.StoredIdentity identity,
+        ProjectWorkspaceSnapshot workspace)
+    {
+        if (workspace.Project.ProjectId != invitation.ProjectId ||
+            workspace.Members.ProjectId != invitation.ProjectId ||
+            workspace.Members.MembershipRevision < invitation.MembershipRevision)
+        {
+            throw new InvalidOperationException(
+                "The shared workspace does not match the project invitation.");
+        }
+
+        var invitedMember = workspace.Members.Members.FirstOrDefault(member =>
+            member.UserId == identity.Profile.UserId &&
+            member.IsActive &&
+            string.Equals(member.PublicKey, identity.Profile.PublicKeyBase64, StringComparison.Ordinal) &&
+            string.Equals(ResolveMemberKeyId(member), identity.Profile.KeyId, StringComparison.Ordinal));
+        if (invitedMember is null)
+        {
+            throw new InvalidOperationException(
+                "The current identity is not an active member of the invited project.");
+        }
+
+        var inviter = workspace.Members.Members.FirstOrDefault(member =>
+            member.UserId == invitation.InviterUserId &&
+            member.IsActive &&
+            member.Role == MemberRole.Admin &&
+            string.Equals(member.PublicKey, invitation.InviterPublicKeyBase64, StringComparison.Ordinal) &&
+            string.Equals(ResolveMemberKeyId(member), invitation.InviterKeyId, StringComparison.Ordinal));
+        if (inviter is null)
+        {
+            throw new InvalidOperationException(
+                "The project invitation signer is not an active project administrator.");
+        }
+    }
+
+    private static string ResolveMemberKeyId(ProjectMember member) =>
+        string.IsNullOrWhiteSpace(member.KeyId)
+            ? member.UserId.ToString("N")
+            : member.KeyId;
 
     private static void EnsureConflictExists(LocalWorkspaceSession session, string documentPath)
     {
@@ -1030,10 +1578,222 @@ public sealed class ProjectWorkspaceCoordinatorService
         CopyFile(sourceRoot, destinationRoot, Path.ChangeExtension(relativePath, ".sig"));
     }
 
+    private static string CreateConflictRecovery(
+        string localWorkspaceRoot,
+        string sharedWorkspaceRoot,
+        string documentPath,
+        ConflictResolutionChoice choice)
+    {
+        var recoveryId = $"{DateTimeOffset.UtcNow:yyyyMMddTHHmmssfffZ}-{Guid.NewGuid():N}";
+        var recoveryDirectory = Path.Combine(
+            localWorkspaceRoot,
+            ".blueprints",
+            "recovery",
+            "conflicts",
+            recoveryId);
+        var localState = SnapshotDocumentPair(
+            localWorkspaceRoot,
+            Path.Combine(recoveryDirectory, "local"),
+            documentPath);
+        var sharedState = SnapshotDocumentPair(
+            sharedWorkspaceRoot,
+            Path.Combine(recoveryDirectory, "shared"),
+            documentPath);
+        var record = new ConflictRecoveryRecord(
+            CurrentSchemaVersion,
+            recoveryId,
+            DateTimeOffset.UtcNow,
+            documentPath,
+            choice,
+            localState.DocumentPresent,
+            localState.SignaturePresent,
+            sharedState.DocumentPresent,
+            sharedState.SignaturePresent,
+            "Prepared");
+        WriteConflictRecoveryRecord(recoveryDirectory, record);
+        return recoveryDirectory;
+    }
+
+    private static string CreateArchiveDirectory(
+        string localWorkspaceRoot,
+        string entityType,
+        Guid entityId)
+    {
+        var archiveId =
+            $"{DateTimeOffset.UtcNow:yyyyMMddTHHmmssfffZ}-{entityType}-{entityId:N}-{Guid.NewGuid():N}";
+        var archiveDirectory = Path.Combine(
+            localWorkspaceRoot,
+            ".blueprints",
+            "archive",
+            archiveId);
+        Directory.CreateDirectory(archiveDirectory);
+        return archiveDirectory;
+    }
+
+    private static void UpdateArchiveStatus(
+        string archiveDirectory,
+        string status)
+    {
+        var recordPath = Path.Combine(archiveDirectory, "archive.json");
+        var record = JsonSerializer.Deserialize<WorkspaceArchiveRecord>(
+            File.ReadAllText(recordPath),
+            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })
+            ?? throw new InvalidOperationException("Archive metadata could not be read.");
+        WriteArchiveRecord(
+            archiveDirectory,
+            record with { Status = status });
+    }
+
+    private static void WriteArchiveRecord(
+        string archiveDirectory,
+        WorkspaceArchiveRecord record)
+    {
+        Directory.CreateDirectory(archiveDirectory);
+        var path = Path.Combine(archiveDirectory, "archive.json");
+        var tempPath = path + ".tmp";
+        File.WriteAllText(
+            tempPath,
+            JsonSerializer.Serialize(
+                record,
+                new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                    WriteIndented = true,
+                }));
+        File.Move(tempPath, path, overwrite: true);
+    }
+
+    private static void CopyDirectory(
+        string sourceDirectory,
+        string destinationDirectory)
+    {
+        if (!Directory.Exists(sourceDirectory))
+        {
+            throw new DirectoryNotFoundException(
+                $"Archive source directory was not found: {sourceDirectory}");
+        }
+
+        Directory.CreateDirectory(destinationDirectory);
+        foreach (var directory in Directory.EnumerateDirectories(
+                     sourceDirectory,
+                     "*",
+                     SearchOption.AllDirectories))
+        {
+            Directory.CreateDirectory(Path.Combine(
+                destinationDirectory,
+                Path.GetRelativePath(sourceDirectory, directory)));
+        }
+
+        foreach (var file in Directory.EnumerateFiles(
+                     sourceDirectory,
+                     "*",
+                     SearchOption.AllDirectories))
+        {
+            var destination = Path.Combine(
+                destinationDirectory,
+                Path.GetRelativePath(sourceDirectory, file));
+            var parent = Path.GetDirectoryName(destination);
+            if (!string.IsNullOrWhiteSpace(parent))
+            {
+                Directory.CreateDirectory(parent);
+            }
+
+            File.Copy(file, destination, overwrite: true);
+        }
+    }
+
+    private static (bool DocumentPresent, bool SignaturePresent) SnapshotDocumentPair(
+        string sourceRoot,
+        string recoveryRoot,
+        string documentPath)
+    {
+        var sourceDocumentPath = ResolveWorkspacePath(sourceRoot, documentPath);
+        var signaturePath = Path.ChangeExtension(documentPath, ".sig");
+        var sourceSignaturePath = ResolveWorkspacePath(sourceRoot, signaturePath);
+        var documentPresent = File.Exists(sourceDocumentPath);
+        var signaturePresent = File.Exists(sourceSignaturePath);
+
+        if (documentPresent)
+        {
+            CopyFile(sourceRoot, recoveryRoot, documentPath);
+        }
+
+        if (signaturePresent)
+        {
+            CopyFile(sourceRoot, recoveryRoot, signaturePath);
+        }
+
+        return (documentPresent, signaturePresent);
+    }
+
+    private static void MirrorDocumentPair(
+        string sourceRoot,
+        string destinationRoot,
+        string documentPath)
+    {
+        var signaturePath = Path.ChangeExtension(documentPath, ".sig");
+        var sourceDocumentPresent = File.Exists(ResolveWorkspacePath(sourceRoot, documentPath));
+        var sourceSignaturePresent = File.Exists(ResolveWorkspacePath(sourceRoot, signaturePath));
+
+        if (sourceDocumentPresent != sourceSignaturePresent)
+        {
+            throw new InvalidOperationException(
+                $"Cannot resolve {documentPath} because the selected source has an incomplete document/signature pair.");
+        }
+
+        if (!sourceDocumentPresent)
+        {
+            DeleteFileIfPresent(destinationRoot, documentPath);
+            DeleteFileIfPresent(destinationRoot, signaturePath);
+            return;
+        }
+
+        CopyFile(sourceRoot, destinationRoot, documentPath);
+        CopyFile(sourceRoot, destinationRoot, signaturePath);
+    }
+
+    private static void DeleteFileIfPresent(string workspaceRoot, string relativePath)
+    {
+        var path = ResolveWorkspacePath(workspaceRoot, relativePath);
+        if (File.Exists(path))
+        {
+            File.Delete(path);
+        }
+    }
+
+    private static void UpdateConflictRecoveryStatus(string recoveryDirectory, string status)
+    {
+        var manifestPath = Path.Combine(recoveryDirectory, "resolution.json");
+        var record = JsonSerializer.Deserialize<ConflictRecoveryRecord>(
+            File.ReadAllText(manifestPath),
+            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })
+            ?? throw new InvalidOperationException("Conflict recovery metadata could not be read.");
+        WriteConflictRecoveryRecord(recoveryDirectory, record with { Status = status });
+    }
+
+    private static void WriteConflictRecoveryRecord(
+        string recoveryDirectory,
+        ConflictRecoveryRecord record)
+    {
+        Directory.CreateDirectory(recoveryDirectory);
+        var manifestPath = Path.Combine(recoveryDirectory, "resolution.json");
+        var tempPath = manifestPath + ".tmp";
+        File.WriteAllText(
+            tempPath,
+            JsonSerializer.Serialize(
+                record,
+                new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                    WriteIndented = true,
+                }));
+        File.Move(tempPath, manifestPath, overwrite: true);
+    }
+
     private static void CopyFile(string sourceRoot, string destinationRoot, string relativePath)
     {
-        var sourcePath = Path.Combine(sourceRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
-        var destinationPath = Path.Combine(destinationRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
+        var sourcePath = ResolveWorkspacePath(sourceRoot, relativePath);
+        var destinationPath = ResolveWorkspacePath(destinationRoot, relativePath);
         var directory = Path.GetDirectoryName(destinationPath);
         if (!string.IsNullOrWhiteSpace(directory))
         {
@@ -1048,5 +1808,21 @@ public sealed class ProjectWorkspaceCoordinatorService
         }
 
         File.Move(tempPath, destinationPath);
+    }
+
+    private static string ResolveWorkspacePath(string workspaceRoot, string relativePath)
+    {
+        var fullRoot = Path.GetFullPath(workspaceRoot);
+        var fullPath = Path.GetFullPath(
+            Path.Combine(fullRoot, relativePath.Replace('/', Path.DirectorySeparatorChar)));
+        var relativeToRoot = Path.GetRelativePath(fullRoot, fullPath);
+        if (relativeToRoot == ".." ||
+            relativeToRoot.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal) ||
+            Path.IsPathRooted(relativePath))
+        {
+            throw new InvalidOperationException("Workspace document path escapes its expected root.");
+        }
+
+        return fullPath;
     }
 }

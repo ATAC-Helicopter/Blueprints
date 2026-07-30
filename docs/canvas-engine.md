@@ -31,8 +31,11 @@ Changing a node title, state, category, or completion value uses the existing ve
 | Ctrl+mouse wheel or zoom buttons | Change and save machine-local zoom |
 | Fit view | Use the standard local overview zoom and return to the origin |
 | Auto arrange | Rebuild deterministic default positions and save them |
+| Undo / redo | Restore the previous or next arrangement and save it as a new signed revision |
 | Save layout | Explicitly write the current shared node positions |
 | Ctrl+S | Save shared node positions |
+| Ctrl+Z | Undo the latest node drag or auto-arrangement |
+| Ctrl+Shift+Z or Ctrl+Y | Redo the latest undone layout change |
 | Ctrl+0 | Fit the local view |
 | Ctrl+plus/minus | Zoom the local view |
 
@@ -67,6 +70,8 @@ Each successful save:
 7. reloads displayed state from disk.
 
 Layout writes do not rewrite version or item documents.
+
+Undo and redo history is held only for the current application session, is capped at 50 layout changes, and is cleared when the workspace or graph structure changes. History snapshots are not a hidden source of truth. Applying one creates a normal signed layout revision and audit entry, preserving the same validation and collaboration guarantees as a direct drag.
 
 Zoom and viewport offsets are machine-local preferences stored in:
 
@@ -105,7 +110,7 @@ Version and work-item content remain separate documents. A layout conflict does 
 - There is one shared release-planning canvas per project.
 - Node positions are shared project state, not per-user preferences.
 - Connectors represent ownership and cannot yet be created as arbitrary edge types.
-- There is no undo/redo stack, minimap, box selection, grouping, or keyboard-driven movement yet.
+- There is no minimap, box selection, grouping, or keyboard-driven node movement yet.
 - Auto arrangement is deterministic but not a graph-optimization engine.
 - Layout conflict resolution is whole-document.
 

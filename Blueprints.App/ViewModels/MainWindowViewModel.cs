@@ -34,6 +34,8 @@ public partial class MainWindowViewModel : ViewModelBase
     private int _activeMemberCount;
     private int _membershipRevision;
     private bool _hasActiveSession;
+    private bool _hasLocalIdentity;
+    private string _identitySetupName = string.Empty;
     private string _setupMessage = string.Empty;
     private string _workspaceMessage = string.Empty;
     private string _createProjectName = "Blueprints";
@@ -43,9 +45,14 @@ public partial class MainWindowViewModel : ViewModelBase
     private string _createSharedWorkspaceRoot = string.Empty;
     private string _openLocalWorkspaceRoot = string.Empty;
     private string _openSharedWorkspaceRoot = string.Empty;
+    private string _joinInvitationFilePath = string.Empty;
+    private string _joinLocalWorkspaceRoot = string.Empty;
+    private string _joinSharedWorkspaceRoot = string.Empty;
     private RecentProjectReference? _selectedRecentProject;
     private WorkspaceVersionCard? _selectedVersion;
     private WorkspaceItemCard? _selectedItem;
+    private Guid? _pendingArchiveVersionId;
+    private Guid? _pendingArchiveItemId;
     private string _newVersionName = "1.0.0";
     private string _versionEditorName = string.Empty;
     private string _versionEditorNotes = string.Empty;
@@ -58,11 +65,16 @@ public partial class MainWindowViewModel : ViewModelBase
     private string _changelogPreview = string.Empty;
     private string _lastChangelogExportPath = string.Empty;
     private string _gitChangelogSummary = string.Empty;
+    private bool _changelogIncludeIncomplete;
+    private bool _changelogIncludeItemKeys = true;
+    private bool _changelogIncludeDescriptions;
+    private bool _changelogCompactMode;
     private string _identityPublicKey = string.Empty;
     private WorkspaceMemberCard? _selectedMember;
     private string _inviteUserId = string.Empty;
     private string _inviteDisplayName = string.Empty;
     private string _invitePublicKey = string.Empty;
+    private string _inviteKeyId = string.Empty;
     private MemberRole _inviteRole = MemberRole.Editor;
     private string _memberEditorDisplayName = string.Empty;
     private MemberRole _memberEditorRole = MemberRole.Editor;
@@ -90,6 +102,7 @@ public partial class MainWindowViewModel : ViewModelBase
         RecentProjects = new ObservableCollection<RecentProjectReference>();
         Members = new ObservableCollection<WorkspaceMemberCard>();
         Conflicts = new ObservableCollection<string>();
+        ConflictFieldComparisons = new ObservableCollection<ConflictFieldComparison>();
         SyncDiagnostics = new ObservableCollection<SyncDiagnosticCard>();
         TrustDiagnostics = new ObservableCollection<TrustDiagnosticCard>();
         Integrations = new ObservableCollection<IntegrationStatusCard>();
@@ -118,6 +131,7 @@ public partial class MainWindowViewModel : ViewModelBase
         RecentProjects = new ObservableCollection<RecentProjectReference>();
         Members = new ObservableCollection<WorkspaceMemberCard>();
         Conflicts = new ObservableCollection<string>();
+        ConflictFieldComparisons = new ObservableCollection<ConflictFieldComparison>();
         SyncDiagnostics = new ObservableCollection<SyncDiagnosticCard>();
         TrustDiagnostics = new ObservableCollection<TrustDiagnosticCard>();
         Integrations = new ObservableCollection<IntegrationStatusCard>();
@@ -127,6 +141,7 @@ public partial class MainWindowViewModel : ViewModelBase
         RefreshRecentProjects();
         RefreshSuggestedPaths();
         RefreshIntegrations();
+        HasLocalIdentity = coordinatorService.HasLocalIdentity;
         ApplySetupState("Create a new project or open an existing workspace.");
     }
 
@@ -141,6 +156,8 @@ public partial class MainWindowViewModel : ViewModelBase
     public ObservableCollection<WorkspaceMemberCard> Members { get; }
 
     public ObservableCollection<string> Conflicts { get; }
+
+    public ObservableCollection<ConflictFieldComparison> ConflictFieldComparisons { get; }
 
     public ObservableCollection<SyncDiagnosticCard> SyncDiagnostics { get; }
 
@@ -300,6 +317,9 @@ public partial class MainWindowViewModel : ViewModelBase
             if (SetProperty(ref _sync, value))
             {
                 OnPropertyChanged(nameof(SyncStatus));
+                OnPropertyChanged(nameof(SyncEvidenceSummary));
+                OnPropertyChanged(nameof(SyncAuditSummary));
+                OnPropertyChanged(nameof(SyncRecoveryGuidance));
             }
         }
     }
@@ -365,6 +385,32 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     public bool IsSetupMode => !HasActiveSession;
+
+    public bool HasLocalIdentity
+    {
+        get => _hasLocalIdentity;
+        private set
+        {
+            if (SetProperty(ref _hasLocalIdentity, value))
+            {
+                OnPropertyChanged(nameof(IsIdentitySetupRequired));
+                OnPropertyChanged(nameof(LocalIdentitySetupSummary));
+            }
+        }
+    }
+
+    public bool IsIdentitySetupRequired => !HasLocalIdentity;
+
+    public string IdentitySetupName
+    {
+        get => _identitySetupName;
+        set => SetProperty(ref _identitySetupName, value);
+    }
+
+    public string LocalIdentitySetupSummary =>
+        HasLocalIdentity
+            ? "A protected local signing identity is ready."
+            : "Choose the name teammates will see on signed changes. This creates protected local key material.";
 
     public string SetupMessage
     {
@@ -490,6 +536,24 @@ public partial class MainWindowViewModel : ViewModelBase
         set => SetProperty(ref _openSharedWorkspaceRoot, value);
     }
 
+    public string JoinInvitationFilePath
+    {
+        get => _joinInvitationFilePath;
+        set => SetProperty(ref _joinInvitationFilePath, value);
+    }
+
+    public string JoinLocalWorkspaceRoot
+    {
+        get => _joinLocalWorkspaceRoot;
+        set => SetProperty(ref _joinLocalWorkspaceRoot, value);
+    }
+
+    public string JoinSharedWorkspaceRoot
+    {
+        get => _joinSharedWorkspaceRoot;
+        set => SetProperty(ref _joinSharedWorkspaceRoot, value);
+    }
+
     public RecentProjectReference? SelectedRecentProject
     {
         get => _selectedRecentProject;
@@ -511,9 +575,14 @@ public partial class MainWindowViewModel : ViewModelBase
                 OnPropertyChanged(nameof(CanEditSelectedVersion));
                 OnPropertyChanged(nameof(CanEditItems));
                 OnPropertyChanged(nameof(CanReleaseSelectedVersion));
+                OnPropertyChanged(nameof(CanArchiveSelectedVersion));
+                OnPropertyChanged(nameof(CanArchiveSelectedItem));
+                OnPropertyChanged(nameof(IsSelectedVersionEmpty));
                 OnPropertyChanged(nameof(SelectedVersionStateSummary));
                 OnPropertyChanged(nameof(InspectorSelectionSummary));
                 RefreshVersionSourceChangeDiagnostics();
+                _pendingArchiveVersionId = null;
+                _pendingArchiveItemId = null;
             }
         }
     }
@@ -528,6 +597,8 @@ public partial class MainWindowViewModel : ViewModelBase
                 PopulateItemEditor();
                 OnPropertyChanged(nameof(HasSelectedItem));
                 OnPropertyChanged(nameof(InspectorSelectionSummary));
+                OnPropertyChanged(nameof(CanArchiveSelectedItem));
+                _pendingArchiveItemId = null;
             }
         }
     }
@@ -611,6 +682,30 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         get => _gitChangelogSummary;
         private set => SetProperty(ref _gitChangelogSummary, value);
+    }
+
+    public bool ChangelogIncludeIncomplete
+    {
+        get => _changelogIncludeIncomplete;
+        set => SetProperty(ref _changelogIncludeIncomplete, value);
+    }
+
+    public bool ChangelogIncludeItemKeys
+    {
+        get => _changelogIncludeItemKeys;
+        set => SetProperty(ref _changelogIncludeItemKeys, value);
+    }
+
+    public bool ChangelogIncludeDescriptions
+    {
+        get => _changelogIncludeDescriptions;
+        set => SetProperty(ref _changelogIncludeDescriptions, value);
+    }
+
+    public bool ChangelogCompactMode
+    {
+        get => _changelogCompactMode;
+        set => SetProperty(ref _changelogCompactMode, value);
     }
 
     public string? SelectedConflictPath
@@ -730,6 +825,44 @@ public partial class MainWindowViewModel : ViewModelBase
             _ => "Sync unavailable",
         };
 
+    public string SyncEvidenceSummary
+    {
+        get
+        {
+            var validation = Sync.LastSuccessfulTrustValidationUtc is DateTimeOffset validatedUtc
+                ? validatedUtc.ToLocalTime().ToString("g")
+                : "not yet validated";
+            var shared = Sync.SharedManifestVersion is int sharedVersion
+                ? $"v{sharedVersion}"
+                : "none";
+            return $"Shared manifest: {shared} · " +
+                   $"last pulled: {FormatManifestVersion(Sync.LastPulledManifestVersion)} · " +
+                   $"last pushed manifest: {FormatManifestVersion(Sync.LastPushedManifestVersion)} · " +
+                   $"trust check: {validation}";
+        }
+    }
+
+    public string SyncAuditSummary =>
+        Sync.AuditLogValid
+            ? $"Audit chain valid · {Sync.AuditEntryCount} signed entries"
+            : $"Audit chain blocked · {Sync.AuditEntryCount} valid entries before failure";
+
+    public string SyncRecoveryGuidance =>
+        Sync.SharedManifestSignatureValid == false
+            ? "Do not pull or overwrite files manually. Restore the shared manifest and matching content from a known pack or backup, then refresh."
+            : !Sync.AuditLogValid
+                ? "Restore the complete signed audit chain from a known-good workspace or backup before exchanging more changes."
+                : Sync.ConflictCount > 0
+                    ? "Review changed fields, choose one whole-document side, and retain the reported local recovery directory until the project is verified."
+                    : Sync.PendingIncomingChanges > 0
+                        ? "Pull validates the manifest, audit chain, and every incoming signer before changing local project files."
+                        : Sync.PendingOutgoingChanges > 0
+                            ? "Push publishes document pairs first and the signed manifest last. If publication is interrupted, restore or retry from the recorded pack."
+                            : "No recovery action is required. Keep the local workspace and protected identity included in separate backups.";
+
+    private static string FormatManifestVersion(int version) =>
+        version > 0 ? $"v{version}" : "none";
+
     public bool CanEditSelectedVersion =>
         CanMutateWorkspace &&
         SelectedVersion is not null &&
@@ -744,6 +877,18 @@ public partial class MainWindowViewModel : ViewModelBase
         CanMutateWorkspace &&
         SelectedVersion is not null &&
         SelectedVersion.Status != ReleaseStatus.Released;
+
+    public bool CanArchiveSelectedVersion =>
+        CanMutateWorkspace &&
+        SelectedVersion is { Status: ReleaseStatus.Planned or ReleaseStatus.InProgress };
+
+    public bool CanArchiveSelectedItem =>
+        CanArchiveSelectedVersion && SelectedItem is not null;
+
+    public bool IsProjectVersionEmpty => Versions.Count == 0;
+
+    public bool IsSelectedVersionEmpty =>
+        SelectedVersion is null || SelectedVersion.Items.Count == 0;
 
     public string SelectedVersionStateSummary =>
         !IsWorkspaceTrusted
@@ -964,6 +1109,12 @@ public partial class MainWindowViewModel : ViewModelBase
             return;
         }
 
+        if (!HasLocalIdentity)
+        {
+            SetupMessage = "Create your local signing identity before creating a project.";
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(CreateProjectName) || string.IsNullOrWhiteSpace(CreateProjectCode))
         {
             SetupMessage = "Project name and project code are required.";
@@ -994,6 +1145,12 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         if (_coordinatorService is null)
         {
+            return;
+        }
+
+        if (!HasLocalIdentity)
+        {
+            SetupMessage = "Create or restore the signing identity for this workspace before opening it.";
             return;
         }
 
@@ -1030,11 +1187,96 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    private void JoinProject()
+    {
+        if (_coordinatorService is null)
+        {
+            return;
+        }
+
+        if (!HasLocalIdentity)
+        {
+            SetupMessage = "Create the local identity targeted by the project invitation before joining.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(JoinInvitationFilePath) ||
+            string.IsNullOrWhiteSpace(JoinLocalWorkspaceRoot))
+        {
+            SetupMessage = "Choose a project invitation and an empty local workspace folder.";
+            return;
+        }
+
+        try
+        {
+            ApplySession(
+                _coordinatorService.JoinProjectFromInvitation(
+                    JoinInvitationFilePath,
+                    JoinLocalWorkspaceRoot,
+                    JoinSharedWorkspaceRoot));
+            RefreshRecentProjects();
+            SetupMessage = $"Joined project {CurrentProject.Name}.";
+        }
+        catch (Exception exception)
+        {
+            SetupMessage = exception.Message;
+        }
+    }
+
+    [RelayCommand]
     private void ReturnToProjectSetup()
     {
         ApplySetupState("Choose a project to create or open.");
         RefreshRecentProjects();
         RefreshSuggestedPaths();
+    }
+
+    [RelayCommand]
+    private void CreateLocalIdentity()
+    {
+        if (_coordinatorService is null)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(IdentitySetupName))
+        {
+            SetupMessage = "Enter the display name for signed project changes.";
+            return;
+        }
+
+        try
+        {
+            var identity = _coordinatorService.CreateInitialIdentity(IdentitySetupName);
+            HasLocalIdentity = true;
+            SetupMessage =
+                $"Created protected signing identity {identity.DisplayName}. Back up the Blueprints application-data directory.";
+        }
+        catch (Exception exception)
+        {
+            SetupMessage = exception.Message;
+        }
+    }
+
+    [RelayCommand]
+    private void ExportSetupIdentityInvitation(string? filePath)
+    {
+        if (_coordinatorService is null ||
+            !HasLocalIdentity ||
+            string.IsNullOrWhiteSpace(filePath))
+        {
+            return;
+        }
+
+        try
+        {
+            var exportedPath = _coordinatorService.ExportIdentityInvitation(filePath);
+            SetupMessage = $"Exported signed identity invitation to {exportedPath}.";
+        }
+        catch (Exception exception)
+        {
+            SetupMessage = exception.Message;
+        }
     }
 
     [RelayCommand]
@@ -1125,6 +1367,113 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    private void ArchiveSelectedVersion()
+    {
+        if (_coordinatorService is null ||
+            _currentSession is null ||
+            SelectedVersion is null ||
+            !CanArchiveSelectedVersion)
+        {
+            WorkspaceMessage = "Select an editable draft version to archive.";
+            return;
+        }
+
+        if (_pendingArchiveVersionId != SelectedVersion.VersionId)
+        {
+            _pendingArchiveVersionId = SelectedVersion.VersionId;
+            WorkspaceMessage =
+                $"Archive {SelectedVersion.Name}? Select Archive version again to confirm. " +
+                "It will leave the active plan and a local recovery copy will be retained.";
+            return;
+        }
+
+        try
+        {
+            var result = _coordinatorService.ArchiveVersion(
+                _currentSession.Paths.LocalWorkspaceRoot,
+                _currentSession.Paths.SharedProjectRoot,
+                SelectedVersion.VersionId);
+            ApplySession(result.Session);
+            WorkspaceMessage = result.Summary;
+            _pendingArchiveVersionId = null;
+        }
+        catch (Exception exception)
+        {
+            WorkspaceMessage = exception.Message;
+        }
+    }
+
+    [RelayCommand]
+    private void ArchiveSelectedItem()
+    {
+        if (_coordinatorService is null ||
+            _currentSession is null ||
+            SelectedVersion is null ||
+            SelectedItem is null ||
+            !CanArchiveSelectedItem)
+        {
+            WorkspaceMessage = "Select an item from an editable draft version to archive.";
+            return;
+        }
+
+        if (_pendingArchiveItemId != SelectedItem.ItemId)
+        {
+            _pendingArchiveItemId = SelectedItem.ItemId;
+            WorkspaceMessage =
+                $"Archive {SelectedItem.ItemKey}? Select Archive item again to confirm. " +
+                "It will leave the active plan and a local recovery copy will be retained.";
+            return;
+        }
+
+        try
+        {
+            var result = _coordinatorService.ArchiveItem(
+                _currentSession.Paths.LocalWorkspaceRoot,
+                _currentSession.Paths.SharedProjectRoot,
+                SelectedVersion.VersionId,
+                SelectedItem.ItemId);
+            ApplySession(result.Session);
+            WorkspaceMessage = result.Summary;
+            _pendingArchiveItemId = null;
+        }
+        catch (Exception exception)
+        {
+            WorkspaceMessage = exception.Message;
+        }
+    }
+
+    [RelayCommand]
+    private void PreviewSelectedVersionChangelog()
+    {
+        if (_coordinatorService is null || _currentSession is null || SelectedVersion is null)
+        {
+            WorkspaceMessage = "Select a version first.";
+            return;
+        }
+
+        try
+        {
+            var sourceChanges = GetLocalGitRecentChanges();
+            ChangelogPreview = _coordinatorService.PreviewVersionChangelog(
+                _currentSession.Paths.LocalWorkspaceRoot,
+                _currentSession.Paths.SharedProjectRoot,
+                SelectedVersion.VersionId,
+                sourceChanges,
+                CurrentChangelogRules());
+            LastChangelogExportPath = string.Empty;
+            GitChangelogSummary = sourceChanges.Count == 0
+                ? "No Local Git changes were available for this preview."
+                : $"{sourceChanges.Count} Local Git changes considered for this preview.";
+            WorkspaceMessage =
+                $"Previewed changelog for {SelectedVersion.Name} without writing a file.";
+        }
+        catch (Exception exception)
+        {
+            WorkspaceMessage = exception.Message;
+        }
+    }
+
+    [RelayCommand]
     private void ExportSelectedVersionChangelog()
     {
         if (_coordinatorService is null || _currentSession is null || SelectedVersion is null)
@@ -1140,7 +1489,8 @@ public partial class MainWindowViewModel : ViewModelBase
                 _currentSession.Paths.LocalWorkspaceRoot,
                 _currentSession.Paths.SharedProjectRoot,
                 SelectedVersion.VersionId,
-                sourceChanges);
+                sourceChanges,
+                CurrentChangelogRules());
             ChangelogPreview = export.Markdown;
             LastChangelogExportPath = export.FilePath;
             GitChangelogSummary = sourceChanges.Count == 0
@@ -1396,9 +1746,82 @@ public partial class MainWindowViewModel : ViewModelBase
                         InviteUserId,
                         InviteDisplayName,
                         InvitePublicKey,
-                        InviteRole)));
+                        InviteRole,
+                        _inviteKeyId)));
             WorkspaceMessage = $"Invited member {InviteDisplayName.Trim()}.";
             ClearInviteEditor();
+        }
+        catch (Exception exception)
+        {
+            WorkspaceMessage = exception.Message;
+        }
+    }
+
+    [RelayCommand]
+    private void ExportIdentityInvitation(string? filePath)
+    {
+        if (_coordinatorService is null || string.IsNullOrWhiteSpace(filePath))
+        {
+            return;
+        }
+
+        try
+        {
+            var exportedPath = _coordinatorService.ExportIdentityInvitation(filePath);
+            WorkspaceMessage = $"Exported signed identity invitation to {exportedPath}.";
+        }
+        catch (Exception exception)
+        {
+            WorkspaceMessage = exception.Message;
+        }
+    }
+
+    [RelayCommand]
+    private void ImportIdentityInvitation(string? filePath)
+    {
+        if (_coordinatorService is null || string.IsNullOrWhiteSpace(filePath))
+        {
+            return;
+        }
+
+        try
+        {
+            var request = _coordinatorService.ReadIdentityInvitation(filePath);
+            InviteUserId = request.UserId;
+            InviteDisplayName = request.DisplayName;
+            InvitePublicKey = request.PublicKey;
+            InviteRole = request.Role;
+            _inviteKeyId = request.KeyId ?? string.Empty;
+            WorkspaceMessage =
+                $"Verified {request.DisplayName}'s signed identity invitation. Review the role, then invite.";
+        }
+        catch (Exception exception)
+        {
+            WorkspaceMessage = exception.Message;
+        }
+    }
+
+    [RelayCommand]
+    private void ExportProjectInvitation(string? filePath)
+    {
+        if (_coordinatorService is null ||
+            _currentSession is null ||
+            SelectedMember is null ||
+            string.IsNullOrWhiteSpace(filePath))
+        {
+            WorkspaceMessage = "Select an active invited member first.";
+            return;
+        }
+
+        try
+        {
+            var exportedPath = _coordinatorService.ExportProjectInvitation(
+                _currentSession.Paths.LocalWorkspaceRoot,
+                _currentSession.Paths.SharedProjectRoot,
+                SelectedMember.UserId,
+                filePath);
+            WorkspaceMessage =
+                $"Exported signed project invitation for {SelectedMember.DisplayName} to {exportedPath}.";
         }
         catch (Exception exception)
         {
@@ -1514,6 +1937,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private void ApplySession(LocalWorkspaceSession session)
     {
         var wasActiveSession = HasActiveSession;
+        var previousProjectId = CurrentProject.ProjectId;
         _currentSession = session;
 
         var workspace = session.LoadResult.Workspace;
@@ -1532,6 +1956,13 @@ public partial class MainWindowViewModel : ViewModelBase
             session.Identity.Profile.UserId.ToString(),
             session.Identity.Profile.KeyStorageProvider);
         IdentityPublicKey = session.Identity.Profile.PublicKeyBase64;
+        if (!wasActiveSession || previousProjectId != project.ProjectId)
+        {
+            ChangelogIncludeIncomplete = project.ChangelogRules.IncludeIncompleteByDefault;
+            ChangelogIncludeItemKeys = project.ChangelogRules.IncludeItemKeysByDefault;
+            ChangelogIncludeDescriptions = project.ChangelogRules.IncludeDescriptionsByDefault;
+            ChangelogCompactMode = project.ChangelogRules.CompactModeByDefault;
+        }
 
         Versions.Clear();
         foreach (var version in workspace.Versions
@@ -1648,6 +2079,10 @@ public partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsWorkspaceReadOnly));
         OnPropertyChanged(nameof(HasConflicts));
         OnPropertyChanged(nameof(CanMutateWorkspace));
+        OnPropertyChanged(nameof(CanArchiveSelectedVersion));
+        OnPropertyChanged(nameof(CanArchiveSelectedItem));
+        OnPropertyChanged(nameof(IsProjectVersionEmpty));
+        OnPropertyChanged(nameof(IsSelectedVersionEmpty));
         OnPropertyChanged(nameof(WorkspaceModeSummary));
         OnPropertyChanged(nameof(CanResolveSelectedConflict));
         OnPropertyChanged(nameof(HasSyncDiagnostics));
@@ -1709,6 +2144,8 @@ public partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(CanEditSelectedVersion));
         OnPropertyChanged(nameof(CanEditItems));
         OnPropertyChanged(nameof(CanReleaseSelectedVersion));
+        OnPropertyChanged(nameof(CanArchiveSelectedVersion));
+        OnPropertyChanged(nameof(CanArchiveSelectedItem));
         OnPropertyChanged(nameof(SelectedVersionStateSummary));
         OnPropertyChanged(nameof(CanManageMembers));
         OnPropertyChanged(nameof(CanEditSelectedMember));
@@ -1956,8 +2393,16 @@ public partial class MainWindowViewModel : ViewModelBase
         InviteUserId = string.Empty;
         InviteDisplayName = string.Empty;
         InvitePublicKey = string.Empty;
+        _inviteKeyId = string.Empty;
         InviteRole = MemberRole.Editor;
     }
+
+    private ChangelogRules CurrentChangelogRules() =>
+        new(
+            ChangelogIncludeIncomplete,
+            ChangelogIncludeItemKeys,
+            ChangelogIncludeDescriptions,
+            ChangelogCompactMode);
 
     private void ClearMemberEditor()
     {
@@ -2044,6 +2489,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void RefreshSelectedConflictPreview()
     {
+        ConflictFieldComparisons.Clear();
         if (_currentSession is null || string.IsNullOrWhiteSpace(SelectedConflictPath))
         {
             SelectedConflictSemanticSummary = "Select a diagnostic path to see the document summary.";
@@ -2063,10 +2509,19 @@ public partial class MainWindowViewModel : ViewModelBase
 
         SelectedConflictLocalPreview = localPreview;
         SelectedConflictSharedPreview = sharedPreview;
-        SelectedConflictSemanticSummary = BuildSemanticConflictSummary(
+        foreach (var comparison in BuildSemanticConflictComparisons(
             SelectedConflictPath,
             localPreview,
-            sharedPreview);
+            sharedPreview))
+        {
+            ConflictFieldComparisons.Add(comparison);
+        }
+
+        SelectedConflictSemanticSummary = ConflictFieldComparisons.Count == 0
+            ? "No document-aware comparison is available because one side is missing, invalid, or not yet supported."
+            : $"{GetDocumentKind(SelectedConflictPath)} · " +
+              $"{ConflictFieldComparisons.Count(static field => field.IsDifferent)} of " +
+              $"{ConflictFieldComparisons.Count} compared fields differ.";
     }
 
     private static string ReadWorkspacePreview(
@@ -2095,7 +2550,7 @@ public partial class MainWindowViewModel : ViewModelBase
             : text[..maxPreviewLength] + $"{Environment.NewLine}... preview truncated ...";
     }
 
-    private static string BuildSemanticConflictSummary(
+    private static IReadOnlyList<ConflictFieldComparison> BuildSemanticConflictComparisons(
         string relativePath,
         string localJson,
         string sharedJson)
@@ -2104,31 +2559,37 @@ public partial class MainWindowViewModel : ViewModelBase
         using var sharedDocument = TryParseJson(sharedJson);
         if (localDocument is null || sharedDocument is null)
         {
-            return "Document summary unavailable because one side is missing or is not valid JSON.";
+            return [];
         }
 
         var fields = GetSemanticFields(relativePath);
         if (fields.Count == 0)
         {
-            return "No semantic presenter exists for this document type yet. Use the raw local/shared previews below.";
+            return [];
         }
 
-        var lines = new List<string>
-        {
-            $"Document: {GetDocumentKind(relativePath)}",
-        };
+        return fields
+            .Select(field =>
+            {
+                var localValue = BoundComparisonValue(
+                    ReadJsonValue(localDocument.RootElement, field.PropertyPath));
+                var sharedValue = BoundComparisonValue(
+                    ReadJsonValue(sharedDocument.RootElement, field.PropertyPath));
+                return new ConflictFieldComparison(
+                    field.Label,
+                    localValue,
+                    sharedValue,
+                    !string.Equals(localValue, sharedValue, StringComparison.Ordinal));
+            })
+            .ToArray();
+    }
 
-        foreach (var (label, propertyPath) in fields)
-        {
-            var localValue = ReadJsonValue(localDocument.RootElement, propertyPath);
-            var sharedValue = ReadJsonValue(sharedDocument.RootElement, propertyPath);
-            var marker = string.Equals(localValue, sharedValue, StringComparison.Ordinal) ? "=" : "!=";
-            lines.Add($"{label}: local {marker} shared");
-            lines.Add($"  local: {localValue}");
-            lines.Add($"  shared: {sharedValue}");
-        }
-
-        return string.Join(Environment.NewLine, lines);
+    private static string BoundComparisonValue(string value)
+    {
+        const int maxLength = 500;
+        return value.Length <= maxLength
+            ? value
+            : value[..maxLength] + "…";
     }
 
     private static JsonDocument? TryParseJson(string text)
