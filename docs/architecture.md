@@ -73,6 +73,19 @@ There is no dependency-injection container. Constructor composition keeps the cu
 
 Zoom and scroll offsets follow a separate local-preference flow: validate bounded values, atomically replace `.blueprints/canvas-view.json`, and never include it in signatures, audit entries, manifests, or exchange analysis.
 
+### Source discovery and approval
+
+1. Resolve the linked local Git worktree.
+2. Parse bounded changelog and roadmap Markdown locally.
+3. Resolve a GitHub origin and query issue/project metadata through the authenticated `gh` CLI when available.
+4. Normalize source entries into transient `SourceDiscoveryCandidate` values.
+5. Present editable `SourceImportProposal` values and flag exact-title duplicates.
+6. Require the user to choose inclusion, target version, type, category, title, description, and completion state.
+7. Validate every approved proposal against the current trusted workspace before changing disk.
+8. Write the approved batch as signed item documents and append one signed `source.import.apply` audit entry.
+
+Discovery never mutates the repository, provider, or Blueprints workspace. Provider data remains an input suggestion and never becomes authoritative without the explicit apply action.
+
 ### Push
 
 1. Build local and shared snapshots.
@@ -100,6 +113,7 @@ Zoom and scroll offsets follow a separate local-preference flow: validate bounde
 - Hosted providers cannot become authoritative for signed project truth.
 - Local-only integration credentials and paths stay outside project files.
 - Canvas layout is shared signed presentation state; version and item documents remain authoritative content.
+- Source-discovery proposals are transient and untrusted; only reviewed, approved, signed Blueprints items become project truth.
 
 ## Known structural debt
 

@@ -275,6 +275,97 @@ public sealed class ProjectWorkspaceCoordinatorService
         }, "item.save", $"Saved item {normalizedTitle}.");
     }
 
+    public LocalWorkspaceSession ApplyApprovedSourceImport(
+        string localWorkspaceRoot,
+        string sharedWorkspaceRoot,
+        ApprovedSourceImportRequest request)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(localWorkspaceRoot);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sharedWorkspaceRoot);
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (request.Items.Count is < 1 or > 100)
+        {
+            throw new InvalidOperationException("Approve between 1 and 100 source proposals at a time.");
+        }
+
+        var identity = _identityService.GetOrCreateDefaultIdentity("Local Admin");
+        var session = OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
+        EnsureWorkspaceMutable(session);
+        var workspace = session.LoadResult.Workspace;
+        var versions = workspace.Versions.ToList();
+
+        foreach (var import in request.Items)
+        {
+            var versionIndex = versions.FindIndex(snapshot => snapshot.Version.VersionId == import.VersionId);
+            if (versionIndex < 0)
+            {
+                throw new InvalidOperationException($"The target version for “{import.Title}” was not found.");
+            }
+
+            if (!workspace.Project.ItemTypes.ContainsKey(import.ItemTypeId))
+            {
+                throw new InvalidOperationException($"Item type “{import.ItemTypeId}” is not configured for this project.");
+            }
+
+            if (!workspace.Project.DefaultCategories.Any(category =>
+                    string.Equals(category.Id, import.CategoryId, StringComparison.Ordinal)))
+            {
+                throw new InvalidOperationException($"Category “{import.CategoryId}” is not configured for this project.");
+            }
+
+            var title = import.Title.Trim();
+            if (string.IsNullOrWhiteSpace(title))
+            {
+                throw new InvalidOperationException("Every approved proposal needs a title.");
+            }
+
+            var targetVersion = versions[versionIndex];
+            EnsureItemChangesAllowed(targetVersion.Version.Status);
+            var currentWorkspace = workspace with { Versions = versions.ToArray() };
+            var createdUtc = DateTimeOffset.UtcNow;
+            var items = targetVersion.Items
+                .Append(
+                    new ItemDocument(
+                        CurrentSchemaVersion,
+                        workspace.Project.ProjectId,
+                        import.VersionId,
+                        Guid.NewGuid(),
+                        GenerateItemKey(currentWorkspace, targetVersion, import.ItemTypeId),
+                        import.ItemTypeId,
+                        import.CategoryId,
+                        title,
+                        string.IsNullOrWhiteSpace(import.Description) ? null : import.Description.Trim(),
+                        import.IsDone,
+                        [
+                            "source-import",
+                            $"source:{import.SourceKind.ToString().ToLowerInvariant()}",
+                            import.SourceReference,
+                        ],
+                        createdUtc,
+                        createdUtc,
+                        identity.Profile.UserId,
+                        identity.Profile.DisplayName))
+                .ToArray();
+            versions[versionIndex] = targetVersion with
+            {
+                Items = items,
+                Version = targetVersion.Version with
+                {
+                    ManualOrder = items.Select(static item => item.ItemId).ToArray(),
+                },
+            };
+        }
+
+        return SaveWorkspace(
+            localWorkspaceRoot,
+            sharedWorkspaceRoot,
+            identity,
+            workspace with { Versions = versions.ToArray() },
+            "source.import.apply",
+            $"Approved and imported {request.Items.Count} source proposals.");
+    }
+
     public LocalWorkspaceSession SaveCanvasLayout(
         string localWorkspaceRoot,
         string sharedWorkspaceRoot,

@@ -79,4 +79,24 @@ public sealed class MainWindowNavigationTests
         Assert.Empty(viewModel.ItemEditorTitle);
         Assert.Contains(version.Name, viewModel.WorkspaceMessage, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void SourceProposalCommands_KeepApprovalUnderUserControl()
+    {
+        var viewModel = new MainWindowViewModel();
+
+        Assert.Equal(3, viewModel.SourceImportProposals.Count);
+        Assert.Equal(3, viewModel.ApprovedSourceProposalCount);
+        Assert.Contains("source proposals", viewModel.AdaptiveGuidanceTitle, StringComparison.OrdinalIgnoreCase);
+
+        viewModel.ClearSourceProposalApprovalsCommand.Execute(null);
+
+        Assert.Equal(0, viewModel.ApprovedSourceProposalCount);
+        Assert.False(viewModel.CanApplyApprovedSourceProposals);
+
+        viewModel.ApproveAllSourceProposalsCommand.Execute(null);
+
+        Assert.Equal(3, viewModel.ApprovedSourceProposalCount);
+        Assert.True(viewModel.CanApplyApprovedSourceProposals);
+    }
 }

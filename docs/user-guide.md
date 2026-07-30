@@ -56,13 +56,19 @@ See [canvas engine](canvas-engine.md) for the exact model and [troubleshooting](
 
 Incomplete items are excluded by the current default rules. When a local Git repository is linked, recent commit subjects and matching item keys are added as source context.
 
-## Link local Git
+## Discover work with Source Lens
 
-1. Open **Integrations** from the tool rail.
+1. Open **Source Lens** from the navigation.
 2. Enter the path to a Git worktree.
-3. Select **Save connection**, then **Refresh all**.
+3. Select **Save link**, then **Scan sources**.
+4. Review the proposal inbox produced from changelogs, roadmaps, GitHub issues, and issue-linked GitHub Projects.
+5. Edit the selected proposal’s title, context, target version, type, changelog group, and completion state.
+6. Exclude anything that should not enter Blueprints.
+7. Select **Apply approved to blueprint**.
 
-This integration is read-only. It reads repository status and recent commit metadata; it does not commit, push, or modify the repository.
+Discovery is read-only. It does not commit, push, edit issues, change Projects, or modify planning files. Proposals are not project data until Apply. Apply requires a trusted workspace, adds the reviewed proposals as signed work items, records their provenance, and writes one audit action.
+
+GitHub discovery requires the authenticated GitHub CLI. Local changelog and roadmap discovery remains available if GitHub is not configured. See [Source Lens](source-lens.md) for limits, duplicate behavior, and security details.
 
 ## Exchange changes
 
