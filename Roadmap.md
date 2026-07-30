@@ -60,7 +60,7 @@ Exit criteria:
 - conflicts explain what changed and produce a recoverable result;
 - membership changes cannot remove the last active administrator.
 
-## In progress — v0.4: source-control awareness
+## Completed — v0.4: source-control awareness
 
 Goal: connect release intent to source history without weakening local ownership.
 
