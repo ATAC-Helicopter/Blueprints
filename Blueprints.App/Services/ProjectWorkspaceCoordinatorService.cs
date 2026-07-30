@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Blueprints.App.Models;
 using Blueprints.Collaboration.Enums;
 using Blueprints.Collaboration.Models;
@@ -94,7 +95,10 @@ public sealed class ProjectWorkspaceCoordinatorService
             DetermineHealth(analysis, conflictPaths.Length),
             analysis.OutgoingDocumentPaths.Count,
             analysis.IncomingDocumentPaths.Count,
-            conflictPaths.Length);
+            conflictPaths.Length,
+            syncState.LastPulledManifestVersion,
+            syncState.LastPushedManifestVersion,
+            syncState.LastSuccessfulTrustValidationUtc);
 
         var session = new LocalWorkspaceSession(
             identity,
@@ -636,16 +640,32 @@ public sealed class ProjectWorkspaceCoordinatorService
         var session = OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
         EnsureConflictExists(session, documentPath);
 
-        switch (choice)
+        var recoveryDirectory = CreateConflictRecovery(
+            localWorkspaceRoot,
+            sharedWorkspaceRoot,
+            documentPath,
+            choice);
+
+        try
         {
-            case ConflictResolutionChoice.KeepLocal:
-                CopyDocumentPair(localWorkspaceRoot, sharedWorkspaceRoot, documentPath);
-                break;
-            case ConflictResolutionChoice.AcceptShared:
-                CopyDocumentPair(sharedWorkspaceRoot, localWorkspaceRoot, documentPath);
-                break;
-            default:
-                throw new InvalidOperationException("Unknown conflict resolution choice.");
+            switch (choice)
+            {
+                case ConflictResolutionChoice.KeepLocal:
+                    MirrorDocumentPair(localWorkspaceRoot, sharedWorkspaceRoot, documentPath);
+                    break;
+                case ConflictResolutionChoice.AcceptShared:
+                    MirrorDocumentPair(sharedWorkspaceRoot, localWorkspaceRoot, documentPath);
+                    break;
+                default:
+                    throw new InvalidOperationException("Unknown conflict resolution choice.");
+            }
+
+            UpdateConflictRecoveryStatus(recoveryDirectory, "Applied");
+        }
+        catch (Exception exception)
+        {
+            UpdateConflictRecoveryStatus(recoveryDirectory, $"Failed: {exception.Message}");
+            throw;
         }
 
         var state = _syncStateStore.Load(localWorkspaceRoot);
@@ -662,9 +682,10 @@ public sealed class ProjectWorkspaceCoordinatorService
         return new ConflictResolutionResult(
             documentPath,
             choice,
+            recoveryDirectory,
             choice == ConflictResolutionChoice.KeepLocal
-                ? $"Kept local copy for {documentPath}."
-                : $"Accepted shared copy for {documentPath}.");
+                ? $"Kept local copy for {documentPath}. Recovery copy: {recoveryDirectory}"
+                : $"Accepted shared copy for {documentPath}. Recovery copy: {recoveryDirectory}");
     }
 
     public string GetSuggestedLocalWorkspaceRoot(string projectName, string projectCode) =>
@@ -1030,10 +1051,134 @@ public sealed class ProjectWorkspaceCoordinatorService
         CopyFile(sourceRoot, destinationRoot, Path.ChangeExtension(relativePath, ".sig"));
     }
 
+    private static string CreateConflictRecovery(
+        string localWorkspaceRoot,
+        string sharedWorkspaceRoot,
+        string documentPath,
+        ConflictResolutionChoice choice)
+    {
+        var recoveryId = $"{DateTimeOffset.UtcNow:yyyyMMddTHHmmssfffZ}-{Guid.NewGuid():N}";
+        var recoveryDirectory = Path.Combine(
+            localWorkspaceRoot,
+            ".blueprints",
+            "recovery",
+            "conflicts",
+            recoveryId);
+        var localState = SnapshotDocumentPair(
+            localWorkspaceRoot,
+            Path.Combine(recoveryDirectory, "local"),
+            documentPath);
+        var sharedState = SnapshotDocumentPair(
+            sharedWorkspaceRoot,
+            Path.Combine(recoveryDirectory, "shared"),
+            documentPath);
+        var record = new ConflictRecoveryRecord(
+            CurrentSchemaVersion,
+            recoveryId,
+            DateTimeOffset.UtcNow,
+            documentPath,
+            choice,
+            localState.DocumentPresent,
+            localState.SignaturePresent,
+            sharedState.DocumentPresent,
+            sharedState.SignaturePresent,
+            "Prepared");
+        WriteConflictRecoveryRecord(recoveryDirectory, record);
+        return recoveryDirectory;
+    }
+
+    private static (bool DocumentPresent, bool SignaturePresent) SnapshotDocumentPair(
+        string sourceRoot,
+        string recoveryRoot,
+        string documentPath)
+    {
+        var sourceDocumentPath = ResolveWorkspacePath(sourceRoot, documentPath);
+        var signaturePath = Path.ChangeExtension(documentPath, ".sig");
+        var sourceSignaturePath = ResolveWorkspacePath(sourceRoot, signaturePath);
+        var documentPresent = File.Exists(sourceDocumentPath);
+        var signaturePresent = File.Exists(sourceSignaturePath);
+
+        if (documentPresent)
+        {
+            CopyFile(sourceRoot, recoveryRoot, documentPath);
+        }
+
+        if (signaturePresent)
+        {
+            CopyFile(sourceRoot, recoveryRoot, signaturePath);
+        }
+
+        return (documentPresent, signaturePresent);
+    }
+
+    private static void MirrorDocumentPair(
+        string sourceRoot,
+        string destinationRoot,
+        string documentPath)
+    {
+        var signaturePath = Path.ChangeExtension(documentPath, ".sig");
+        var sourceDocumentPresent = File.Exists(ResolveWorkspacePath(sourceRoot, documentPath));
+        var sourceSignaturePresent = File.Exists(ResolveWorkspacePath(sourceRoot, signaturePath));
+
+        if (sourceDocumentPresent != sourceSignaturePresent)
+        {
+            throw new InvalidOperationException(
+                $"Cannot resolve {documentPath} because the selected source has an incomplete document/signature pair.");
+        }
+
+        if (!sourceDocumentPresent)
+        {
+            DeleteFileIfPresent(destinationRoot, documentPath);
+            DeleteFileIfPresent(destinationRoot, signaturePath);
+            return;
+        }
+
+        CopyFile(sourceRoot, destinationRoot, documentPath);
+        CopyFile(sourceRoot, destinationRoot, signaturePath);
+    }
+
+    private static void DeleteFileIfPresent(string workspaceRoot, string relativePath)
+    {
+        var path = ResolveWorkspacePath(workspaceRoot, relativePath);
+        if (File.Exists(path))
+        {
+            File.Delete(path);
+        }
+    }
+
+    private static void UpdateConflictRecoveryStatus(string recoveryDirectory, string status)
+    {
+        var manifestPath = Path.Combine(recoveryDirectory, "resolution.json");
+        var record = JsonSerializer.Deserialize<ConflictRecoveryRecord>(
+            File.ReadAllText(manifestPath),
+            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })
+            ?? throw new InvalidOperationException("Conflict recovery metadata could not be read.");
+        WriteConflictRecoveryRecord(recoveryDirectory, record with { Status = status });
+    }
+
+    private static void WriteConflictRecoveryRecord(
+        string recoveryDirectory,
+        ConflictRecoveryRecord record)
+    {
+        Directory.CreateDirectory(recoveryDirectory);
+        var manifestPath = Path.Combine(recoveryDirectory, "resolution.json");
+        var tempPath = manifestPath + ".tmp";
+        File.WriteAllText(
+            tempPath,
+            JsonSerializer.Serialize(
+                record,
+                new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                    WriteIndented = true,
+                }));
+        File.Move(tempPath, manifestPath, overwrite: true);
+    }
+
     private static void CopyFile(string sourceRoot, string destinationRoot, string relativePath)
     {
-        var sourcePath = Path.Combine(sourceRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
-        var destinationPath = Path.Combine(destinationRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
+        var sourcePath = ResolveWorkspacePath(sourceRoot, relativePath);
+        var destinationPath = ResolveWorkspacePath(destinationRoot, relativePath);
         var directory = Path.GetDirectoryName(destinationPath);
         if (!string.IsNullOrWhiteSpace(directory))
         {
@@ -1048,5 +1193,21 @@ public sealed class ProjectWorkspaceCoordinatorService
         }
 
         File.Move(tempPath, destinationPath);
+    }
+
+    private static string ResolveWorkspacePath(string workspaceRoot, string relativePath)
+    {
+        var fullRoot = Path.GetFullPath(workspaceRoot);
+        var fullPath = Path.GetFullPath(
+            Path.Combine(fullRoot, relativePath.Replace('/', Path.DirectorySeparatorChar)));
+        var relativeToRoot = Path.GetRelativePath(fullRoot, fullPath);
+        if (relativeToRoot == ".." ||
+            relativeToRoot.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal) ||
+            Path.IsPathRooted(relativePath))
+        {
+            throw new InvalidOperationException("Workspace document path escapes its expected root.");
+        }
+
+        return fullPath;
     }
 }

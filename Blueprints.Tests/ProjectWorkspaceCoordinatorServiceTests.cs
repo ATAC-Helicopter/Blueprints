@@ -344,6 +344,8 @@ public sealed class ProjectWorkspaceCoordinatorServiceTests : IDisposable
         var refreshed = service.OpenProject(localRoot, sharedRoot);
         Assert.Equal(0, refreshed.Sync.PendingOutgoingChanges);
         Assert.Equal(0, refreshed.Sync.PendingIncomingChanges);
+        Assert.Equal(1, refreshed.Sync.LastPushedManifestVersion);
+        Assert.NotNull(refreshed.Sync.LastSuccessfulTrustValidationUtc);
     }
 
     [Fact]
@@ -388,6 +390,8 @@ public sealed class ProjectWorkspaceCoordinatorServiceTests : IDisposable
         Assert.Contains(refreshed.LoadResult.Workspace.Versions, static version => version.Version.Name == "1.1.0");
         Assert.Equal(0, refreshed.Sync.PendingIncomingChanges);
         Assert.Equal(0, refreshed.Sync.PendingOutgoingChanges);
+        Assert.Equal(2, refreshed.Sync.LastPulledManifestVersion);
+        Assert.NotNull(refreshed.Sync.LastSuccessfulTrustValidationUtc);
     }
 
     [Fact]
@@ -749,10 +753,55 @@ public sealed class ProjectWorkspaceCoordinatorServiceTests : IDisposable
             ConflictResolutionChoice.KeepLocal);
 
         Assert.Contains("Kept local", resolution.Summary, StringComparison.Ordinal);
+        Assert.True(Directory.Exists(resolution.RecoveryDirectory));
+        Assert.True(File.Exists(Path.Combine(resolution.RecoveryDirectory, "resolution.json")));
+        Assert.True(File.Exists(Path.Combine(
+            resolution.RecoveryDirectory,
+            "local",
+            conflictPath.Replace('/', Path.DirectorySeparatorChar))));
+        Assert.True(File.Exists(Path.Combine(
+            resolution.RecoveryDirectory,
+            "shared",
+            conflictPath.Replace('/', Path.DirectorySeparatorChar))));
+        Assert.Contains(
+            "\"status\": \"Applied\"",
+            File.ReadAllText(Path.Combine(resolution.RecoveryDirectory, "resolution.json")),
+            StringComparison.Ordinal);
 
         var refreshed = service.OpenProject(localRoot, sharedRoot);
         Assert.Empty(refreshed.ConflictPaths);
         Assert.Equal(TrustState.Trusted, refreshed.LoadResult.TrustReport.State);
+    }
+
+    [Fact]
+    public void ResolveConflict_RejectsAConflictPathOutsideTheWorkspace()
+    {
+        var localRoot = Path.Combine(_rootDirectory, "conflict-path-local", "BP");
+        var sharedRoot = Path.Combine(_rootDirectory, "conflict-path-shared", "BP");
+        var service = CreateService();
+        service.CreateProject(
+            new ProjectCreateRequest(
+                "Blueprints",
+                "BP",
+                "SemVer",
+                localRoot,
+                sharedRoot));
+
+        var stateStore = new Blueprints.Collaboration.Services.FileSystemSyncStateStore();
+        var state = stateStore.Load(localRoot);
+        stateStore.Save(
+            localRoot,
+            state with { UnresolvedConflicts = ["../outside.json"] });
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => service.ResolveConflict(
+                localRoot,
+                sharedRoot,
+                "../outside.json",
+                ConflictResolutionChoice.KeepLocal));
+
+        Assert.Contains("escapes", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.False(File.Exists(Path.Combine(_rootDirectory, "conflict-path-local", "outside.json")));
     }
 
     [Fact]

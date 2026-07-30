@@ -11,6 +11,7 @@
           <TextBlock Classes="eyebrow" Text="EXCHANGE CIRCUIT" Foreground="#62D3F0" />
           <TextBlock Text="{Binding SyncStatus}" FontSize="21" FontWeight="Bold" Foreground="White" TextWrapping="Wrap" />
           <TextBlock Text="{Binding WorkspaceModeSummary}" Foreground="#A9C8DC" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding SyncEvidenceSummary}" Foreground="#A9C8DC" FontSize="11" TextWrapping="Wrap" />
 
           <Grid ColumnDefinitions="*,48,*" VerticalAlignment="Center" Margin="0,8">
             <Border Background="#0F4F7A" BorderBrush="#3C88B5" BorderThickness="1" CornerRadius="4" Padding="10">

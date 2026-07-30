@@ -8,14 +8,20 @@ Notable changes to Blueprints are documented here. The project follows semantic 
 
 - Session-scoped undo and redo for node drags and auto-arrangement, with toolbar controls and `Ctrl+Z`, `Ctrl+Shift+Z`, and `Ctrl+Y` shortcuts.
 - Every applied undo or redo is saved as a new signed, audited canvas-layout revision so history never bypasses workspace integrity.
+- A two-workspace collaboration harness covering push, pull, sequential edits, overlapping edits, and preservation of the blocked local copy.
+- Automatic machine-local conflict recovery snapshots containing both available document/signature pairs and resolution metadata before a whole-document choice is applied.
 
 ### Changed
 
-- Post-release development builds now identify themselves as `0.2.0-alpha.3-dev`.
+- Alpha 3 development builds now identify themselves as `0.3.0-alpha.3-dev`.
+- Conflict resolution reports the recovery-copy location and writes its status metadata atomically.
+- The exchange view now shows the last pulled and pushed manifest versions and the last successful trust-validation time persisted for the local workspace.
 
 ### Fixed
 
 - Canvas nodes can no longer be dragged when workspace trust or sync-conflict state forbids mutation.
+- Clean test builds now reference the command toolkit explicitly instead of relying on a transitive compile asset.
+- Conflict recovery rejects paths that escape the expected workspace root.
 
 ## 0.2.0-alpha.2 — 2026-07-30
 

@@ -39,6 +39,7 @@ Blueprints uses signatures and explicit validation to detect unauthorized or inc
 - Invalid incoming signatures block pull.
 - Invalid or missing signed local content produces untrusted or corrupt read-only state.
 - Conflicting concurrent changes block further mutation.
+- Whole-document conflict choices preserve both available sides in machine-local recovery storage before mutation.
 - Only an active Admin may change membership.
 - At least one active Admin must remain.
 - Released versions reject further version and item edits.
@@ -60,7 +61,8 @@ Blueprints uses signatures and explicit validation to detect unauthorized or inc
 - Shared-folder availability, confidentiality, and rollback resistance depend on the underlying storage.
 - Current workspace saves are not a single atomic transaction across all changed files.
 - Canvas layout is a whole signed document; concurrent arrangements conflict as a unit and are not field-merged.
-- Conflict resolution currently exposes low-level previews and supports whole-document choices.
+- Conflict resolution provides semantic summaries for known document types but still operates on whole documents rather than merging individual fields.
+- Conflict recovery copies are local, unsigned operational records; protect and back them up according to the sensitivity of project content.
 - Blueprints does not encrypt project content.
 - Duplicate detection is an exact normalized-title warning, not semantic identity proof.
 - GitHub Project discovery currently sees project-linked repository issues, not standalone Project draft items.

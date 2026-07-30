@@ -300,6 +300,7 @@ public partial class MainWindowViewModel : ViewModelBase
             if (SetProperty(ref _sync, value))
             {
                 OnPropertyChanged(nameof(SyncStatus));
+                OnPropertyChanged(nameof(SyncEvidenceSummary));
             }
         }
     }
@@ -729,6 +730,22 @@ public partial class MainWindowViewModel : ViewModelBase
             SyncHealth.Idle => "Sync baseline is current",
             _ => "Sync unavailable",
         };
+
+    public string SyncEvidenceSummary
+    {
+        get
+        {
+            var validation = Sync.LastSuccessfulTrustValidationUtc is DateTimeOffset validatedUtc
+                ? validatedUtc.ToLocalTime().ToString("g")
+                : "not yet validated";
+            return $"Last pulled manifest: {FormatManifestVersion(Sync.LastPulledManifestVersion)} · " +
+                   $"last pushed manifest: {FormatManifestVersion(Sync.LastPushedManifestVersion)} · " +
+                   $"trust check: {validation}";
+        }
+    }
+
+    private static string FormatManifestVersion(int version) =>
+        version > 0 ? $"v{version}" : "none";
 
     public bool CanEditSelectedVersion =>
         CanMutateWorkspace &&

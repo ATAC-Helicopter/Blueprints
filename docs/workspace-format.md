@@ -25,10 +25,18 @@ This document describes the current schema-1 layout. The format is pre-release a
 │   └── <change-id>.sig
 └── .blueprints/
     ├── sync-state.json
-    └── canvas-view.json
+    ├── canvas-view.json
+    └── recovery/
+        └── conflicts/
+            └── <recovery-id>/
+                ├── resolution.json
+                ├── local/       # preserved document/signature pair, when present
+                └── shared/      # preserved document/signature pair, when present
 ```
 
 The collaboration layer also writes a signed manifest in the shared project root. Files under `.blueprints/` are local bookkeeping and are not signed project truth or exchange input.
+
+Before applying a whole-document conflict choice, Blueprints creates a conflict recovery directory. Its metadata records the selected path, choice, presence of each source file, and whether the operation was prepared, applied, or failed. Recovery data stays local and is excluded from exchange manifests.
 
 ## Serialization
 

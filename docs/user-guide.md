@@ -78,9 +78,12 @@ The shared root is an exchange layer, not the editable workspace.
 - **Refresh comparison** compares local, shared, and last-synced baselines.
 - **Push** copies valid outgoing signed documents and updates the signed manifest.
 - **Pull** validates incoming signatures and manifest continuity before applying changes.
+- The exchange header reports the last locally recorded pulled/pushed manifest versions and successful trust check; these are local evidence, not a guarantee that an offline shared folder has not changed.
 - If both copies changed, Blueprints blocks mutation until you choose **Keep Local** or **Accept Shared**.
 
-The current conflict preview is low-level. Make a backup before resolving important conflicts.
+The conflict view summarizes important fields for known project document types and keeps bounded raw previews available for diagnosis. Before applying **Keep Local** or **Accept Shared**, Blueprints preserves both available document/signature pairs under `.blueprints/recovery/conflicts/` in the local workspace. The completion message includes the exact recovery directory.
+
+Conflict recovery copies reduce the risk of an accidental choice, but they are not a substitute for backing up the complete workspace before important collaboration or membership changes.
 
 ## Trust and read-only mode
 
