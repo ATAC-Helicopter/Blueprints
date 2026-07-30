@@ -23,6 +23,8 @@
         <Border Grid.Column="1" Width="1" Background="#285E7D" Margin="8,0" />
 
         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="7">
+          <Button x:Name="UndoButton" Classes="tool square" Content="↶" Click="UndoClick" ToolTip.Tip="Undo layout change (Ctrl+Z)" />
+          <Button x:Name="RedoButton" Classes="tool square" Content="↷" Click="RedoClick" ToolTip.Tip="Redo layout change (Ctrl+Shift+Z or Ctrl+Y)" />
           <Button Classes="tool square" Content="−" Click="ZoomOutClick" ToolTip.Tip="Zoom out" />
           <Button Classes="tool square" Content="＋" Click="ZoomInClick" ToolTip.Tip="Zoom in" />
           <Button Classes="tool" Content="Fit view" Click="FitViewClick" />
@@ -141,7 +143,7 @@
             <StackPanel Spacing="4">
               <TextBlock Text="{Binding WorkspaceMessage}" Foreground="White" FontSize="12" TextWrapping="Wrap" />
               <TextBlock Text="{Binding CanvasLayoutRevisionSummary}" Foreground="#6DD6EF" FontSize="10" />
-              <TextBlock Text="Drag nodes · Middle-drag to pan · Ctrl+wheel to zoom · Ctrl+S to save layout"
+              <TextBlock Text="Drag nodes · Ctrl+Z / Ctrl+Shift+Z undo/redo · Middle-drag to pan · Ctrl+wheel to zoom"
                          Foreground="#8FBAD0"
                          FontSize="10"
                          TextWrapping="Wrap" />

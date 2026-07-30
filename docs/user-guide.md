@@ -42,8 +42,9 @@ The lines on the canvas represent real project relationships: a work item is con
 - **Fit view** returns to the standard overview without rearranging nodes.
 - **Auto arrange** deliberately replaces positions with deterministic defaults.
 - **Save layout** explicitly writes the current arrangement.
+- **Undo** and **redo** restore node drags or auto-arrangement changes made during the current session. Use the toolbar, `Ctrl+Z`, `Ctrl+Shift+Z`, or `Ctrl+Y`.
 
-The saved revision appears at the bottom of the inspector. Node positions are signed project state and participate in push, pull, trust validation, audit history, and conflicts. Zoom and scroll offsets stay machine-local so navigating does not create team conflicts. Older workspaces without a layout file use default positions until the first save.
+The saved revision appears at the bottom of the inspector. Node positions are signed project state and participate in push, pull, trust validation, audit history, and conflicts. Undo and redo create new signed revisions instead of rewriting history, and their in-memory stack resets when the app session or graph structure changes. Zoom and scroll offsets stay machine-local so navigating does not create team conflicts. Older workspaces without a layout file use default positions until the first save.
 
 See [canvas engine](canvas-engine.md) for the exact model and [troubleshooting](troubleshooting.md) for recovery.
 
