@@ -7,6 +7,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Threading;
 using Blueprints.App.Models;
 using Blueprints.App.ViewModels;
 
@@ -23,33 +24,64 @@ public partial class BlueprintCanvasSurface : UserControl
     private Control? _draggedNode;
     private Point _dragOffset;
     private double _zoom = 1;
+    private bool _isRestoringLayout;
+    private readonly DispatcherTimer _viewportSaveTimer;
+    private bool _isPanning;
+    private Point _panStart;
+    private Vector _panOrigin;
 
     public BlueprintCanvasSurface()
     {
         InitializeComponent();
+        _viewportSaveTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(650),
+        };
+        _viewportSaveTimer.Tick += HandleViewportSaveTimerTick;
+        Viewport.ScrollChanged += HandleViewportScrollChanged;
+        Surface.PointerPressed += HandleSurfacePointerPressed;
+        Surface.PointerMoved += HandleSurfacePointerMoved;
+        Surface.PointerReleased += HandleSurfacePointerReleased;
+        Surface.PointerWheelChanged += HandleSurfacePointerWheelChanged;
+        KeyDown += HandleKeyDown;
         DataContextChanged += HandleDataContextChanged;
         DetachedFromVisualTree += (_, _) => DetachViewModel();
     }
 
-    public void ZoomIn() => SetZoom(_zoom + 0.1);
+    public void ZoomIn() => SetZoom(_zoom + 0.1, persist: true);
 
-    public void ZoomOut() => SetZoom(_zoom - 0.1);
+    public void ZoomOut() => SetZoom(_zoom - 0.1, persist: true);
 
-    public void ResetView()
+    public void FitView()
+    {
+        SetZoom(0.8);
+        Viewport.Offset = Vector.Zero;
+        PersistViewState();
+    }
+
+    public void AutoArrange()
     {
         _positions.Clear();
         SetZoom(1);
         RenderGraph();
         Viewport.Offset = Vector.Zero;
+        PersistLayout();
+        PersistViewState();
     }
 
-    private void SetZoom(double value)
+    public void SaveLayout() => PersistLayout();
+
+    private void SetZoom(double value, bool persist = false)
     {
         _zoom = Math.Clamp(value, 0.6, 1.5);
         ZoomHost.Width = Surface.Width * _zoom;
         ZoomHost.Height = Surface.Height * _zoom;
         Surface.RenderTransform = new ScaleTransform(_zoom, _zoom);
         Surface.RenderTransformOrigin = RelativePoint.TopLeft;
+        if (persist)
+        {
+            PersistViewState();
+        }
     }
 
     private void HandleDataContextChanged(object? sender, EventArgs eventArgs)
@@ -62,7 +94,9 @@ public partial class BlueprintCanvasSurface : UserControl
             _viewModel.Versions.CollectionChanged += HandleVersionsChanged;
         }
 
+        RestoreLayout();
         RenderGraph();
+        RestoreViewState();
     }
 
     private void DetachViewModel()
@@ -77,8 +111,15 @@ public partial class BlueprintCanvasSurface : UserControl
         _viewModel = null;
     }
 
-    private void HandleVersionsChanged(object? sender, NotifyCollectionChangedEventArgs eventArgs) =>
+    private void HandleVersionsChanged(object? sender, NotifyCollectionChangedEventArgs eventArgs)
+    {
+        _viewportSaveTimer.Stop();
+        _isRestoringLayout = true;
         RenderGraph();
+        Dispatcher.UIThread.Post(
+            () => _isRestoringLayout = false,
+            DispatcherPriority.Loaded);
+    }
 
     private void HandleViewModelPropertyChanged(object? sender, PropertyChangedEventArgs eventArgs)
     {
@@ -86,6 +127,15 @@ public partial class BlueprintCanvasSurface : UserControl
             or nameof(MainWindowViewModel.SelectedItem))
         {
             UpdateSelectionVisuals();
+        }
+        else if (eventArgs.PropertyName is nameof(MainWindowViewModel.CanvasLayout))
+        {
+            RestoreLayout();
+            RenderGraph();
+        }
+        else if (eventArgs.PropertyName is nameof(MainWindowViewModel.CanvasViewState))
+        {
+            RestoreViewState();
         }
         else if (eventArgs.PropertyName is nameof(MainWindowViewModel.VersionCount)
             or nameof(MainWindowViewModel.ItemCount))
@@ -146,7 +196,9 @@ public partial class BlueprintCanvasSurface : UserControl
         SetZoom(_zoom);
 
         var projectNode = CreateProjectNode();
-        var projectPoint = new Point(48, Math.Max(310, Surface.Height / 2 - 70));
+        var projectPoint = GetPosition(
+            _viewModel.CurrentProject.ProjectId,
+            new Point(48, Math.Max(310, Surface.Height / 2 - 70)));
         Place(projectNode, projectPoint);
         Surface.Children.Add(projectNode);
 
@@ -248,7 +300,20 @@ public partial class BlueprintCanvasSurface : UserControl
             $"{_viewModel?.VersionCount ?? 0} versions  ·  {_viewModel?.ItemCount ?? 0} items",
             "#A7CEE0"));
 
-        return CreateNodeShell(content, 250, 140, "#0A2035", "#65D2EF", "project", null);
+        var node = CreateNodeShell(
+            content,
+            250,
+            140,
+            "#0A2035",
+            "#65D2EF",
+            "project",
+            _viewModel?.CurrentProject.ProjectId);
+        if (_viewModel?.CurrentProject.ProjectId is Guid projectId && projectId != Guid.Empty)
+        {
+            AddDragHandlers(node, projectId);
+        }
+
+        return node;
     }
 
     private Control CreateVersionNode(WorkspaceVersionCard version)
@@ -390,8 +455,203 @@ public partial class BlueprintCanvasSurface : UserControl
             {
                 _draggedNode = null;
                 eventArgs.Pointer.Capture(null);
+                PersistLayout();
             }
         };
+    }
+
+    private void RestoreLayout()
+    {
+        _viewportSaveTimer.Stop();
+        _isRestoringLayout = true;
+        if (_viewModel?.CanvasLayout is not { } layout)
+        {
+            _positions.Clear();
+            Dispatcher.UIThread.Post(
+                () => _isRestoringLayout = false,
+                DispatcherPriority.Loaded);
+            return;
+        }
+
+        _positions.Clear();
+        foreach (var node in layout.Nodes)
+        {
+            _positions[node.EntityId] = new Point(node.X, node.Y);
+        }
+
+        Dispatcher.UIThread.Post(
+            () => _isRestoringLayout = false,
+            DispatcherPriority.Loaded);
+    }
+
+    private void RestoreViewState()
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        _viewportSaveTimer.Stop();
+        _isRestoringLayout = true;
+        SetZoom(_viewModel.CanvasViewState.Zoom);
+        Dispatcher.UIThread.Post(
+            () =>
+            {
+                Viewport.Offset = new Vector(
+                    _viewModel.CanvasViewState.HorizontalOffset,
+                    _viewModel.CanvasViewState.VerticalOffset);
+                _isRestoringLayout = false;
+            },
+            DispatcherPriority.Loaded);
+    }
+
+    private void HandleViewportScrollChanged(object? sender, ScrollChangedEventArgs eventArgs)
+    {
+        if (_isRestoringLayout || _viewModel is null)
+        {
+            return;
+        }
+
+        _viewportSaveTimer.Stop();
+        _viewportSaveTimer.Start();
+    }
+
+    private void HandleViewportSaveTimerTick(object? sender, EventArgs eventArgs)
+    {
+        _viewportSaveTimer.Stop();
+        PersistViewState();
+    }
+
+    private void HandleSurfacePointerPressed(object? sender, PointerPressedEventArgs eventArgs)
+    {
+        if (!eventArgs.GetCurrentPoint(Surface).Properties.IsMiddleButtonPressed)
+        {
+            Focus();
+            return;
+        }
+
+        _isPanning = true;
+        _panStart = eventArgs.GetPosition(Viewport);
+        _panOrigin = Viewport.Offset;
+        Surface.Cursor = new Cursor(StandardCursorType.SizeAll);
+        eventArgs.Pointer.Capture(Surface);
+        eventArgs.Handled = true;
+    }
+
+    private void HandleSurfacePointerMoved(object? sender, PointerEventArgs eventArgs)
+    {
+        if (!_isPanning)
+        {
+            return;
+        }
+
+        var current = eventArgs.GetPosition(Viewport);
+        var delta = current - _panStart;
+        Viewport.Offset = new Vector(
+            Math.Max(0, _panOrigin.X - delta.X),
+            Math.Max(0, _panOrigin.Y - delta.Y));
+        eventArgs.Handled = true;
+    }
+
+    private void HandleSurfacePointerReleased(object? sender, PointerReleasedEventArgs eventArgs)
+    {
+        if (!_isPanning)
+        {
+            return;
+        }
+
+        _isPanning = false;
+        Surface.Cursor = Cursor.Default;
+        eventArgs.Pointer.Capture(null);
+        PersistViewState();
+        eventArgs.Handled = true;
+    }
+
+    private void HandleSurfacePointerWheelChanged(object? sender, PointerWheelEventArgs eventArgs)
+    {
+        if (!eventArgs.KeyModifiers.HasFlag(KeyModifiers.Control))
+        {
+            return;
+        }
+
+        SetZoom(_zoom + Math.Sign(eventArgs.Delta.Y) * 0.1, persist: true);
+        eventArgs.Handled = true;
+    }
+
+    private void HandleKeyDown(object? sender, KeyEventArgs eventArgs)
+    {
+        var control = eventArgs.KeyModifiers.HasFlag(KeyModifiers.Control);
+        if (control && eventArgs.Key == Key.S)
+        {
+            SaveLayout();
+        }
+        else if (control && eventArgs.Key == Key.D0)
+        {
+            FitView();
+        }
+        else if (control && eventArgs.Key is Key.Add or Key.OemPlus)
+        {
+            ZoomIn();
+        }
+        else if (control && eventArgs.Key is Key.Subtract or Key.OemMinus)
+        {
+            ZoomOut();
+        }
+        else
+        {
+            return;
+        }
+
+        eventArgs.Handled = true;
+    }
+
+    private void PersistLayout()
+    {
+        if (_isRestoringLayout || _viewModel?.CanMutateWorkspace != true)
+        {
+            return;
+        }
+
+        var nodes = new List<CanvasNodeLayoutEdit>();
+        AddLayoutNode(nodes, "project", _viewModel.CurrentProject.ProjectId);
+        foreach (var version in _viewModel.Versions)
+        {
+            AddLayoutNode(nodes, "version", version.VersionId);
+            foreach (var item in version.Items)
+            {
+                AddLayoutNode(nodes, "item", item.ItemId);
+            }
+        }
+
+        _viewModel.SaveCanvasLayoutCommand.Execute(
+            new CanvasLayoutEditRequest(nodes));
+    }
+
+    private void PersistViewState()
+    {
+        if (_isRestoringLayout || _viewModel is null)
+        {
+            return;
+        }
+
+        _viewModel.SaveCanvasViewStateCommand.Execute(
+            new CanvasViewState(
+                _zoom,
+                Math.Max(0, Viewport.Offset.X),
+                Math.Max(0, Viewport.Offset.Y)));
+    }
+
+    private void AddLayoutNode(
+        ICollection<CanvasNodeLayoutEdit> nodes,
+        string nodeType,
+        Guid entityId)
+    {
+        if (entityId == Guid.Empty || !_positions.TryGetValue(entityId, out var point))
+        {
+            return;
+        }
+
+        nodes.Add(new CanvasNodeLayoutEdit(nodeType, entityId, point.X, point.Y));
     }
 
     private void AddConnection(Control source, Control target, string color, double thickness)
