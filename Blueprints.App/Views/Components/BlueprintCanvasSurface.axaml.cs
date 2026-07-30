@@ -20,12 +20,16 @@ public partial class BlueprintCanvasSurface : UserControl
     private const double VersionNodeHeight = 104;
     private const double ItemNodeHeight = 82;
     private readonly Dictionary<Guid, Point> _positions = [];
+    private readonly Dictionary<Guid, Control> _nodes = [];
+    private readonly HashSet<Guid> _selectedNodeIds = [];
     private readonly List<ConnectionVisual> _connections = [];
+    private readonly List<Line> _alignmentGuideVisuals = [];
     private readonly CanvasLayoutHistory _layoutHistory = new();
     private MainWindowViewModel? _viewModel;
     private Control? _draggedNode;
     private IReadOnlyList<CanvasNodeLayoutEdit>? _dragStartLayout;
-    private Point _dragOffset;
+    private IReadOnlyDictionary<Guid, Point> _dragStartPositions = new Dictionary<Guid, Point>();
+    private Point _dragStartPointer;
     private double _zoom = 1;
     private bool _isRestoringLayout;
     private bool _isPersistingLayout;
@@ -33,12 +37,26 @@ public partial class BlueprintCanvasSurface : UserControl
     private bool _isPanning;
     private Point _panStart;
     private Vector _panOrigin;
+    private bool _isBoxSelecting;
+    private Point _boxSelectionStart;
+    private Rectangle? _boxSelectionVisual;
+    private IReadOnlySet<Guid> _selectionBeforeBox = new HashSet<Guid>();
 
     public event EventHandler? HistoryStateChanged;
+
+    public event EventHandler? SelectionStateChanged;
 
     public bool CanUndo => _viewModel?.CanMutateWorkspace == true && _layoutHistory.CanUndo;
 
     public bool CanRedo => _viewModel?.CanMutateWorkspace == true && _layoutHistory.CanRedo;
+
+    public string SelectionSummary =>
+        _selectedNodeIds.Count switch
+        {
+            0 => "No canvas nodes selected",
+            1 => "1 canvas node selected",
+            _ => $"{_selectedNodeIds.Count} canvas nodes selected",
+        };
 
     public BlueprintCanvasSurface()
     {
@@ -126,12 +144,16 @@ public partial class BlueprintCanvasSurface : UserControl
         {
             PersistViewState();
         }
+
+        RenderMiniMap();
     }
 
     private void HandleDataContextChanged(object? sender, EventArgs eventArgs)
     {
         DetachViewModel();
         ClearLayoutHistory();
+        _selectedNodeIds.Clear();
+        NotifySelectionStateChanged();
         _viewModel = DataContext as MainWindowViewModel;
         if (_viewModel is not null)
         {
@@ -217,31 +239,40 @@ public partial class BlueprintCanvasSurface : UserControl
                 continue;
             }
 
-            var selected = tag.Type switch
-            {
-                "version" => _viewModel.SelectedVersion?.VersionId == id,
-                "item" => _viewModel.SelectedItem?.ItemId == id,
-                _ => false,
-            };
+            var selected = _selectedNodeIds.Contains(id)
+                || tag.Type switch
+                {
+                    "version" => _viewModel.SelectedVersion?.VersionId == id,
+                    "item" => _viewModel.SelectedItem?.ItemId == id,
+                    _ => false,
+                };
             border.Background = Brush.Parse(
                 selected
                     ? "#12669A"
-                    : tag.Type == "version"
-                        ? "#0B3D62"
-                        : "#0A3656");
+                    : tag.Type switch
+                    {
+                        "project" => "#0A2035",
+                        "version" => "#0B3D62",
+                        _ => "#0A3656",
+                    });
             border.BorderBrush = Brush.Parse(
                 selected
                     ? "#FFFFFF"
-                    : tag.Type == "version"
-                        ? "#4EA9CC"
-                        : "#397F9F");
+                    : tag.Type switch
+                    {
+                        "project" => "#65D2EF",
+                        "version" => "#4EA9CC",
+                        _ => "#397F9F",
+                    });
         }
     }
 
     private void RenderGraph()
     {
         Surface.Children.Clear();
+        _nodes.Clear();
         _connections.Clear();
+        _alignmentGuideVisuals.Clear();
         DrawGrid();
 
         if (_viewModel is null)
@@ -260,6 +291,7 @@ public partial class BlueprintCanvasSurface : UserControl
             new Point(48, Math.Max(310, Surface.Height / 2 - 70)));
         Place(projectNode, projectPoint);
         Surface.Children.Add(projectNode);
+        RegisterNode(projectNode);
 
         var globalItemIndex = 0;
         for (var versionIndex = 0; versionIndex < _viewModel.Versions.Count; versionIndex++)
@@ -271,6 +303,7 @@ public partial class BlueprintCanvasSurface : UserControl
             var versionNode = CreateVersionNode(version);
             Place(versionNode, versionPoint);
             Surface.Children.Add(versionNode);
+            RegisterNode(versionNode);
             AddConnection(projectNode, versionNode, "#52C7E8", 2);
 
             foreach (var item in version.Items)
@@ -281,6 +314,7 @@ public partial class BlueprintCanvasSurface : UserControl
                 var itemNode = CreateItemNode(version, item);
                 Place(itemNode, itemPoint);
                 Surface.Children.Add(itemNode);
+                RegisterNode(itemNode);
                 AddConnection(versionNode, itemNode, item.IsDone ? "#5DD6B2" : "#73AFCF", item.IsDone ? 2 : 1.25);
                 globalItemIndex++;
             }
@@ -290,6 +324,14 @@ public partial class BlueprintCanvasSurface : UserControl
         {
             Surface.Children.Insert(FindGridVisualCount(), connection.Line);
             UpdateConnection(connection);
+        }
+
+        var selectionChanged = _selectedNodeIds.RemoveWhere(id => !_nodes.ContainsKey(id)) > 0;
+        UpdateSelectionVisuals();
+        RenderMiniMap();
+        if (selectionChanged)
+        {
+            NotifySelectionStateChanged();
         }
 
         if (_viewModel.Versions.Count == 0)
@@ -304,6 +346,14 @@ public partial class BlueprintCanvasSurface : UserControl
             };
             Place(empty, new Point(360, 330));
             Surface.Children.Add(empty);
+        }
+    }
+
+    private void RegisterNode(Control node)
+    {
+        if (node.Tag is NodeTag { Id: Guid nodeId })
+        {
+            _nodes[nodeId] = node;
         }
     }
 
@@ -487,15 +537,25 @@ public partial class BlueprintCanvasSurface : UserControl
             PointerPressedEvent,
             (_, eventArgs) =>
             {
-                if (_viewModel?.CanMutateWorkspace != true)
+                if (!eventArgs.GetCurrentPoint(node).Properties.IsLeftButtonPressed)
+                {
+                    return;
+                }
+
+                UpdateNodeSelection(nodeId, eventArgs.KeyModifiers);
+                Focus();
+                eventArgs.Handled = true;
+                if (_viewModel?.CanMutateWorkspace != true || !_selectedNodeIds.Contains(nodeId))
                 {
                     return;
                 }
 
                 _draggedNode = node;
                 _dragStartLayout = CaptureLayout();
-                var pointer = eventArgs.GetPosition(Surface);
-                _dragOffset = new Point(pointer.X - Canvas.GetLeft(node), pointer.Y - Canvas.GetTop(node));
+                _dragStartPointer = eventArgs.GetPosition(Surface);
+                _dragStartPositions = _selectedNodeIds
+                    .Where(_positions.ContainsKey)
+                    .ToDictionary(id => id, id => _positions[id]);
                 eventArgs.Pointer.Capture(node);
             },
             RoutingStrategies.Tunnel);
@@ -509,12 +569,16 @@ public partial class BlueprintCanvasSurface : UserControl
             }
 
             var pointer = eventArgs.GetPosition(Surface);
-            var point = new Point(
-                Math.Clamp(pointer.X - _dragOffset.X, 0, Surface.Width - node.Bounds.Width),
-                Math.Clamp(pointer.Y - _dragOffset.Y, 0, Surface.Height - node.Bounds.Height));
-            Place(node, point);
-            _positions[nodeId] = point;
-            UpdateConnections(node);
+            var requestedDelta = pointer - _dragStartPointer;
+            var selectedBounds = GetNodeBounds(_dragStartPositions);
+            var constrained = CanvasSelectionService.ConstrainMove(
+                selectedBounds,
+                requestedDelta.X,
+                requestedDelta.Y,
+                Surface.Width,
+                Surface.Height);
+            MoveNodesFromOrigins(_dragStartPositions, constrained.DeltaX, constrained.DeltaY);
+            RenderAlignmentGuides();
         };
         node.PointerReleased += (_, eventArgs) =>
         {
@@ -530,8 +594,68 @@ public partial class BlueprintCanvasSurface : UserControl
                 }
 
                 _dragStartLayout = null;
+                _dragStartPositions = new Dictionary<Guid, Point>();
+                ClearAlignmentGuides();
             }
         };
+    }
+
+    private void UpdateNodeSelection(Guid nodeId, KeyModifiers modifiers)
+    {
+        var additive = modifiers.HasFlag(KeyModifiers.Control)
+            || modifiers.HasFlag(KeyModifiers.Shift);
+        if (additive)
+        {
+            if (!_selectedNodeIds.Add(nodeId))
+            {
+                _selectedNodeIds.Remove(nodeId);
+            }
+        }
+        else if (!_selectedNodeIds.Contains(nodeId))
+        {
+            _selectedNodeIds.Clear();
+            _selectedNodeIds.Add(nodeId);
+        }
+
+        UpdateSelectionVisuals();
+        NotifySelectionStateChanged();
+    }
+
+    private IReadOnlyList<CanvasNodeBounds> GetNodeBounds(
+        IReadOnlyDictionary<Guid, Point>? positions = null) =>
+        _nodes
+            .Where(pair => positions is null || positions.ContainsKey(pair.Key))
+            .Select(pair =>
+            {
+                var point = positions is null ? _positions[pair.Key] : positions[pair.Key];
+                return new CanvasNodeBounds(
+                    pair.Key,
+                    point.X,
+                    point.Y,
+                    pair.Value.Width,
+                    pair.Value.Height);
+            })
+            .ToArray();
+
+    private void MoveNodesFromOrigins(
+        IReadOnlyDictionary<Guid, Point> origins,
+        double deltaX,
+        double deltaY)
+    {
+        foreach (var (id, origin) in origins)
+        {
+            if (!_nodes.TryGetValue(id, out var selectedNode))
+            {
+                continue;
+            }
+
+            var point = new Point(origin.X + deltaX, origin.Y + deltaY);
+            Place(selectedNode, point);
+            _positions[id] = point;
+            UpdateConnections(selectedNode);
+        }
+
+        RenderMiniMap();
     }
 
     private void RestoreLayout()
@@ -581,6 +705,7 @@ public partial class BlueprintCanvasSurface : UserControl
 
     private void HandleViewportScrollChanged(object? sender, ScrollChangedEventArgs eventArgs)
     {
+        RenderMiniMap();
         if (_isRestoringLayout || _viewModel is null)
         {
             return;
@@ -598,46 +723,115 @@ public partial class BlueprintCanvasSurface : UserControl
 
     private void HandleSurfacePointerPressed(object? sender, PointerPressedEventArgs eventArgs)
     {
-        if (!eventArgs.GetCurrentPoint(Surface).Properties.IsMiddleButtonPressed)
+        var properties = eventArgs.GetCurrentPoint(Surface).Properties;
+        Focus();
+        if (properties.IsMiddleButtonPressed)
         {
-            Focus();
+            _isPanning = true;
+            _panStart = eventArgs.GetPosition(Viewport);
+            _panOrigin = Viewport.Offset;
+            Surface.Cursor = new Cursor(StandardCursorType.SizeAll);
+            eventArgs.Pointer.Capture(Surface);
+            eventArgs.Handled = true;
             return;
         }
 
-        _isPanning = true;
-        _panStart = eventArgs.GetPosition(Viewport);
-        _panOrigin = Viewport.Offset;
-        Surface.Cursor = new Cursor(StandardCursorType.SizeAll);
+        if (!properties.IsLeftButtonPressed)
+        {
+            return;
+        }
+
+        var additive = eventArgs.KeyModifiers.HasFlag(KeyModifiers.Control)
+            || eventArgs.KeyModifiers.HasFlag(KeyModifiers.Shift);
+        _selectionBeforeBox = additive
+            ? _selectedNodeIds.ToHashSet()
+            : new HashSet<Guid>();
+        if (!additive)
+        {
+            _selectedNodeIds.Clear();
+        }
+
+        _isBoxSelecting = true;
+        _boxSelectionStart = eventArgs.GetPosition(Surface);
+        _boxSelectionVisual = new Rectangle
+        {
+            Fill = Brush.Parse("#3365D2EF"),
+            Stroke = Brush.Parse("#8BE6F7"),
+            StrokeThickness = 1.5,
+            IsHitTestVisible = false,
+        };
+        Place(_boxSelectionVisual, _boxSelectionStart);
+        Surface.Children.Add(_boxSelectionVisual);
         eventArgs.Pointer.Capture(Surface);
+        UpdateSelectionVisuals();
+        NotifySelectionStateChanged();
         eventArgs.Handled = true;
     }
 
     private void HandleSurfacePointerMoved(object? sender, PointerEventArgs eventArgs)
     {
-        if (!_isPanning)
+        if (_isPanning)
+        {
+            var current = eventArgs.GetPosition(Viewport);
+            var delta = current - _panStart;
+            Viewport.Offset = new Vector(
+                Math.Max(0, _panOrigin.X - delta.X),
+                Math.Max(0, _panOrigin.Y - delta.Y));
+            eventArgs.Handled = true;
+            return;
+        }
+
+        if (!_isBoxSelecting || _boxSelectionVisual is null)
         {
             return;
         }
 
-        var current = eventArgs.GetPosition(Viewport);
-        var delta = current - _panStart;
-        Viewport.Offset = new Vector(
-            Math.Max(0, _panOrigin.X - delta.X),
-            Math.Max(0, _panOrigin.Y - delta.Y));
+        var currentSelectionPoint = eventArgs.GetPosition(Surface);
+        var selection = new CanvasSelectionBounds(
+            _boxSelectionStart.X,
+            _boxSelectionStart.Y,
+            currentSelectionPoint.X,
+            currentSelectionPoint.Y);
+        Canvas.SetLeft(_boxSelectionVisual, selection.Left);
+        Canvas.SetTop(_boxSelectionVisual, selection.Top);
+        _boxSelectionVisual.Width = selection.Right - selection.Left;
+        _boxSelectionVisual.Height = selection.Bottom - selection.Top;
+
+        _selectedNodeIds.Clear();
+        _selectedNodeIds.UnionWith(_selectionBeforeBox);
+        _selectedNodeIds.UnionWith(
+            CanvasSelectionService.SelectIntersecting(GetNodeBounds(), selection));
+        UpdateSelectionVisuals();
+        NotifySelectionStateChanged();
         eventArgs.Handled = true;
     }
 
     private void HandleSurfacePointerReleased(object? sender, PointerReleasedEventArgs eventArgs)
     {
-        if (!_isPanning)
+        if (_isPanning)
+        {
+            _isPanning = false;
+            Surface.Cursor = Cursor.Default;
+            eventArgs.Pointer.Capture(null);
+            PersistViewState();
+            eventArgs.Handled = true;
+            return;
+        }
+
+        if (!_isBoxSelecting)
         {
             return;
         }
 
-        _isPanning = false;
-        Surface.Cursor = Cursor.Default;
+        _isBoxSelecting = false;
+        if (_boxSelectionVisual is not null)
+        {
+            Surface.Children.Remove(_boxSelectionVisual);
+            _boxSelectionVisual = null;
+        }
+
         eventArgs.Pointer.Capture(null);
-        PersistViewState();
+        _selectionBeforeBox = new HashSet<Guid>();
         eventArgs.Handled = true;
     }
 
@@ -685,12 +879,168 @@ public partial class BlueprintCanvasSurface : UserControl
         {
             ZoomOut();
         }
+        else if (control && eventArgs.Key == Key.A)
+        {
+            _selectedNodeIds.Clear();
+            _selectedNodeIds.UnionWith(_nodes.Keys);
+            UpdateSelectionVisuals();
+            NotifySelectionStateChanged();
+        }
+        else if (!control && eventArgs.Key is Key.Left or Key.Right or Key.Up or Key.Down)
+        {
+            var distance = eventArgs.KeyModifiers.HasFlag(KeyModifiers.Shift) ? 10 : 1;
+            var delta = eventArgs.Key switch
+            {
+                Key.Left => new Vector(-distance, 0),
+                Key.Right => new Vector(distance, 0),
+                Key.Up => new Vector(0, -distance),
+                _ => new Vector(0, distance),
+            };
+            MoveSelectedNodes(delta);
+        }
+        else if (eventArgs.Key == Key.Escape)
+        {
+            _selectedNodeIds.Clear();
+            UpdateSelectionVisuals();
+            NotifySelectionStateChanged();
+        }
         else
         {
             return;
         }
 
         eventArgs.Handled = true;
+    }
+
+    private void MoveSelectedNodes(Vector requestedDelta)
+    {
+        if (_viewModel?.CanMutateWorkspace != true || _selectedNodeIds.Count == 0)
+        {
+            return;
+        }
+
+        var previous = CaptureLayout();
+        var origins = _selectedNodeIds
+            .Where(id => _nodes.ContainsKey(id) && _positions.ContainsKey(id))
+            .ToDictionary(id => id, id => _positions[id]);
+        var selectedBounds = GetNodeBounds(origins);
+        var constrained = CanvasSelectionService.ConstrainMove(
+            selectedBounds,
+            requestedDelta.X,
+            requestedDelta.Y,
+            Surface.Width,
+            Surface.Height);
+        MoveNodesFromOrigins(origins, constrained.DeltaX, constrained.DeltaY);
+        if (_layoutHistory.Record(previous, CaptureLayout()))
+        {
+            NotifyHistoryStateChanged();
+            PersistLayout();
+        }
+    }
+
+    private void RenderAlignmentGuides()
+    {
+        ClearAlignmentGuides();
+        var allBounds = GetNodeBounds();
+        var moving = allBounds
+            .Where(node => _selectedNodeIds.Contains(node.EntityId))
+            .ToArray();
+        var stationary = allBounds
+            .Where(node => !_selectedNodeIds.Contains(node.EntityId))
+            .ToArray();
+        var guides = CanvasSelectionService.FindAlignmentGuides(moving, stationary);
+        foreach (var x in guides.Vertical)
+        {
+            AddAlignmentGuide(new Point(x, 0), new Point(x, Surface.Height));
+        }
+
+        foreach (var y in guides.Horizontal)
+        {
+            AddAlignmentGuide(new Point(0, y), new Point(Surface.Width, y));
+        }
+    }
+
+    private void AddAlignmentGuide(Point start, Point end)
+    {
+        var line = new Line
+        {
+            StartPoint = start,
+            EndPoint = end,
+            Stroke = Brush.Parse("#F2C66D"),
+            StrokeThickness = 1,
+            StrokeDashArray = [5, 4],
+            IsHitTestVisible = false,
+        };
+        _alignmentGuideVisuals.Add(line);
+        Surface.Children.Add(line);
+    }
+
+    private void ClearAlignmentGuides()
+    {
+        foreach (var line in _alignmentGuideVisuals)
+        {
+            Surface.Children.Remove(line);
+        }
+
+        _alignmentGuideVisuals.Clear();
+    }
+
+    private void RenderMiniMap()
+    {
+        if (MiniMapSurface is null || Surface is null)
+        {
+            return;
+        }
+
+        MiniMapSurface.Children.Clear();
+        if (Surface.Width <= 0 || Surface.Height <= 0)
+        {
+            return;
+        }
+
+        var scale = Math.Min(MiniMapSurface.Width / Surface.Width, MiniMapSurface.Height / Surface.Height);
+        foreach (var (id, node) in _nodes)
+        {
+            if (!_positions.TryGetValue(id, out var point))
+            {
+                continue;
+            }
+
+            var tag = node.Tag as NodeTag;
+            var preview = new Rectangle
+            {
+                Width = Math.Max(3, node.Width * scale),
+                Height = Math.Max(2, node.Height * scale),
+                Fill = Brush.Parse(
+                    _selectedNodeIds.Contains(id)
+                        ? "#F2C66D"
+                        : tag?.Type switch
+                        {
+                            "project" => "#65D2EF",
+                            "version" => "#4EA9CC",
+                            _ => "#5DD6B2",
+                        }),
+                IsHitTestVisible = false,
+            };
+            Place(preview, new Point(point.X * scale, point.Y * scale));
+            MiniMapSurface.Children.Add(preview);
+        }
+
+        var viewport = new Rectangle
+        {
+            Width = Math.Clamp(Viewport.Viewport.Width / _zoom * scale, 2, MiniMapSurface.Width),
+            Height = Math.Clamp(Viewport.Viewport.Height / _zoom * scale, 2, MiniMapSurface.Height),
+            Stroke = Brushes.White,
+            StrokeThickness = 1,
+            Fill = Brush.Parse("#16FFFFFF"),
+            IsHitTestVisible = false,
+        };
+        Place(
+            viewport,
+            new Point(
+                Math.Clamp(Viewport.Offset.X / _zoom * scale, 0, MiniMapSurface.Width - viewport.Width),
+                Math.Clamp(Viewport.Offset.Y / _zoom * scale, 0, MiniMapSurface.Height - viewport.Height)));
+        MiniMapSurface.Children.Add(viewport);
     }
 
     private void PersistLayout()
@@ -763,6 +1113,9 @@ public partial class BlueprintCanvasSurface : UserControl
 
     private void NotifyHistoryStateChanged() =>
         HistoryStateChanged?.Invoke(this, EventArgs.Empty);
+
+    private void NotifySelectionStateChanged() =>
+        SelectionStateChanged?.Invoke(this, EventArgs.Empty);
 
     private void PersistViewState()
     {

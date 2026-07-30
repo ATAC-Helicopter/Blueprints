@@ -60,13 +60,13 @@ Exit criteria:
 - conflicts explain what changed and produce a recoverable result;
 - membership changes cannot remove the last active administrator.
 
-## Later — v0.4: source-control awareness
+## In progress — v0.4: source-control awareness
 
 Goal: connect release intent to source history without weakening local ownership.
 
 - [x] Read local Git root, branch, remote, dirty state, tag, and recent commits.
 - [x] Match item keys in commit subjects for changelog context.
-- [ ] Expand canvas editing with box selection, multi-select, keyboard movement, alignment guides, and a minimap.
+- [x] Expand canvas editing with box selection, multi-select, keyboard movement, alignment guides, and a minimap.
 - [ ] Add user-created typed relationships after defining their domain and conflict semantics.
 - [ ] Link a Blueprints project to one or more repositories.
 - [ ] Add release-readiness diagnostics for uncommitted and unmatched changes.

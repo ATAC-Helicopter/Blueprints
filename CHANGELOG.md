@@ -4,7 +4,14 @@ Notable changes to Blueprints are documented here. The project follows semantic 
 
 ## Unreleased
 
-No changes yet.
+### Added
+
+- Canvas box selection, additive multi-selection, grouped node dragging, `Ctrl+A`, `Escape`, precise arrow-key movement, live alignment guides, and a viewport minimap.
+
+### Changed
+
+- Alpha 4 development builds now identify themselves as `0.4.0-alpha.4-dev`.
+- Canvas guidance now exposes the active selection and the available multi-node keyboard controls; resulting layout changes keep using signed, audited persistence.
 
 ## 0.3.0 — 2026-07-30
 
