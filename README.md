@@ -98,6 +98,7 @@ Blueprints uses a local workspace as the editable source of truth and a separate
 - [Architecture](docs/architecture.md)
 - [Workspace format](docs/workspace-format.md)
 - [Security model](docs/security-model.md)
+- [SonarQube Cloud](docs/sonarqube.md)
 - [Development guide](docs/development.md)
 - [Release process](docs/releasing.md)
 - [Release history](docs/releases.md)
