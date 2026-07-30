@@ -8,6 +8,8 @@ namespace Blueprints.App.Services;
 public sealed partial class RepositorySourceDiscoveryService : ISourceDiscoveryService
 {
     private const int MaximumGitHubIssues = 100;
+    private const int MaximumGitHubPullRequests = 100;
+    private const int MaximumGitHubReleases = 50;
     private readonly MarkdownSourceDiscoveryParser _markdownParser;
 
     public RepositorySourceDiscoveryService()
@@ -38,17 +40,29 @@ public sealed partial class RepositorySourceDiscoveryService : ISourceDiscoveryS
         var repositoryName = ReadGitHubRepositoryName(root);
         var githubIssueCount = 0;
         var githubProjectCount = 0;
+        var pullRequestCount = 0;
+        var releaseCount = 0;
         if (string.IsNullOrWhiteSpace(repositoryName))
         {
-            warnings.Add("GitHub issues were skipped because the origin remote is not a recognizable GitHub repository.");
+            warnings.Add("GitHub sources were skipped because the origin remote is not a recognizable GitHub repository.");
         }
         else
         {
-            var github = ReadGitHubIssues(root, repositoryName);
-            candidates.AddRange(github.Candidates);
-            warnings.AddRange(github.Warnings);
-            githubIssueCount = github.Candidates.Count;
-            githubProjectCount = github.Candidates.Count(static candidate => candidate.Kind == SourceArtifactKind.GitHubProject);
+            var issues = ReadGitHubIssues(root, repositoryName);
+            candidates.AddRange(issues.Candidates);
+            warnings.AddRange(issues.Warnings);
+            githubIssueCount = issues.Candidates.Count;
+            githubProjectCount = issues.Candidates.Count(static candidate => candidate.Kind == SourceArtifactKind.GitHubProject);
+
+            var pullRequests = ReadGitHubPullRequests(root, repositoryName);
+            candidates.AddRange(pullRequests.Candidates);
+            warnings.AddRange(pullRequests.Warnings);
+            pullRequestCount = pullRequests.Candidates.Count;
+
+            var releases = ReadGitHubReleases(root, repositoryName);
+            candidates.AddRange(releases.Candidates);
+            warnings.AddRange(releases.Warnings);
+            releaseCount = releases.Candidates.Count;
         }
 
         var deduplicated = candidates
@@ -65,7 +79,9 @@ public sealed partial class RepositorySourceDiscoveryService : ISourceDiscoveryS
             changelogCount,
             roadmapCount,
             githubIssueCount,
-            githubProjectCount);
+            githubProjectCount,
+            pullRequestCount,
+            releaseCount);
     }
 
     private int AddMarkdownCandidates(
@@ -133,6 +149,80 @@ public sealed partial class RepositorySourceDiscoveryService : ISourceDiscoveryS
         catch (JsonException exception)
         {
             return new GitHubDiscovery([], [$"GitHub returned unreadable issue data: {exception.Message}"]);
+        }
+    }
+
+    private static GitHubDiscovery ReadGitHubPullRequests(string root, string repositoryName)
+    {
+        var command = RunProcess(
+            root,
+            "gh",
+            [
+                "pr",
+                "list",
+                "--repo",
+                repositoryName,
+                "--state",
+                "all",
+                "--limit",
+                MaximumGitHubPullRequests.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                "--json",
+                "number,title,body,state,labels,url,mergedAt",
+            ]);
+        if (!command.Success)
+        {
+            return new GitHubDiscovery(
+                [],
+                [$"GitHub pull requests were skipped: {command.Error}"]);
+        }
+
+        try
+        {
+            return new GitHubDiscovery(
+                GitHubSourceJsonParser.ParsePullRequests(command.Output, repositoryName),
+                []);
+        }
+        catch (JsonException exception)
+        {
+            return new GitHubDiscovery(
+                [],
+                [$"GitHub returned unreadable pull-request data: {exception.Message}"]);
+        }
+    }
+
+    private static GitHubDiscovery ReadGitHubReleases(string root, string repositoryName)
+    {
+        var command = RunProcess(
+            root,
+            "gh",
+            [
+                "release",
+                "list",
+                "--repo",
+                repositoryName,
+                "--limit",
+                MaximumGitHubReleases.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                "--json",
+                "tagName,name,isDraft,isPrerelease,publishedAt",
+            ]);
+        if (!command.Success)
+        {
+            return new GitHubDiscovery(
+                [],
+                [$"GitHub releases were skipped: {command.Error}"]);
+        }
+
+        try
+        {
+            return new GitHubDiscovery(
+                GitHubSourceJsonParser.ParseReleases(command.Output, repositoryName),
+                []);
+        }
+        catch (JsonException exception)
+        {
+            return new GitHubDiscovery(
+                [],
+                [$"GitHub returned unreadable release data: {exception.Message}"]);
         }
     }
 

@@ -2422,7 +2422,9 @@ public partial class MainWindowViewModel : ViewModelBase
             results.Sum(static pair => pair.Result.ChangelogCount),
             results.Sum(static pair => pair.Result.RoadmapCount),
             results.Sum(static pair => pair.Result.GitHubIssueCount),
-            results.Sum(static pair => pair.Result.GitHubProjectCount));
+            results.Sum(static pair => pair.Result.GitHubProjectCount),
+            results.Sum(static pair => pair.Result.PullRequestCount),
+            results.Sum(static pair => pair.Result.ReleaseCount));
     }
 
     private static IReadOnlyList<string> ParseLocalGitRepositoryPaths(string value)

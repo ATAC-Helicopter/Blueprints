@@ -6,9 +6,12 @@ public sealed record SourceDiscoveryResult(
     int ChangelogCount,
     int RoadmapCount,
     int GitHubIssueCount,
-    int GitHubProjectCount)
+    int GitHubProjectCount,
+    int PullRequestCount = 0,
+    int ReleaseCount = 0)
 {
     public string Summary =>
         $"Found {Candidates.Count} proposals · {ChangelogCount} changelog · {RoadmapCount} roadmap · " +
-        $"{GitHubIssueCount} issues · {GitHubProjectCount} project-linked";
+        $"{GitHubIssueCount} issues · {PullRequestCount} pull requests · {ReleaseCount} releases · " +
+        $"{GitHubProjectCount} project-linked";
 }

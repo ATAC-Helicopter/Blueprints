@@ -10,6 +10,7 @@ Notable changes to Blueprints are documented here. The project follows semantic 
 - Release-readiness diagnostics that surface unavailable or dirty repositories, incomplete items, missing post-tag history, and recent commits that do not map to completed items in the selected version.
 - Machine-local links for up to eight Git worktrees, with combined read-only health, source discovery, source trace, and release-readiness analysis.
 - A provider-neutral reference contract for planning documents, commits, issues, pull requests, releases, and project records across local Git, GitHub, and GitLab.
+- Bounded read-only discovery for up to 100 GitHub pull requests and 50 GitHub release records per linked repository, including merge/publication state and provider-neutral provenance.
 
 ### Changed
 
@@ -18,6 +19,7 @@ Notable changes to Blueprints are documented here. The project follows semantic 
 - The release planner now presents source-control blockers and follow-up guidance next to source trace and changelog review.
 - Source Lens accepts one repository path per line and preserves the full repository-qualified provenance of combined proposals.
 - Source Lens proposals now expose structured provider, repository, artifact kind, identifier, and optional web location instead of relying only on GitHub-specific display strings.
+- Combined Source Lens summaries now separate issue, pull-request, release, and project-linked proposal counts.
 
 ## 0.3.0 — 2026-07-30
 

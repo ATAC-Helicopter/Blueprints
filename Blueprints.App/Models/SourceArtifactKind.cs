@@ -6,4 +6,6 @@ public enum SourceArtifactKind
     Roadmap,
     GitHubIssue,
     GitHubProject,
+    PullRequest,
+    Release,
 }
