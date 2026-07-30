@@ -60,6 +60,16 @@ See [canvas engine](canvas-engine.md) for the exact model and [troubleshooting](
 
 Incomplete items are excluded by the current default rules. When a local Git repository is linked, recent commit subjects and matching item keys are added as source context.
 
+Before freezing or releasing, review **Release readiness** in the release planner. It reports:
+
+- an unavailable or unconfigured repository;
+- uncommitted working-tree changes that make the source baseline unstable;
+- incomplete items in the selected version;
+- missing post-tag history;
+- recent commits that do not reference a completed item key in the selected version.
+
+Repository errors and dirty state are blockers. Unmatched commits and incomplete items require attention because they may be intentionally out of scope; Blueprints explains them but does not silently change source history or the release plan.
+
 ## Archive draft work
 
 Draft versions and items in Planned or In Progress state can be archived. Select the archive action twice to confirm. The entity leaves the active signed plan, its removal participates in sync, and its signed files remain under `.blueprints/archive/` for recovery. Frozen and released versions are immutable and cannot be archived.
@@ -67,8 +77,8 @@ Draft versions and items in Planned or In Progress state can be archived. Select
 ## Discover work with Source Lens
 
 1. Open **Source Lens** from the navigation.
-2. Enter the path to a Git worktree.
-3. Select **Save link**, then **Scan sources**.
+2. Enter up to eight Git worktree paths, one per line.
+3. Select **Save links**, then **Scan sources**.
 4. Review the proposal inbox produced from changelogs, roadmaps, GitHub issues, and issue-linked GitHub Projects.
 5. Edit the selected proposal’s title, context, target version, type, changelog group, and completion state.
 6. Exclude anything that should not enter Blueprints.

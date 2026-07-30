@@ -16,6 +16,8 @@ namespace Blueprints.App.ViewModels;
 
 public partial class MainWindowViewModel : ViewModelBase
 {
+    private const int MaximumLinkedRepositories = 8;
+    private const int MaximumCombinedSourceCandidates = 500;
     private readonly ProjectWorkspaceCoordinatorService? _coordinatorService;
     private readonly IntegrationStatusService _integrationStatusService;
     private readonly ISourceDiscoveryService _sourceDiscoveryService;
@@ -107,6 +109,7 @@ public partial class MainWindowViewModel : ViewModelBase
         TrustDiagnostics = new ObservableCollection<TrustDiagnosticCard>();
         Integrations = new ObservableCollection<IntegrationStatusCard>();
         VersionSourceChangeDiagnostics = new ObservableCollection<VersionSourceChangeDiagnostic>();
+        ReleaseReadinessDiagnostics = new ObservableCollection<ReleaseReadinessDiagnostic>();
         _integrationStatusService = new IntegrationStatusService();
         _sourceDiscoveryService = new RepositorySourceDiscoveryService();
         _canvasViewStateStore = new FileSystemCanvasViewStateStore();
@@ -136,6 +139,7 @@ public partial class MainWindowViewModel : ViewModelBase
         TrustDiagnostics = new ObservableCollection<TrustDiagnosticCard>();
         Integrations = new ObservableCollection<IntegrationStatusCard>();
         VersionSourceChangeDiagnostics = new ObservableCollection<VersionSourceChangeDiagnostic>();
+        ReleaseReadinessDiagnostics = new ObservableCollection<ReleaseReadinessDiagnostic>();
         SourceImportProposals = new ObservableCollection<SourceImportProposal>();
 
         RefreshRecentProjects();
@@ -166,6 +170,8 @@ public partial class MainWindowViewModel : ViewModelBase
     public ObservableCollection<IntegrationStatusCard> Integrations { get; }
 
     public ObservableCollection<VersionSourceChangeDiagnostic> VersionSourceChangeDiagnostics { get; }
+
+    public ObservableCollection<ReleaseReadinessDiagnostic> ReleaseReadinessDiagnostics { get; }
 
     public ObservableCollection<SourceImportProposal> SourceImportProposals { get; }
 
@@ -925,6 +931,22 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
+    public string ReleaseReadinessSummary
+    {
+        get
+        {
+            var blocking = ReleaseReadinessDiagnostics.Count(
+                static diagnostic => diagnostic.Level == ReleaseReadinessLevel.Blocking);
+            var attention = ReleaseReadinessDiagnostics.Count(
+                static diagnostic => diagnostic.Level == ReleaseReadinessLevel.Attention);
+            return blocking > 0
+                ? $"{blocking} blocking source-control checks · {attention} need attention"
+                : attention > 0
+                    ? $"No source-control blockers · {attention} checks need attention"
+                    : "Source-control checks are ready for human release review";
+        }
+    }
+
     public bool CanManageMembers =>
         CanMutateWorkspace &&
         _currentSession is not null &&
@@ -1531,15 +1553,20 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         try
         {
+            var repositoryPaths = ParseLocalGitRepositoryPaths(LocalGitRepositoryPath);
             var settings = _integrationStatusService.GetSettings();
             _integrationStatusService.SaveSettings(settings with
             {
-                LocalGitRepositoryPath = LocalGitRepositoryPath.Trim(),
+                LocalGitRepositoryPath = repositoryPaths.FirstOrDefault() ?? string.Empty,
+                LocalGitRepositoryPaths = repositoryPaths,
             });
             RefreshIntegrations();
-            IntegrationMessage = string.IsNullOrWhiteSpace(LocalGitRepositoryPath)
-                ? "Local Git repository link cleared."
-                : "Local Git repository link saved.";
+            IntegrationMessage = repositoryPaths.Count switch
+            {
+                0 => "Local Git repository links cleared.",
+                1 => "Local Git repository link saved.",
+                _ => $"{repositoryPaths.Count} Local Git repository links saved.",
+            };
         }
         catch (Exception exception)
         {
@@ -1574,7 +1601,8 @@ public partial class MainWindowViewModel : ViewModelBase
         IntegrationMessage = "Reading changelogs, roadmaps, GitHub issues, and project links…";
         try
         {
-            var result = await Task.Run(() => _sourceDiscoveryService.Discover(LocalGitRepositoryPath));
+            var repositoryPaths = ParseLocalGitRepositoryPaths(LocalGitRepositoryPath);
+            var result = await Task.Run(() => DiscoverSources(repositoryPaths));
             PopulateSourceProposals(result);
             IntegrationMessage = result.Candidates.Count == 0
                 ? "The scan completed, but no importable planning entries were found."
@@ -2021,6 +2049,7 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         VersionSourceChangeDiagnostics.Clear();
+        ReleaseReadinessDiagnostics.Clear();
 
         Title = $"{project.Name} ({project.ProjectCode})";
         TrustSummary = session.LoadResult.TrustReport.Summary;
@@ -2117,6 +2146,7 @@ public partial class MainWindowViewModel : ViewModelBase
         SyncDiagnostics.Clear();
         TrustDiagnostics.Clear();
         VersionSourceChangeDiagnostics.Clear();
+        ReleaseReadinessDiagnostics.Clear();
         SourceImportProposals.Clear();
         SelectedSourceProposal = null;
         SourceDiscoverySummary = "Connect a repository, then scan its planning sources.";
@@ -2189,7 +2219,9 @@ public partial class MainWindowViewModel : ViewModelBase
     private void RefreshIntegrations()
     {
         var settings = _integrationStatusService.GetSettings();
-        LocalGitRepositoryPath = settings.LocalGitRepositoryPath;
+        LocalGitRepositoryPath = string.Join(
+            Environment.NewLine,
+            settings.EffectiveLocalGitRepositoryPaths);
 
         Integrations.Clear();
         foreach (var integration in _integrationStatusService.GetIntegrationStatuses())
@@ -2303,9 +2335,10 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     private IReadOnlyList<SourceChangeSummary> GetLocalGitRecentChanges() =>
-        Integrations.FirstOrDefault(static integration => integration.Provider == IntegrationProviderType.LocalGit)
-            ?.RecentChanges
-        ?? [];
+        Integrations
+            .Where(static integration => integration.Provider == IntegrationProviderType.LocalGit)
+            .SelectMany(static integration => integration.RecentChanges)
+            .ToArray();
 
     private void RefreshVersionSourceChangeDiagnostics()
     {
@@ -2316,7 +2349,98 @@ public partial class MainWindowViewModel : ViewModelBase
             VersionSourceChangeDiagnostics.Add(diagnostic);
         }
 
+        ReleaseReadinessDiagnostics.Clear();
+        var localGit = GetLocalGitReadinessStatus();
+        foreach (var diagnostic in ReleaseReadinessDiagnosticBuilder.Build(
+                     SelectedVersion,
+                     localGit,
+                     VersionSourceChangeDiagnostics))
+        {
+            ReleaseReadinessDiagnostics.Add(diagnostic);
+        }
+
         OnPropertyChanged(nameof(VersionSourceChangeSummary));
+        OnPropertyChanged(nameof(ReleaseReadinessSummary));
+    }
+
+    private IntegrationStatusCard? GetLocalGitReadinessStatus()
+    {
+        var repositories = Integrations
+            .Where(static integration => integration.Provider == IntegrationProviderType.LocalGit)
+            .ToArray();
+        if (repositories.Length <= 1)
+        {
+            return repositories.FirstOrDefault();
+        }
+
+        var state = repositories.Any(
+            static repository => repository.State == IntegrationConnectionState.Error)
+            ? IntegrationConnectionState.Error
+            : repositories.Any(
+                static repository => repository.State == IntegrationConnectionState.Warning)
+                ? IntegrationConnectionState.Warning
+                : IntegrationConnectionState.Connected;
+        return new IntegrationStatusCard(
+            IntegrationProviderType.LocalGit,
+            "Local Git repositories",
+            state,
+            string.Join(", ", repositories.Select(static repository => repository.Target)),
+            $"{repositories.Length} linked repositories; " +
+            $"{repositories.Count(static repository => repository.State == IntegrationConnectionState.Connected)} clean, " +
+            $"{repositories.Count(static repository => repository.State == IntegrationConnectionState.Warning)} dirty, " +
+            $"{repositories.Count(static repository => repository.State == IntegrationConnectionState.Error)} unavailable.",
+            "Resolve every dirty or unavailable repository before treating source history as a stable release baseline.",
+            repositories[0].TrustBoundary,
+            repositories.Max(static repository => repository.CheckedAtUtc),
+            GetLocalGitRecentChanges());
+    }
+
+    private SourceDiscoveryResult DiscoverSources(IReadOnlyList<string> repositoryPaths)
+    {
+        var results = repositoryPaths
+            .Select(path => (Path: path, Result: _sourceDiscoveryService.Discover(path)))
+            .ToArray();
+        var candidates = results
+            .SelectMany(pair => pair.Result.Candidates.Select(candidate => candidate with
+            {
+                SourceReference = $"{pair.Path}::{candidate.SourceReference}",
+                SourceContext = $"{Path.GetFileName(pair.Path)} · {candidate.SourceContext}",
+            }))
+            .ToArray();
+        var warnings = results
+            .SelectMany(pair => pair.Result.Warnings.Select(warning => $"{Path.GetFileName(pair.Path)}: {warning}"))
+            .ToList();
+        if (candidates.Length > MaximumCombinedSourceCandidates)
+        {
+            warnings.Add(
+                $"Combined discovery was limited to {MaximumCombinedSourceCandidates} proposals across all linked repositories.");
+        }
+
+        return new SourceDiscoveryResult(
+            candidates.Take(MaximumCombinedSourceCandidates).ToArray(),
+            warnings,
+            results.Sum(static pair => pair.Result.ChangelogCount),
+            results.Sum(static pair => pair.Result.RoadmapCount),
+            results.Sum(static pair => pair.Result.GitHubIssueCount),
+            results.Sum(static pair => pair.Result.GitHubProjectCount),
+            results.Sum(static pair => pair.Result.PullRequestCount),
+            results.Sum(static pair => pair.Result.ReleaseCount));
+    }
+
+    private static IReadOnlyList<string> ParseLocalGitRepositoryPaths(string value)
+    {
+        var paths = value
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(Path.GetFullPath)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        if (paths.Length > MaximumLinkedRepositories)
+        {
+            throw new InvalidOperationException(
+                $"Link no more than {MaximumLinkedRepositories} local repositories to one Blueprints installation.");
+        }
+
+        return paths;
     }
 
     private void RefreshSuggestedPaths()

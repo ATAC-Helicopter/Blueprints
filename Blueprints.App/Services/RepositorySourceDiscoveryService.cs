@@ -8,16 +8,36 @@ namespace Blueprints.App.Services;
 public sealed partial class RepositorySourceDiscoveryService : ISourceDiscoveryService
 {
     private const int MaximumGitHubIssues = 100;
+    private const int MaximumGitHubPullRequests = 100;
+    private const int MaximumGitHubReleases = 50;
+    private const string GitHubProjectDraftQuery =
+        "query($owner:String!,$name:String!){repository(owner:$owner,name:$name){" +
+        "projectsV2(first:10){nodes{number title url items(first:100){nodes{id type content{" +
+        "__typename ... on DraftIssue{title body} ... on Issue{number} ... on PullRequest{number}" +
+        "}}}}}}}";
     private readonly MarkdownSourceDiscoveryParser _markdownParser;
+    private readonly IHostedSourceProviderReader _hostedSourceProviderReader;
 
     public RepositorySourceDiscoveryService()
-        : this(new MarkdownSourceDiscoveryParser())
+        : this(
+            new MarkdownSourceDiscoveryParser(),
+            new GitHubCliSourceProviderReader())
     {
     }
 
     public RepositorySourceDiscoveryService(MarkdownSourceDiscoveryParser markdownParser)
+        : this(markdownParser, new GitHubCliSourceProviderReader())
     {
+    }
+
+    public RepositorySourceDiscoveryService(
+        MarkdownSourceDiscoveryParser markdownParser,
+        IHostedSourceProviderReader hostedSourceProviderReader)
+    {
+        ArgumentNullException.ThrowIfNull(markdownParser);
+        ArgumentNullException.ThrowIfNull(hostedSourceProviderReader);
         _markdownParser = markdownParser;
+        _hostedSourceProviderReader = hostedSourceProviderReader;
     }
 
     public SourceDiscoveryResult Discover(string repositoryPath)
@@ -38,17 +58,21 @@ public sealed partial class RepositorySourceDiscoveryService : ISourceDiscoveryS
         var repositoryName = ReadGitHubRepositoryName(root);
         var githubIssueCount = 0;
         var githubProjectCount = 0;
+        var pullRequestCount = 0;
+        var releaseCount = 0;
         if (string.IsNullOrWhiteSpace(repositoryName))
         {
-            warnings.Add("GitHub issues were skipped because the origin remote is not a recognizable GitHub repository.");
+            warnings.Add("GitHub sources were skipped because the origin remote is not a recognizable GitHub repository.");
         }
         else
         {
-            var github = ReadGitHubIssues(root, repositoryName);
-            candidates.AddRange(github.Candidates);
-            warnings.AddRange(github.Warnings);
-            githubIssueCount = github.Candidates.Count;
-            githubProjectCount = github.Candidates.Count(static candidate => candidate.Kind == SourceArtifactKind.GitHubProject);
+            var hosted = _hostedSourceProviderReader.Read(root, repositoryName);
+            candidates.AddRange(hosted.Candidates);
+            warnings.AddRange(hosted.Warnings);
+            githubIssueCount = hosted.IssueCount;
+            githubProjectCount = hosted.ProjectCount;
+            pullRequestCount = hosted.PullRequestCount;
+            releaseCount = hosted.ReleaseCount;
         }
 
         var deduplicated = candidates
@@ -65,7 +89,9 @@ public sealed partial class RepositorySourceDiscoveryService : ISourceDiscoveryS
             changelogCount,
             roadmapCount,
             githubIssueCount,
-            githubProjectCount);
+            githubProjectCount,
+            pullRequestCount,
+            releaseCount);
     }
 
     private int AddMarkdownCandidates(
@@ -126,7 +152,7 @@ public sealed partial class RepositorySourceDiscoveryService : ISourceDiscoveryS
             using var document = JsonDocument.Parse(command.Output);
             var candidates = document.RootElement
                 .EnumerateArray()
-                .Select(ParseGitHubIssue)
+                .Select(issue => ParseGitHubIssue(issue, repositoryName))
                 .ToArray();
             return new GitHubDiscovery(candidates, []);
         }
@@ -136,7 +162,129 @@ public sealed partial class RepositorySourceDiscoveryService : ISourceDiscoveryS
         }
     }
 
-    private static SourceDiscoveryCandidate ParseGitHubIssue(JsonElement issue)
+    private static GitHubDiscovery ReadGitHubPullRequests(string root, string repositoryName)
+    {
+        var command = RunProcess(
+            root,
+            "gh",
+            [
+                "pr",
+                "list",
+                "--repo",
+                repositoryName,
+                "--state",
+                "all",
+                "--limit",
+                MaximumGitHubPullRequests.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                "--json",
+                "number,title,body,state,labels,url,mergedAt",
+            ]);
+        if (!command.Success)
+        {
+            return new GitHubDiscovery(
+                [],
+                [$"GitHub pull requests were skipped: {command.Error}"]);
+        }
+
+        try
+        {
+            return new GitHubDiscovery(
+                GitHubSourceJsonParser.ParsePullRequests(command.Output, repositoryName),
+                []);
+        }
+        catch (JsonException exception)
+        {
+            return new GitHubDiscovery(
+                [],
+                [$"GitHub returned unreadable pull-request data: {exception.Message}"]);
+        }
+    }
+
+    private static GitHubDiscovery ReadGitHubReleases(string root, string repositoryName)
+    {
+        var command = RunProcess(
+            root,
+            "gh",
+            [
+                "release",
+                "list",
+                "--repo",
+                repositoryName,
+                "--limit",
+                MaximumGitHubReleases.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                "--json",
+                "tagName,name,isDraft,isPrerelease,publishedAt",
+            ]);
+        if (!command.Success)
+        {
+            return new GitHubDiscovery(
+                [],
+                [$"GitHub releases were skipped: {command.Error}"]);
+        }
+
+        try
+        {
+            return new GitHubDiscovery(
+                GitHubSourceJsonParser.ParseReleases(command.Output, repositoryName),
+                []);
+        }
+        catch (JsonException exception)
+        {
+            return new GitHubDiscovery(
+                [],
+                [$"GitHub returned unreadable release data: {exception.Message}"]);
+        }
+    }
+
+    private static GitHubDiscovery ReadGitHubProjectDrafts(
+        string root,
+        string repositoryName)
+    {
+        var separator = repositoryName.IndexOf('/');
+        if (separator <= 0 || separator == repositoryName.Length - 1)
+        {
+            return new GitHubDiscovery(
+                [],
+                ["GitHub Project drafts were skipped because the repository identity is malformed."]);
+        }
+
+        var command = RunProcess(
+            root,
+            "gh",
+            [
+                "api",
+                "graphql",
+                "-f",
+                $"owner={repositoryName[..separator]}",
+                "-f",
+                $"name={repositoryName[(separator + 1)..]}",
+                "-f",
+                $"query={GitHubProjectDraftQuery}",
+            ]);
+        if (!command.Success)
+        {
+            return new GitHubDiscovery(
+                [],
+                [$"GitHub Project drafts were skipped: {command.Error}"]);
+        }
+
+        try
+        {
+            return new GitHubDiscovery(
+                GitHubSourceJsonParser.ParseProjectDrafts(command.Output, repositoryName),
+                []);
+        }
+        catch (JsonException exception)
+        {
+            return new GitHubDiscovery(
+                [],
+                [$"GitHub returned unreadable Project draft data: {exception.Message}"]);
+        }
+    }
+
+    private static SourceDiscoveryCandidate ParseGitHubIssue(
+        JsonElement issue,
+        string repositoryName)
     {
         var number = issue.GetProperty("number").GetInt32();
         var title = issue.GetProperty("title").GetString()?.Trim() ?? $"Issue #{number}";
@@ -180,7 +328,13 @@ public sealed partial class RepositorySourceDiscoveryService : ISourceDiscoveryS
             string.Equals(state, "CLOSED", StringComparison.OrdinalIgnoreCase),
             $"github:#{number}",
             string.Join(" · ", contextParts.DefaultIfEmpty($"GitHub issue #{number}")),
-            isProjectLinked ? 0.97 : 0.93);
+            isProjectLinked ? 0.97 : 0.93,
+            new ProviderReference(
+                SourceProviderKind.GitHub,
+                ProviderReferenceKind.Issue,
+                repositoryName,
+                $"#{number}",
+                url));
     }
 
     private static IReadOnlyList<string> ReadProjectNames(JsonElement issue)
@@ -338,4 +492,35 @@ public sealed partial class RepositorySourceDiscoveryService : ISourceDiscoveryS
     private sealed record GitHubDiscovery(
         IReadOnlyList<SourceDiscoveryCandidate> Candidates,
         IReadOnlyList<string> Warnings);
+
+    private sealed class GitHubCliSourceProviderReader : IHostedSourceProviderReader
+    {
+        public HostedSourceDiscoveryResult Read(
+            string repositoryRoot,
+            string repositoryName)
+        {
+            var issues = ReadGitHubIssues(repositoryRoot, repositoryName);
+            var pullRequests = ReadGitHubPullRequests(repositoryRoot, repositoryName);
+            var releases = ReadGitHubReleases(repositoryRoot, repositoryName);
+            var projectDrafts = ReadGitHubProjectDrafts(repositoryRoot, repositoryName);
+            return new HostedSourceDiscoveryResult(
+                [
+                    .. issues.Candidates,
+                    .. pullRequests.Candidates,
+                    .. releases.Candidates,
+                    .. projectDrafts.Candidates,
+                ],
+                [
+                    .. issues.Warnings,
+                    .. pullRequests.Warnings,
+                    .. releases.Warnings,
+                    .. projectDrafts.Warnings,
+                ],
+                issues.Candidates.Count,
+                issues.Candidates.Count(static candidate => candidate.Kind == SourceArtifactKind.GitHubProject)
+                + projectDrafts.Candidates.Count,
+                pullRequests.Candidates.Count,
+                releases.Candidates.Count);
+        }
+    }
 }

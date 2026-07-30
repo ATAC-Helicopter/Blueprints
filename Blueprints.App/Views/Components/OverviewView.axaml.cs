@@ -9,7 +9,9 @@ public partial class OverviewView : UserControl
     {
         InitializeComponent();
         BlueprintSurface.HistoryStateChanged += (_, _) => UpdateHistoryButtons();
+        BlueprintSurface.SelectionStateChanged += (_, _) => UpdateSelectionSummary();
         UpdateHistoryButtons();
+        UpdateSelectionSummary();
     }
 
     private void UndoClick(object? sender, RoutedEventArgs eventArgs) =>
@@ -38,4 +40,7 @@ public partial class OverviewView : UserControl
         UndoButton.IsEnabled = BlueprintSurface.CanUndo;
         RedoButton.IsEnabled = BlueprintSurface.CanRedo;
     }
+
+    private void UpdateSelectionSummary() =>
+        CanvasSelectionSummary.Text = BlueprintSurface.SelectionSummary;
 }

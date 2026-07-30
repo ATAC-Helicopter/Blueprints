@@ -9,25 +9,29 @@ Source Lens converts existing project signals into editable Blueprints work-item
 | `CHANGELOG.md` | Local read-only Markdown parsing | Bullet entries, completed by default |
 | `Roadmap.md` | Local read-only Markdown parsing | Bullet and task-list entries with checkbox state |
 | GitHub issues | Authenticated `gh issue list` request | Open and closed issue metadata |
-| GitHub Projects | `projectItems` attached to returned issues | Project-linked issues with project context |
+| GitHub pull requests | Authenticated `gh pr list` request | Open, closed, and merged pull-request metadata |
+| GitHub releases | Authenticated `gh release list` request | Draft and published release records |
+| GitHub Projects | Repository-linked Projects query plus `projectItems` attached to issues | Standalone draft items and project-linked issues |
 
-The scanner checks the repository root and its `docs` directory for common changelog and roadmap filename casing. It reads at most 5,000 lines and 100 candidates per Markdown file. GitHub reads are limited to 100 issues. A scan returns at most 250 deduplicated proposals.
+The scanner checks each linked repository root and its `docs` directory for common changelog and roadmap filename casing. It reads at most 5,000 lines and 100 candidates per Markdown file. GitHub reads are limited to 100 issues, 100 pull requests, and 50 releases per repository. A per-repository scan returns at most 250 deduplicated proposals, and combined discovery returns at most 500 proposals across up to eight worktrees.
 
-Standalone GitHub Project draft items are not imported yet. Only issues visible through the repository issue query and linked to a Project are recognized.
+Standalone draft discovery reads only Projects linked to the repository, checks at most 10 Projects and 100 items per Project, and returns at most 100 drafts. Issues and pull requests found in those Projects remain owned by their dedicated discovery feeds, preventing duplicate Project proposals.
 
 ## Requirements
 
-- Link a local Git worktree in **Source Lens**.
+- Link one or more local Git worktrees in **Source Lens**, one path per line.
 - Install Git.
 - For GitHub discovery, install and authenticate the GitHub CLI with `gh auth login`.
 - The Git worktree must have a recognizable `github.com` origin remote.
 
 Local Markdown discovery still works if GitHub is unavailable. Source Lens reports the skipped provider as a warning instead of failing the entire scan.
 
+Repository discovery talks to hosted services through a provider-neutral reader contract. The current GitHub implementation uses the authenticated GitHub CLI behind that boundary; replacing its transport does not require changing proposal approval, provenance, or signed workspace behavior.
+
 ## Approval workflow
 
 1. Open **Source Lens**.
-2. Link the local repository and select **Scan sources**.
+2. Link up to eight local repositories, one path per line, and select **Scan sources**.
 3. Select a proposal from the inbox.
 4. Review and edit its title, description, target version, work type, changelog category, and completion state.
 5. Include or exclude the proposal with **Approved**.
@@ -58,7 +62,17 @@ Applied items retain tags that identify:
 - the source kind;
 - a compact source reference such as `github:#42` or `roadmap:Roadmap.md:18`.
 
-Source content remains informational. It does not inherit authority from GitHub, a roadmap, or a changelog.
+When several repositories are scanned, the source reference is qualified with the full local worktree path before it enters the proposal inbox. Source content remains informational. It does not inherit authority from GitHub, a roadmap, or a changelog.
+
+Internally, Source Lens classifies references without making one hosted provider the domain model. A reference records:
+
+- provider (`Local`, `GitHub`, or `GitLab`);
+- artifact kind (planning document, commit, issue, pull request, release, or project);
+- repository identity;
+- provider identifier;
+- an optional web location.
+
+Local Markdown and GitHub issue discovery already emit this structure. Pull-request, release, standalone project, and GitLab readers can use the same contract without changing signed Blueprints project truth.
 
 ## Security and privacy
 
