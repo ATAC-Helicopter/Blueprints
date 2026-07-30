@@ -4,7 +4,18 @@ Notable changes to Blueprints are documented here. The project follows semantic 
 
 ## Unreleased
 
-No changes yet.
+### Added
+
+- Session-scoped undo and redo for node drags and auto-arrangement, with toolbar controls and `Ctrl+Z`, `Ctrl+Shift+Z`, and `Ctrl+Y` shortcuts.
+- Every applied undo or redo is saved as a new signed, audited canvas-layout revision so history never bypasses workspace integrity.
+
+### Changed
+
+- Post-release development builds now identify themselves as `0.2.0-alpha.3-dev`.
+
+### Fixed
+
+- Canvas nodes can no longer be dragged when workspace trust or sync-conflict state forbids mutation.
 
 ## 0.2.0-alpha.2 — 2026-07-30
 

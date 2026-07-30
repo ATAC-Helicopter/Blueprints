@@ -24,7 +24,7 @@ Goal: a new contributor can build the app, and a developer can plan and export a
 - [x] Persist, sign, audit, sync, validate, and restore shared node positions while keeping viewport preferences machine-local.
 - [x] Add approval-first Source Lens discovery for changelogs, roadmaps, GitHub issues, and issue-linked GitHub Projects.
 - [x] Replace icon-only navigation with a clear workflow rail and adaptive next-action guidance.
-- [ ] Add undo/redo, box selection, multi-select, keyboard movement, alignment guides, and a minimap.
+- [ ] Expand canvas editing beyond the completed session undo/redo foundation with box selection, multi-select, keyboard movement, alignment guides, and a minimap.
 - [ ] Add user-created typed relationships after defining their domain and conflict semantics.
 - [x] Keep release, team, sync, trust, and integration operations in focused secondary tools.
 - [x] Add native folder pickers instead of requiring raw paths.
