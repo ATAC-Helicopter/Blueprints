@@ -6,13 +6,14 @@ Blueprints uses versions as durable milestone checkpoints. Each entry links a Gi
 
 | Version | Date | Milestone | Accomplishments |
 | --- | --- | --- | --- |
+| `v0.2.0-alpha.2` | 2026-07-30 | Interactive workspace | Diagram-first canvas, signed shared layouts, machine-local viewport state, approval-first Source Lens, adaptive workflow navigation, .NET 10, Avalonia 12, and expanded security/user documentation |
 | [`v0.1.0-alpha.1`](https://github.com/ATAC-Helicopter/Blueprints/releases/tag/v0.1.0-alpha.1) | 2026-02-28 | Foundation | Domain contracts, canonical signed persistence, protected identities, shared-folder sync foundation, audit chaining, and the initial Avalonia application scaffold |
 
 ## Planned checkpoints
 
 | Version | Milestone outcome |
 | --- | --- |
-| `v0.2.0` | A coherent and usable solo release-planning workflow |
+| `v0.2.0` | Complete the coherent solo workflow with identity onboarding, editing history, archive/delete flows, and release polish |
 | `v0.3.0` | Collaboration that two users can understand and recover |
 | `v0.4.0` | Provider-neutral source-control awareness |
 | `v0.5.0` | Explicit VaultSync transport and backup-health integration |

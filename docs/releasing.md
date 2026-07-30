@@ -21,7 +21,7 @@ v0.2 milestone -> v0.2.0
 v0.3 milestone -> v0.3.0
 ```
 
-The historical foundation checkpoint used `v0.1.0-alpha.1`. Starting with the v0.2 milestone, use the clean `v0.x.0` form. GitHub records remain marked as prereleases until v1.0.
+Use SemVer prerelease identifiers for honest intermediate checkpoints, for example `v0.2.0-alpha.2`. Use the clean `v0.x.0` form only when that roadmap milestone's exit criteria are complete. GitHub records remain marked as prereleases until v1.0.
 
 Before tagging:
 
@@ -36,8 +36,8 @@ Create an annotated, signed tag from `main` when possible:
 ```sh
 git switch main
 git pull --ff-only
-git tag -s v0.2.0 -m "Blueprints v0.2.0 — coherent solo workflow"
-git push origin v0.2.0
+git tag -s v0.2.0-alpha.2 -m "Blueprints v0.2.0-alpha.2 — interactive workspace"
+git push origin v0.2.0-alpha.2
 ```
 
 The milestone workflow verifies that the tag belongs to `main`, requires a matching changelog heading, extracts that section, and creates a GitHub prerelease with no attached binaries.
