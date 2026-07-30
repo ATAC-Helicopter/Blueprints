@@ -11,11 +11,11 @@ Source Lens converts existing project signals into editable Blueprints work-item
 | GitHub issues | Authenticated `gh issue list` request | Open and closed issue metadata |
 | GitHub pull requests | Authenticated `gh pr list` request | Open, closed, and merged pull-request metadata |
 | GitHub releases | Authenticated `gh release list` request | Draft and published release records |
-| GitHub Projects | `projectItems` attached to returned issues | Project-linked issues with project context |
+| GitHub Projects | Repository-linked Projects query plus `projectItems` attached to issues | Standalone draft items and project-linked issues |
 
 The scanner checks each linked repository root and its `docs` directory for common changelog and roadmap filename casing. It reads at most 5,000 lines and 100 candidates per Markdown file. GitHub reads are limited to 100 issues, 100 pull requests, and 50 releases per repository. A per-repository scan returns at most 250 deduplicated proposals, and combined discovery returns at most 500 proposals across up to eight worktrees.
 
-Standalone GitHub Project draft items are not imported yet. Only issues visible through the repository issue query and linked to a Project are recognized.
+Standalone draft discovery reads only Projects linked to the repository, checks at most 10 Projects and 100 items per Project, and returns at most 100 drafts. Issues and pull requests found in those Projects remain owned by their dedicated discovery feeds, preventing duplicate Project proposals.
 
 ## Requirements
 

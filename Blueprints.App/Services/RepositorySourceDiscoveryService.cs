@@ -10,6 +10,11 @@ public sealed partial class RepositorySourceDiscoveryService : ISourceDiscoveryS
     private const int MaximumGitHubIssues = 100;
     private const int MaximumGitHubPullRequests = 100;
     private const int MaximumGitHubReleases = 50;
+    private const string GitHubProjectDraftQuery =
+        "query($owner:String!,$name:String!){repository(owner:$owner,name:$name){" +
+        "projectsV2(first:10){nodes{number title url items(first:100){nodes{id type content{" +
+        "__typename ... on DraftIssue{title body} ... on Issue{number} ... on PullRequest{number}" +
+        "}}}}}}}";
     private readonly MarkdownSourceDiscoveryParser _markdownParser;
 
     public RepositorySourceDiscoveryService()
@@ -63,6 +68,11 @@ public sealed partial class RepositorySourceDiscoveryService : ISourceDiscoveryS
             candidates.AddRange(releases.Candidates);
             warnings.AddRange(releases.Warnings);
             releaseCount = releases.Candidates.Count;
+
+            var projectDrafts = ReadGitHubProjectDrafts(root, repositoryName);
+            candidates.AddRange(projectDrafts.Candidates);
+            warnings.AddRange(projectDrafts.Warnings);
+            githubProjectCount += projectDrafts.Candidates.Count;
         }
 
         var deduplicated = candidates
@@ -223,6 +233,52 @@ public sealed partial class RepositorySourceDiscoveryService : ISourceDiscoveryS
             return new GitHubDiscovery(
                 [],
                 [$"GitHub returned unreadable release data: {exception.Message}"]);
+        }
+    }
+
+    private static GitHubDiscovery ReadGitHubProjectDrafts(
+        string root,
+        string repositoryName)
+    {
+        var separator = repositoryName.IndexOf('/');
+        if (separator <= 0 || separator == repositoryName.Length - 1)
+        {
+            return new GitHubDiscovery(
+                [],
+                ["GitHub Project drafts were skipped because the repository identity is malformed."]);
+        }
+
+        var command = RunProcess(
+            root,
+            "gh",
+            [
+                "api",
+                "graphql",
+                "-f",
+                $"owner={repositoryName[..separator]}",
+                "-f",
+                $"name={repositoryName[(separator + 1)..]}",
+                "-f",
+                $"query={GitHubProjectDraftQuery}",
+            ]);
+        if (!command.Success)
+        {
+            return new GitHubDiscovery(
+                [],
+                [$"GitHub Project drafts were skipped: {command.Error}"]);
+        }
+
+        try
+        {
+            return new GitHubDiscovery(
+                GitHubSourceJsonParser.ParseProjectDrafts(command.Output, repositoryName),
+                []);
+        }
+        catch (JsonException exception)
+        {
+            return new GitHubDiscovery(
+                [],
+                [$"GitHub returned unreadable Project draft data: {exception.Message}"]);
         }
     }
 

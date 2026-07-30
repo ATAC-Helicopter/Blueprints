@@ -5,6 +5,30 @@ namespace Blueprints.App.Services;
 
 public static class GitHubSourceJsonParser
 {
+    public static IReadOnlyList<SourceDiscoveryCandidate> ParseProjectDrafts(
+        string json,
+        string repositoryName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(repositoryName);
+        using var document = JsonDocument.Parse(json);
+        if (!document.RootElement.TryGetProperty("data", out var data)
+            || !data.TryGetProperty("repository", out var repository)
+            || repository.ValueKind != JsonValueKind.Object
+            || !repository.TryGetProperty("projectsV2", out var projects)
+            || !projects.TryGetProperty("nodes", out var projectNodes)
+            || projectNodes.ValueKind != JsonValueKind.Array)
+        {
+            return [];
+        }
+
+        return projectNodes
+            .EnumerateArray()
+            .Take(10)
+            .SelectMany(project => ParseProjectDrafts(project, repositoryName))
+            .Take(100)
+            .ToArray();
+    }
+
     public static IReadOnlyList<SourceDiscoveryCandidate> ParsePullRequests(
         string json,
         string repositoryName)
@@ -63,6 +87,53 @@ public static class GitHubSourceJsonParser
                 repositoryName,
                 $"#{number}",
                 url));
+    }
+
+    private static IReadOnlyList<SourceDiscoveryCandidate> ParseProjectDrafts(
+        JsonElement project,
+        string repositoryName)
+    {
+        var projectNumber = project.GetProperty("number").GetInt32();
+        var projectTitle = ReadString(project, "title") ?? $"Project {projectNumber}";
+        var projectUrl = ReadString(project, "url");
+        if (!project.TryGetProperty("items", out var items)
+            || !items.TryGetProperty("nodes", out var itemNodes)
+            || itemNodes.ValueKind != JsonValueKind.Array)
+        {
+            return [];
+        }
+
+        return itemNodes
+            .EnumerateArray()
+            .Take(100)
+            .Where(static item =>
+                item.TryGetProperty("content", out var content)
+                && content.ValueKind == JsonValueKind.Object
+                && ReadString(content, "__typename") == "DraftIssue")
+            .Select(item =>
+            {
+                var itemId = ReadString(item, "id") ?? "(unknown)";
+                var content = item.GetProperty("content");
+                var title = ReadString(content, "title") ?? "Untitled project draft";
+                var body = ReadString(content, "body");
+                return new SourceDiscoveryCandidate(
+                    SourceArtifactKind.GitHubProject,
+                    title,
+                    Truncate(body, 2_000),
+                    SuggestItemType([], title),
+                    "added",
+                    false,
+                    $"github:project:{projectNumber}:draft:{itemId}",
+                    $"{projectTitle} · standalone draft item",
+                    0.9,
+                    new ProviderReference(
+                        SourceProviderKind.GitHub,
+                        ProviderReferenceKind.Project,
+                        repositoryName,
+                        $"{projectNumber}/draft/{itemId}",
+                        projectUrl));
+            })
+            .ToArray();
     }
 
     private static SourceDiscoveryCandidate ParseRelease(

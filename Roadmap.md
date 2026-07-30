@@ -73,7 +73,7 @@ Goal: connect release intent to source history without weakening local ownership
 - [x] Define provider-neutral issue, pull-request, and release references.
 - [x] Add a bounded read-only GitHub issue/Project discovery adapter through the authenticated GitHub CLI.
 - [ ] Replace the CLI-backed reader with a provider-neutral authenticated adapter and add pull-request/release references.
-- [ ] Add standalone GitHub Project draft-item discovery.
+- [x] Add standalone GitHub Project draft-item discovery.
 - [ ] Define and separately approve any future provider write operations.
 - [ ] Add GitLab parity after the provider contract stabilizes.
 

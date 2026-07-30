@@ -6,6 +6,59 @@ namespace Blueprints.Tests;
 public sealed class GitHubSourceJsonParserTests
 {
     [Fact]
+    public void ParseProjectDrafts_ReturnsOnlyStandaloneDraftItems()
+    {
+        var candidates = GitHubSourceJsonParser.ParseProjectDrafts(
+            """
+            {
+              "data": {
+                "repository": {
+                  "projectsV2": {
+                    "nodes": [
+                      {
+                        "number": 8,
+                        "title": "Blueprints Roadmap",
+                        "url": "https://github.com/users/example/projects/8",
+                        "items": {
+                          "nodes": [
+                            {
+                              "id": "draft-1",
+                              "type": "DRAFT_ISSUE",
+                              "content": {
+                                "__typename": "DraftIssue",
+                                "title": "Design offline provider cache",
+                                "body": "Keep the source boundary explicit."
+                              }
+                            },
+                            {
+                              "id": "issue-1",
+                              "type": "ISSUE",
+                              "content": {
+                                "__typename": "Issue",
+                                "number": 42
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+            """,
+            "example/project");
+
+        var candidate = Assert.Single(candidates);
+        Assert.Equal(SourceArtifactKind.GitHubProject, candidate.Kind);
+        Assert.Equal("Design offline provider cache", candidate.Title);
+        Assert.False(candidate.IsDone);
+        var reference = Assert.IsType<ProviderReference>(candidate.ProviderReference);
+        Assert.Equal(ProviderReferenceKind.Project, reference.Kind);
+        Assert.Equal("8/draft/draft-1", reference.Identifier);
+    }
+
+    [Fact]
     public void ParsePullRequests_ProducesProviderNeutralReferencesAndCompletion()
     {
         var candidates = GitHubSourceJsonParser.ParsePullRequests(
