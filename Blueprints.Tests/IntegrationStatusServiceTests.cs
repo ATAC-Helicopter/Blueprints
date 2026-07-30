@@ -18,13 +18,17 @@ public sealed class IntegrationStatusServiceTests
             status => Assert.Equal(IntegrationProviderType.GitHub, status.Provider),
             status => Assert.Equal(IntegrationProviderType.GitLab, status.Provider),
             status => Assert.Equal(IntegrationProviderType.VaultSync, status.Provider));
-        Assert.Equal(
-            IntegrationConnectionState.Warning,
-            statuses.Single(status =>
-                status.Provider == IntegrationProviderType.GitHub).State);
         Assert.All(
             statuses.Where(status =>
-                status.Provider != IntegrationProviderType.GitHub),
+                status.Provider is IntegrationProviderType.GitHub or
+                IntegrationProviderType.GitLab),
+            status => Assert.Equal(
+                IntegrationConnectionState.Warning,
+                status.State));
+        Assert.All(
+            statuses.Where(status =>
+                status.Provider is not IntegrationProviderType.GitHub and not
+                IntegrationProviderType.GitLab),
             status => Assert.Equal(
                 IntegrationConnectionState.NotConfigured,
                 status.State));
@@ -48,6 +52,27 @@ public sealed class IntegrationStatusServiceTests
         Assert.DoesNotContain(
             "test-secret",
             $"{github.Target}{github.Summary}{github.Guidance}",
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GetIntegrationStatuses_ReportsGitLabCredentialWithoutPersistingIt()
+    {
+        var service = CreateService(
+            IntegrationSettings.Empty,
+            gitLabCredential: "gitlab-secret");
+
+        var gitLab = service.GetIntegrationStatuses()
+            .Single(status => status.Provider == IntegrationProviderType.GitLab);
+
+        Assert.Equal(IntegrationConnectionState.Connected, gitLab.State);
+        Assert.Contains(
+            "BLUEPRINTS_GITLAB_TOKEN",
+            gitLab.Guidance,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "gitlab-secret",
+            $"{gitLab.Target}{gitLab.Summary}{gitLab.Guidance}",
             StringComparison.Ordinal);
     }
 
@@ -169,16 +194,21 @@ public sealed class IntegrationStatusServiceTests
     private static IntegrationStatusService CreateService(
         IntegrationSettings settings,
         LocalGitRepositoryStatus? gitStatus = null,
-        string? credential = null) =>
+        string? credential = null,
+        string? gitLabCredential = null) =>
         new(
             new TestIntegrationSettingsStore(settings),
             new TestLocalGitRepositoryInspector(gitStatus),
-            new TestProviderCredentialSource(credential));
+            new TestProviderCredentialSource(credential, gitLabCredential));
 
-    private sealed class TestProviderCredentialSource(string? credential)
+    private sealed class TestProviderCredentialSource(
+        string? credential,
+        string? gitLabCredential)
         : IProviderCredentialSource
     {
         public string? GetGitHubToken() => credential;
+
+        public string? GetGitLabToken() => gitLabCredential;
     }
 
     private sealed class TestIntegrationSettingsStore : IIntegrationSettingsStore

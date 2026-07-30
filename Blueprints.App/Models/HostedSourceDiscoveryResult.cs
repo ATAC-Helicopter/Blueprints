@@ -5,5 +5,5 @@ public sealed record HostedSourceDiscoveryResult(
     IReadOnlyList<string> Warnings,
     int IssueCount,
     int ProjectCount,
-    int PullRequestCount,
+    int ChangeRequestCount,
     int ReleaseCount);

@@ -41,9 +41,16 @@ public sealed class GitHubRestSourceProviderReader : IHostedSourceProviderReader
 
     public HostedSourceDiscoveryResult Read(
         string repositoryRoot,
-        string repositoryName)
+        HostedRepositoryDescriptor repository)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(repositoryRoot);
+        ArgumentNullException.ThrowIfNull(repository);
+        if (repository.Provider != SourceProviderKind.GitHub)
+        {
+            throw new InvalidOperationException(
+                "The GitHub reader only accepts GitHub repositories.");
+        }
+        var repositoryName = repository.RepositoryName;
         ArgumentException.ThrowIfNullOrWhiteSpace(repositoryName);
         ValidateRepositoryName(repositoryName);
 

@@ -50,7 +50,7 @@ public sealed class GitHubSourceJsonParserTests
             "example/project");
 
         var candidate = Assert.Single(candidates);
-        Assert.Equal(SourceArtifactKind.GitHubProject, candidate.Kind);
+        Assert.Equal(SourceArtifactKind.Project, candidate.Kind);
         Assert.Equal("Design offline provider cache", candidate.Title);
         Assert.False(candidate.IsDone);
         var reference = Assert.IsType<ProviderReference>(candidate.ProviderReference);
@@ -78,13 +78,13 @@ public sealed class GitHubSourceJsonParserTests
             "example/project");
 
         var candidate = Assert.Single(candidates);
-        Assert.Equal(SourceArtifactKind.PullRequest, candidate.Kind);
+        Assert.Equal(SourceArtifactKind.ChangeRequest, candidate.Kind);
         Assert.True(candidate.IsDone);
         Assert.Equal("bug", candidate.SuggestedItemTypeId);
         Assert.Equal("fixed", candidate.SuggestedCategoryId);
         var reference = Assert.IsType<ProviderReference>(candidate.ProviderReference);
         Assert.Equal(SourceProviderKind.GitHub, reference.Provider);
-        Assert.Equal(ProviderReferenceKind.PullRequest, reference.Kind);
+        Assert.Equal(ProviderReferenceKind.ChangeRequest, reference.Kind);
         Assert.Equal("example/project", reference.Repository);
         Assert.Equal("#42", reference.Identifier);
     }

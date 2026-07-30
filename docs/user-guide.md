@@ -99,6 +99,8 @@ Discovery is read-only. It does not commit, push, edit issues, change Projects, 
 
 Public GitHub issues, pull requests, and releases are read directly without requiring the GitHub CLI. For private repositories, draft releases, and GitHub Projects, start Blueprints with a read-only token in `BLUEPRINTS_GITHUB_TOKEN`. Blueprints reads that variable for the current process and does not store it in project or integration settings. Local changelog and roadmap discovery remains available when GitHub cannot be reached. See [Source Lens](source-lens.md) for limits, duplicate behavior, and security details.
 
+GitLab.com worktrees use the same flow for issues, merge requests, releases, and milestones. Public projects need no credential; private projects use a read-only `BLUEPRINTS_GITLAB_TOKEN` in the application environment. Nested GitLab group paths are supported.
+
 ## Exchange changes
 
 The shared root is an exchange layer, not the editable workspace.

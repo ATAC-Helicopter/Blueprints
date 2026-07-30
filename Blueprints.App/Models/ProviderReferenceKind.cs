@@ -5,7 +5,7 @@ public enum ProviderReferenceKind
     PlanningDocument,
     Commit,
     Issue,
-    PullRequest,
+    ChangeRequest,
     Release,
     Project,
 }

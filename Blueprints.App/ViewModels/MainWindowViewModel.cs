@@ -2623,7 +2623,7 @@ public partial class MainWindowViewModel : ViewModelBase
             new SourceDiscoveryResult(
                 [
                     new SourceDiscoveryCandidate(
-                        SourceArtifactKind.GitHubProject,
+                        SourceArtifactKind.Project,
                         "Interactive dependency map",
                         "Let users connect work visually and reveal release blockers.",
                         "feature",
@@ -2747,9 +2747,9 @@ public partial class MainWindowViewModel : ViewModelBase
             warnings,
             results.Sum(static pair => pair.Result.ChangelogCount),
             results.Sum(static pair => pair.Result.RoadmapCount),
-            results.Sum(static pair => pair.Result.GitHubIssueCount),
-            results.Sum(static pair => pair.Result.GitHubProjectCount),
-            results.Sum(static pair => pair.Result.PullRequestCount),
+            results.Sum(static pair => pair.Result.HostedIssueCount),
+            results.Sum(static pair => pair.Result.HostedPlanningCount),
+            results.Sum(static pair => pair.Result.ChangeRequestCount),
             results.Sum(static pair => pair.Result.ReleaseCount));
     }
 

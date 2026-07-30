@@ -76,7 +76,7 @@ Goal: connect release intent to source history without weakening local ownership
 - [x] Replace the authenticated GitHub CLI implementation with a direct provider adapter.
 - [x] Add standalone GitHub Project draft-item discovery.
 - [x] Define and separately approve any future provider write operations.
-- [ ] Add GitLab parity after the provider contract stabilizes.
+- [x] Add GitLab parity after the provider contract stabilizes.
 
 Exit criteria:
 

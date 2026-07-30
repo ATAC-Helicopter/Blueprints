@@ -17,6 +17,7 @@ Notable changes to Blueprints are documented here. The project follows semantic 
 - Relationship authoring and removal in the canvas inspector, colored relationship projection on the canvas, archive cleanup, audit operations, and document-aware conflict summaries.
 - Direct bounded GitHub REST and GraphQL discovery for issues, pull requests, releases, project-linked issues, and standalone Project drafts, including anonymous public-repository reads.
 - A provider-operation policy that allows reads directly but requires a fresh, exact-target, single-use approval before any future hosted-provider write.
+- GitLab.com remote detection and bounded parallel discovery for issues, merge requests, releases, and milestones, with anonymous public reads and environment-only private-project credentials.
 
 ### Changed
 
@@ -28,6 +29,7 @@ Notable changes to Blueprints are documented here. The project follows semantic 
 - Combined Source Lens summaries now separate issue, pull-request, release, and project-linked proposal counts.
 - Schema-1 workspaces may contain an optional signed `project/relationships.json`; missing files remain compatible with earlier workspaces and the complete relationship graph is one revisioned conflict domain.
 - Source Lens no longer requires the GitHub CLI. Private repository and GitHub Project discovery uses the environment-only `BLUEPRINTS_GITHUB_TOKEN`; Blueprints does not persist the credential.
+- Hosted source kinds and counts are provider-neutral, so GitHub pull requests and GitLab merge requests share the same change-request workflow without provider-specific signed data.
 
 ## 0.3.0 — 2026-07-30
 

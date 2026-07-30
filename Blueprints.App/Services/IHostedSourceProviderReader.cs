@@ -6,5 +6,5 @@ public interface IHostedSourceProviderReader
 {
     HostedSourceDiscoveryResult Read(
         string repositoryRoot,
-        string repositoryName);
+        HostedRepositoryDescriptor repository);
 }
