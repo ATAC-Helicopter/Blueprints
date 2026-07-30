@@ -18,7 +18,37 @@ public sealed class IntegrationStatusServiceTests
             status => Assert.Equal(IntegrationProviderType.GitHub, status.Provider),
             status => Assert.Equal(IntegrationProviderType.GitLab, status.Provider),
             status => Assert.Equal(IntegrationProviderType.VaultSync, status.Provider));
-        Assert.All(statuses, status => Assert.Equal(IntegrationConnectionState.NotConfigured, status.State));
+        Assert.Equal(
+            IntegrationConnectionState.Warning,
+            statuses.Single(status =>
+                status.Provider == IntegrationProviderType.GitHub).State);
+        Assert.All(
+            statuses.Where(status =>
+                status.Provider != IntegrationProviderType.GitHub),
+            status => Assert.Equal(
+                IntegrationConnectionState.NotConfigured,
+                status.State));
+    }
+
+    [Fact]
+    public void GetIntegrationStatuses_ReportsEnvironmentCredentialWithoutPersistingIt()
+    {
+        var service = CreateService(
+            IntegrationSettings.Empty,
+            credential: "test-secret");
+
+        var github = service.GetIntegrationStatuses()
+            .Single(status => status.Provider == IntegrationProviderType.GitHub);
+
+        Assert.Equal(IntegrationConnectionState.Connected, github.State);
+        Assert.Contains(
+            "BLUEPRINTS_GITHUB_TOKEN",
+            github.Guidance,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "test-secret",
+            $"{github.Target}{github.Summary}{github.Guidance}",
+            StringComparison.Ordinal);
     }
 
     [Fact]
@@ -138,10 +168,18 @@ public sealed class IntegrationStatusServiceTests
 
     private static IntegrationStatusService CreateService(
         IntegrationSettings settings,
-        LocalGitRepositoryStatus? gitStatus = null) =>
+        LocalGitRepositoryStatus? gitStatus = null,
+        string? credential = null) =>
         new(
             new TestIntegrationSettingsStore(settings),
-            new TestLocalGitRepositoryInspector(gitStatus));
+            new TestLocalGitRepositoryInspector(gitStatus),
+            new TestProviderCredentialSource(credential));
+
+    private sealed class TestProviderCredentialSource(string? credential)
+        : IProviderCredentialSource
+    {
+        public string? GetGitHubToken() => credential;
+    }
 
     private sealed class TestIntegrationSettingsStore : IIntegrationSettingsStore
     {

@@ -97,7 +97,7 @@ Draft versions and items in Planned or In Progress state can be archived. Select
 
 Discovery is read-only. It does not commit, push, edit issues, change Projects, or modify planning files. Proposals are not project data until Apply. Apply requires a trusted workspace, adds the reviewed proposals as signed work items, records their provenance, and writes one audit action.
 
-GitHub discovery requires the authenticated GitHub CLI. Local changelog and roadmap discovery remains available if GitHub is not configured. See [Source Lens](source-lens.md) for limits, duplicate behavior, and security details.
+Public GitHub issues, pull requests, and releases are read directly without requiring the GitHub CLI. For private repositories, draft releases, and GitHub Projects, start Blueprints with a read-only token in `BLUEPRINTS_GITHUB_TOKEN`. Blueprints reads that variable for the current process and does not store it in project or integration settings. Local changelog and roadmap discovery remains available when GitHub cannot be reached. See [Source Lens](source-lens.md) for limits, duplicate behavior, and security details.
 
 ## Exchange changes
 

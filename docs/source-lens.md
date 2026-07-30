@@ -8,10 +8,10 @@ Source Lens converts existing project signals into editable Blueprints work-item
 | --- | --- | --- |
 | `CHANGELOG.md` | Local read-only Markdown parsing | Bullet entries, completed by default |
 | `Roadmap.md` | Local read-only Markdown parsing | Bullet and task-list entries with checkbox state |
-| GitHub issues | Authenticated `gh issue list` request | Open and closed issue metadata |
-| GitHub pull requests | Authenticated `gh pr list` request | Open, closed, and merged pull-request metadata |
-| GitHub releases | Authenticated `gh release list` request | Draft and published release records |
-| GitHub Projects | Repository-linked Projects query plus `projectItems` attached to issues | Standalone draft items and project-linked issues |
+| GitHub issues | Direct REST API request | Open and closed issue metadata |
+| GitHub pull requests | Direct REST API request | Open, closed, and merged pull-request metadata |
+| GitHub releases | Direct REST API request | Draft and published release records |
+| GitHub Projects | Direct authenticated GraphQL query | Standalone draft items and project-linked issues |
 
 The scanner checks each linked repository root and its `docs` directory for common changelog and roadmap filename casing. It reads at most 5,000 lines and 100 candidates per Markdown file. GitHub reads are limited to 100 issues, 100 pull requests, and 50 releases per repository. A per-repository scan returns at most 250 deduplicated proposals, and combined discovery returns at most 500 proposals across up to eight worktrees.
 
@@ -21,12 +21,13 @@ Standalone draft discovery reads only Projects linked to the repository, checks 
 
 - Link one or more local Git worktrees in **Source Lens**, one path per line.
 - Install Git.
-- For GitHub discovery, install and authenticate the GitHub CLI with `gh auth login`.
 - The Git worktree must have a recognizable `github.com` origin remote.
+- Public issues, pull requests, and releases can be discovered anonymously.
+- Set `BLUEPRINTS_GITHUB_TOKEN` in the application environment for private repositories, draft releases, or GitHub Projects. Use the narrowest read-only repository permissions that cover the sources you need.
 
 Local Markdown discovery still works if GitHub is unavailable. Source Lens reports the skipped provider as a warning instead of failing the entire scan.
 
-Repository discovery talks to hosted services through a provider-neutral reader contract. The current GitHub implementation uses the authenticated GitHub CLI behind that boundary; replacing its transport does not require changing proposal approval, provenance, or signed workspace behavior.
+Repository discovery talks to hosted services through a provider-neutral reader contract. The GitHub implementation calls the versioned REST and GraphQL endpoints directly with a 15-second timeout, a 4 MiB response limit, bounded result counts, and parallel source reads. Transport does not change proposal approval, provenance, or signed workspace behavior.
 
 ## Approval workflow
 
@@ -78,10 +79,16 @@ Local Markdown and GitHub issue discovery already emit this structure. Pull-requ
 
 - Discovery is read-only for the repository and GitHub.
 - Blueprints never invokes provider write commands during discovery or apply.
-- GitHub credentials remain owned by the GitHub CLI and are not copied into project files.
+- GitHub credentials are read only from `BLUEPRINTS_GITHUB_TOKEN`. They are not written to integration settings, signed project files, logs, warnings, or proposal provenance.
 - Untrusted source text is length- and count-bounded and rendered as text.
 - Proposals are transient UI state until explicit approval.
 - Invalid taxonomy, missing versions, frozen/released targets, broken trust, and sync conflicts block apply.
 - Apply signs Blueprints documents with the local member identity; it does not sign or modify source-provider data.
+
+## Provider write boundary
+
+No Source Lens workflow writes to a hosted provider. The provider-operation contract distinguishes reads from create/update/project/release writes. A future write implementation must pass a separate approval matching the exact provider, repository, operation, and target. That approval is valid for no more than ten minutes and can be consumed only once. Batch or standing approval is intentionally unsupported.
+
+Adding a transport method is not enough to authorize a write: a UI workflow must show the exact mutation, collect approval for that one target, and pass it through the policy at execution time. Credentials and a Blueprints workspace edit do not imply provider-write consent.
 
 Source Lens does not prove that imported statements are true. Review is the human trust decision.

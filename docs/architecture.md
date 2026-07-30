@@ -46,7 +46,7 @@ There is no dependency-injection container. Constructor composition keeps the cu
 1. Resolve local and shared paths.
 2. Load the local identity.
 3. Load project, membership, versions, and items.
-4. Load the optional canvas layout and validate schema, project identity, entity references, and rendering bounds.
+4. Load the optional canvas layout and typed relationship graph, then validate schema, project identity, entity references, and rendering bounds.
 5. Verify detached signatures with the project member key selected by the current workflow.
 6. Validate the signed audit chain.
 7. Analyze local/shared changes against local sync state.
@@ -77,7 +77,7 @@ Zoom and scroll offsets follow a separate local-preference flow: validate bounde
 
 1. Resolve the linked local Git worktree.
 2. Parse bounded changelog and roadmap Markdown locally.
-3. Resolve a GitHub origin and query issue/project metadata through the authenticated `gh` CLI when available.
+3. Resolve a GitHub origin and query bounded issue, pull-request, and release metadata through the direct REST adapter; query Project metadata through GraphQL when an environment credential is available.
 4. Normalize source entries into transient `SourceDiscoveryCandidate` values.
 5. Present editable `SourceImportProposal` values and flag exact-title duplicates.
 6. Require the user to choose inclusion, target version, type, category, title, description, and completion state.
@@ -85,6 +85,8 @@ Zoom and scroll offsets follow a separate local-preference flow: validate bounde
 8. Write the approved batch as signed item documents and append one signed `source.import.apply` audit entry.
 
 Discovery never mutates the repository, provider, or Blueprints workspace. Provider data remains an input suggestion and never becomes authoritative without the explicit apply action.
+
+The hosted-provider operation policy allows discovery reads without a write approval. Future provider mutations must present a fresh approval matching one exact provider, repository, operation, and target; approval expires within ten minutes and is consumed once.
 
 ### Push
 
