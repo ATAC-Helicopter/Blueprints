@@ -104,7 +104,7 @@ public sealed class MarkdownSourceDiscoveryParserTests : IDisposable
         Assert.Equal(2, result.Candidates.Count);
         Assert.Equal(1, result.ChangelogCount);
         Assert.Equal(1, result.RoadmapCount);
-        Assert.Equal(0, result.GitHubIssueCount);
+        Assert.Equal(0, result.HostedIssueCount);
         Assert.Contains(
             result.Warnings,
             static warning => warning.Contains("GitHub", StringComparison.OrdinalIgnoreCase));
@@ -123,12 +123,38 @@ public sealed class MarkdownSourceDiscoveryParserTests : IDisposable
 
         var result = service.Discover(_root);
 
-        Assert.Equal("example/project", hostedReader.RepositoryName);
+        Assert.Equal("example/project", hostedReader.Repository.RepositoryName);
+        Assert.Equal(SourceProviderKind.GitHub, hostedReader.Repository.Provider);
         Assert.Equal(_root, hostedReader.RepositoryRoot);
-        Assert.Equal(1, result.PullRequestCount);
+        Assert.Equal(1, result.ChangeRequestCount);
         Assert.Contains(
             result.Candidates,
-            static candidate => candidate.Kind == SourceArtifactKind.PullRequest);
+            static candidate => candidate.Kind == SourceArtifactKind.ChangeRequest);
+    }
+
+    [Fact]
+    public void Discover_RoutesNestedGitLabOriginThroughProviderBoundary()
+    {
+        Directory.CreateDirectory(_root);
+        RunGit("init", _root);
+        RunGit(
+            "-C",
+            _root,
+            "remote",
+            "add",
+            "origin",
+            "git@gitlab.com:example/platform/project.git");
+        var hostedReader = new TestHostedSourceProviderReader();
+        var service = new RepositorySourceDiscoveryService(
+            new MarkdownSourceDiscoveryParser(),
+            hostedReader);
+
+        service.Discover(_root);
+
+        Assert.Equal(SourceProviderKind.GitLab, hostedReader.Repository.Provider);
+        Assert.Equal(
+            "example/platform/project",
+            hostedReader.Repository.RepositoryName);
     }
 
     private string Write(string name, string content)
@@ -170,18 +196,19 @@ public sealed class MarkdownSourceDiscoveryParserTests : IDisposable
     {
         public string RepositoryRoot { get; private set; } = string.Empty;
 
-        public string RepositoryName { get; private set; } = string.Empty;
+        public HostedRepositoryDescriptor Repository { get; private set; } =
+            new(SourceProviderKind.Local, string.Empty);
 
         public HostedSourceDiscoveryResult Read(
             string repositoryRoot,
-            string repositoryName)
+            HostedRepositoryDescriptor repository)
         {
             RepositoryRoot = repositoryRoot;
-            RepositoryName = repositoryName;
+            Repository = repository;
             return new HostedSourceDiscoveryResult(
                 [
                     new SourceDiscoveryCandidate(
-                        SourceArtifactKind.PullRequest,
+                        SourceArtifactKind.ChangeRequest,
                         "Provider-neutral reader",
                         null,
                         "feature",
@@ -192,8 +219,8 @@ public sealed class MarkdownSourceDiscoveryParserTests : IDisposable
                         1,
                         new ProviderReference(
                             SourceProviderKind.GitHub,
-                            ProviderReferenceKind.PullRequest,
-                            repositoryName,
+                            ProviderReferenceKind.ChangeRequest,
+                            repository.RepositoryName,
                             "#1",
                             null)),
                 ],

@@ -59,6 +59,7 @@ Blueprints uses signatures and explicit validation to detect unauthorized or inc
 - Source discovery uses read-only local/GitHub commands and enforces count, line, and text bounds.
 - Source apply validates the complete batch before persistence and requires trusted, conflict-free, mutable targets.
 - GitHub API credentials are accepted only through the process environment variable `BLUEPRINTS_GITHUB_TOKEN` and remain outside Blueprints workspaces and settings.
+- GitLab API credentials follow the same isolation rule through `BLUEPRINTS_GITLAB_TOKEN`.
 - Hosted-provider reads are allowed directly. Any future write must have a fresh, exact-target, single-use approval with a maximum ten-minute lifetime; credentials alone never authorize a write.
 
 ## Important limitations

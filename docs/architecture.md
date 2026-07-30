@@ -77,7 +77,7 @@ Zoom and scroll offsets follow a separate local-preference flow: validate bounde
 
 1. Resolve the linked local Git worktree.
 2. Parse bounded changelog and roadmap Markdown locally.
-3. Resolve a GitHub origin and query bounded issue, pull-request, and release metadata through the direct REST adapter; query Project metadata through GraphQL when an environment credential is available.
+3. Resolve a GitHub or GitLab.com origin and route it through the matching provider-neutral reader. GitHub uses bounded REST plus authenticated GraphQL for Projects; GitLab uses bounded REST for issues, merge requests, releases, and milestones.
 4. Normalize source entries into transient `SourceDiscoveryCandidate` values.
 5. Present editable `SourceImportProposal` values and flag exact-title duplicates.
 6. Require the user to choose inclusion, target version, type, category, title, description, and completion state.

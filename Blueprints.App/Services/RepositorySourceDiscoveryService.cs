@@ -12,12 +12,12 @@ public sealed partial class RepositorySourceDiscoveryService : ISourceDiscoveryS
     public RepositorySourceDiscoveryService()
         : this(
             new MarkdownSourceDiscoveryParser(),
-            new GitHubRestSourceProviderReader())
+            new HostedSourceProviderRouter())
     {
     }
 
     public RepositorySourceDiscoveryService(MarkdownSourceDiscoveryParser markdownParser)
-        : this(markdownParser, new GitHubRestSourceProviderReader())
+        : this(markdownParser, new HostedSourceProviderRouter())
     {
     }
 
@@ -46,23 +46,24 @@ public sealed partial class RepositorySourceDiscoveryService : ISourceDiscoveryS
         var changelogCount = AddMarkdownCandidates(root, SourceArtifactKind.Changelog, candidates);
         var roadmapCount = AddMarkdownCandidates(root, SourceArtifactKind.Roadmap, candidates);
 
-        var repositoryName = ReadGitHubRepositoryName(root);
-        var githubIssueCount = 0;
-        var githubProjectCount = 0;
-        var pullRequestCount = 0;
+        var hostedRepository = ReadHostedRepository(root);
+        var hostedIssueCount = 0;
+        var hostedPlanningCount = 0;
+        var changeRequestCount = 0;
         var releaseCount = 0;
-        if (string.IsNullOrWhiteSpace(repositoryName))
+        if (hostedRepository is null)
         {
-            warnings.Add("GitHub sources were skipped because the origin remote is not a recognizable GitHub repository.");
+            warnings.Add(
+                "Hosted sources were skipped because the origin remote is not a recognizable GitHub or GitLab repository.");
         }
         else
         {
-            var hosted = _hostedSourceProviderReader.Read(root, repositoryName);
+            var hosted = _hostedSourceProviderReader.Read(root, hostedRepository);
             candidates.AddRange(hosted.Candidates);
             warnings.AddRange(hosted.Warnings);
-            githubIssueCount = hosted.IssueCount;
-            githubProjectCount = hosted.ProjectCount;
-            pullRequestCount = hosted.PullRequestCount;
+            hostedIssueCount = hosted.IssueCount;
+            hostedPlanningCount = hosted.ProjectCount;
+            changeRequestCount = hosted.ChangeRequestCount;
             releaseCount = hosted.ReleaseCount;
         }
 
@@ -79,9 +80,9 @@ public sealed partial class RepositorySourceDiscoveryService : ISourceDiscoveryS
             warnings,
             changelogCount,
             roadmapCount,
-            githubIssueCount,
-            githubProjectCount,
-            pullRequestCount,
+            hostedIssueCount,
+            hostedPlanningCount,
+            changeRequestCount,
             releaseCount);
     }
 
@@ -113,27 +114,40 @@ public sealed partial class RepositorySourceDiscoveryService : ISourceDiscoveryS
         return candidates.Count - countBefore;
     }
 
-    private static string ReadGitHubRepositoryName(string root)
+    private static HostedRepositoryDescriptor? ReadHostedRepository(string root)
     {
         var remote = RunProcess(root, "git", ["-C", root, "config", "--get", "remote.origin.url"]);
         if (!remote.Success)
         {
-            return string.Empty;
+            return null;
         }
 
-        var match = GitHubRemotePattern().Match(remote.Output.Trim());
-        if (!match.Success)
+        var remoteUrl = remote.Output.Trim();
+        var gitHubMatch = GitHubRemotePattern().Match(remoteUrl);
+        if (gitHubMatch.Success)
         {
-            return string.Empty;
+            var repository = RemoveGitSuffix(gitHubMatch.Groups["repo"].Value);
+            return new HostedRepositoryDescriptor(
+                SourceProviderKind.GitHub,
+                $"{gitHubMatch.Groups["owner"].Value}/{repository}");
         }
 
-        var repository = match.Groups["repo"].Value;
+        var gitLabMatch = GitLabRemotePattern().Match(remoteUrl);
+        return gitLabMatch.Success
+            ? new HostedRepositoryDescriptor(
+                SourceProviderKind.GitLab,
+                RemoveGitSuffix(gitLabMatch.Groups["repo"].Value))
+            : null;
+    }
+
+    private static string RemoveGitSuffix(string repository)
+    {
         if (repository.EndsWith(".git", StringComparison.OrdinalIgnoreCase))
         {
             repository = repository[..^4];
         }
 
-        return $"{match.Groups["owner"].Value}/{repository}";
+        return repository;
     }
 
     private static ProcessResult RunProcess(
@@ -182,6 +196,9 @@ public sealed partial class RepositorySourceDiscoveryService : ISourceDiscoveryS
 
     [GeneratedRegex(@"(?:github\.com[:/])(?<owner>[^/\s]+)/(?<repo>[^/\s]+)$")]
     private static partial Regex GitHubRemotePattern();
+
+    [GeneratedRegex(@"(?:gitlab\.com[:/])(?<repo>[^\s]+)$")]
+    private static partial Regex GitLabRemotePattern();
 
     [GeneratedRegex(@"\s+")]
     private static partial Regex WhitespacePattern();

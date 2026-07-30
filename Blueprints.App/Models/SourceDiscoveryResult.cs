@@ -5,13 +5,13 @@ public sealed record SourceDiscoveryResult(
     IReadOnlyList<string> Warnings,
     int ChangelogCount,
     int RoadmapCount,
-    int GitHubIssueCount,
-    int GitHubProjectCount,
-    int PullRequestCount = 0,
+    int HostedIssueCount,
+    int HostedPlanningCount,
+    int ChangeRequestCount = 0,
     int ReleaseCount = 0)
 {
     public string Summary =>
         $"Found {Candidates.Count} proposals · {ChangelogCount} changelog · {RoadmapCount} roadmap · " +
-        $"{GitHubIssueCount} issues · {PullRequestCount} pull requests · {ReleaseCount} releases · " +
-        $"{GitHubProjectCount} project-linked";
+        $"{HostedIssueCount} issues · {ChangeRequestCount} change requests · {ReleaseCount} releases · " +
+        $"{HostedPlanningCount} planning-linked";
 }

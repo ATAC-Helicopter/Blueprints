@@ -45,16 +45,7 @@ public sealed class IntegrationStatusService
         [
             .. GetLocalGitStatuses(settings, checkedAtUtc),
             GetGitHubStatus(checkedAtUtc),
-            new IntegrationStatusCard(
-                IntegrationProviderType.GitLab,
-                "GitLab",
-                IntegrationConnectionState.NotConfigured,
-                "No GitLab project linked",
-                "GitLab should reuse the same source-control model as GitHub for issues, merge requests, pipelines, and releases.",
-                "Implement after the common provider model exists so GitHub does not become the only supported worldview.",
-                BlueprintsTrustBoundary(),
-                checkedAtUtc,
-                []),
+            GetGitLabStatus(checkedAtUtc),
             new IntegrationStatusCard(
                 IntegrationProviderType.VaultSync,
                 "VaultSync",
@@ -91,6 +82,30 @@ public sealed class IntegrationStatusService
             hasCredential
                 ? "The credential is read from BLUEPRINTS_GITHUB_TOKEN and is never persisted by Blueprints. Provider access remains read-only."
                 : "Set BLUEPRINTS_GITHUB_TOKEN in the application environment when private or Project discovery is needed.",
+            BlueprintsTrustBoundary(),
+            checkedAtUtc,
+            []);
+    }
+
+    private IntegrationStatusCard GetGitLabStatus(DateTimeOffset checkedAtUtc)
+    {
+        var hasCredential = !string.IsNullOrWhiteSpace(
+            _providerCredentialSource.GetGitLabToken());
+        return new IntegrationStatusCard(
+            IntegrationProviderType.GitLab,
+            "GitLab",
+            hasCredential
+                ? IntegrationConnectionState.Connected
+                : IntegrationConnectionState.Warning,
+            hasCredential
+                ? "Direct API credential available"
+                : "Public API discovery only",
+            hasCredential
+                ? "Source Lens can read issues, merge requests, releases, and milestones from private and public GitLab.com projects."
+                : "Source Lens can read public GitLab.com issues, merge requests, releases, and milestones.",
+            hasCredential
+                ? "The credential is read from BLUEPRINTS_GITLAB_TOKEN and is never persisted by Blueprints. Provider access remains read-only."
+                : "Set BLUEPRINTS_GITLAB_TOKEN in the application environment when private-project discovery is needed.",
             BlueprintsTrustBoundary(),
             checkedAtUtc,
             []);

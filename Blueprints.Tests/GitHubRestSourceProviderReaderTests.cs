@@ -13,10 +13,14 @@ public sealed class GitHubRestSourceProviderReaderTests
         var handler = new GitHubHandler();
         var reader = CreateReader(handler, null);
 
-        var result = reader.Read("/repository", "example/project");
+        var result = reader.Read(
+            "/repository",
+            new HostedRepositoryDescriptor(
+                SourceProviderKind.GitHub,
+                "example/project"));
 
         Assert.Equal(1, result.IssueCount);
-        Assert.Equal(1, result.PullRequestCount);
+        Assert.Equal(1, result.ChangeRequestCount);
         Assert.Equal(1, result.ReleaseCount);
         Assert.Equal(0, result.ProjectCount);
         Assert.Contains(
@@ -40,7 +44,11 @@ public sealed class GitHubRestSourceProviderReaderTests
         var handler = new GitHubHandler();
         var reader = CreateReader(handler, "test-secret");
 
-        var result = reader.Read("/repository", "example/project");
+        var result = reader.Read(
+            "/repository",
+            new HostedRepositoryDescriptor(
+                SourceProviderKind.GitHub,
+                "example/project"));
 
         Assert.Equal(2, result.ProjectCount);
         Assert.Empty(result.Warnings);
@@ -53,7 +61,7 @@ public sealed class GitHubRestSourceProviderReaderTests
         Assert.Contains(
             result.Candidates,
             static candidate =>
-                candidate.Kind == SourceArtifactKind.GitHubProject &&
+                candidate.Kind == SourceArtifactKind.Project &&
                 candidate.Title == "Standalone draft");
         Assert.Single(
             result.Candidates,
@@ -61,7 +69,7 @@ public sealed class GitHubRestSourceProviderReaderTests
         Assert.Contains(
             result.Candidates,
             static candidate =>
-                candidate.Kind == SourceArtifactKind.GitHubProject &&
+                candidate.Kind == SourceArtifactKind.Project &&
                 candidate.Title == "Fix direct discovery");
     }
 
@@ -71,7 +79,11 @@ public sealed class GitHubRestSourceProviderReaderTests
         var handler = new GitHubHandler(HttpStatusCode.Unauthorized);
         var reader = CreateReader(handler, "test-secret");
 
-        var result = reader.Read("/repository", "example/project");
+        var result = reader.Read(
+            "/repository",
+            new HostedRepositoryDescriptor(
+                SourceProviderKind.GitHub,
+                "example/project"));
 
         Assert.Empty(result.Candidates);
         Assert.Equal(4, result.Warnings.Count);
@@ -97,7 +109,11 @@ public sealed class GitHubRestSourceProviderReaderTests
         var reader = CreateReader(new GitHubHandler(), null);
 
         Assert.Throws<InvalidOperationException>(
-            () => reader.Read("/repository", repositoryName));
+            () => reader.Read(
+                "/repository",
+                new HostedRepositoryDescriptor(
+                    SourceProviderKind.GitHub,
+                    repositoryName)));
     }
 
     private static GitHubRestSourceProviderReader CreateReader(
@@ -113,6 +129,8 @@ public sealed class GitHubRestSourceProviderReaderTests
     private sealed class TestCredentialSource(string? token) : IProviderCredentialSource
     {
         public string? GetGitHubToken() => token;
+
+        public string? GetGitLabToken() => null;
     }
 
     private sealed class GitHubHandler : HttpMessageHandler

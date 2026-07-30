@@ -110,7 +110,7 @@ public static class GitHubSourceJsonParser
             : $"GitHub pull request #{number} · merged {mergedAt}";
 
         return new SourceDiscoveryCandidate(
-            SourceArtifactKind.PullRequest,
+            SourceArtifactKind.ChangeRequest,
             title,
             Truncate(body, 2_000),
             SuggestItemType(labels, title),
@@ -121,7 +121,7 @@ public static class GitHubSourceJsonParser
             0.96,
             new ProviderReference(
                 SourceProviderKind.GitHub,
-                ProviderReferenceKind.PullRequest,
+                ProviderReferenceKind.ChangeRequest,
                 repositoryName,
                 $"#{number}",
                 url));
@@ -155,7 +155,7 @@ public static class GitHubSourceJsonParser
                 var title = ReadString(content, "title") ?? "Untitled project draft";
                 var body = ReadString(content, "body");
                 return new SourceDiscoveryCandidate(
-                    SourceArtifactKind.GitHubProject,
+                    SourceArtifactKind.Project,
                     title,
                     Truncate(body, 2_000),
                     SuggestItemType([], title),
@@ -203,7 +203,7 @@ public static class GitHubSourceJsonParser
                 var state = ReadString(content, "state");
                 var labels = ReadLabels(content);
                 return new SourceDiscoveryCandidate(
-                    SourceArtifactKind.GitHubProject,
+                    SourceArtifactKind.Project,
                     title,
                     Truncate(ReadString(content, "body"), 2_000),
                     SuggestItemType(labels, title),
@@ -302,8 +302,8 @@ public static class GitHubSourceJsonParser
 
         return new SourceDiscoveryCandidate(
             projects.Count > 0
-                ? SourceArtifactKind.GitHubProject
-                : SourceArtifactKind.GitHubIssue,
+                ? SourceArtifactKind.Project
+                : SourceArtifactKind.Issue,
             title,
             Truncate(body, 2_000),
             SuggestItemType(labels, title),

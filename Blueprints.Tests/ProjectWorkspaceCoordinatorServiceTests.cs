@@ -1053,7 +1053,7 @@ public sealed class ProjectWorkspaceCoordinatorServiceTests : IDisposable
                         "Visualize GitHub issues",
                         "Approval-first source ingestion.",
                         false,
-                        SourceArtifactKind.GitHubIssue,
+                        SourceArtifactKind.Issue,
                         "github:#42"),
                     new ApprovedSourceImportItem(
                         versionId,
@@ -1071,7 +1071,7 @@ public sealed class ProjectWorkspaceCoordinatorServiceTests : IDisposable
         Assert.Contains(items, static item =>
             item.Title == "Visualize GitHub issues" &&
             item.Tags.Contains("source-import") &&
-            item.Tags.Contains("source:githubissue") &&
+            item.Tags.Contains("source:issue") &&
             item.Tags.Contains("github:#42"));
         Assert.Contains(items, static item => item.ItemKey.StartsWith("BUG-", StringComparison.Ordinal));
 

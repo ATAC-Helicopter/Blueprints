@@ -12,6 +12,10 @@ Source Lens converts existing project signals into editable Blueprints work-item
 | GitHub pull requests | Direct REST API request | Open, closed, and merged pull-request metadata |
 | GitHub releases | Direct REST API request | Draft and published release records |
 | GitHub Projects | Direct authenticated GraphQL query | Standalone draft items and project-linked issues |
+| GitLab issues | Direct REST API request | Open and closed issue metadata |
+| GitLab merge requests | Direct REST API request | Open, closed, and merged change-request metadata |
+| GitLab releases | Direct REST API request | Published and upcoming release records |
+| GitLab milestones | Direct REST API request | Active and closed planning milestones |
 
 The scanner checks each linked repository root and its `docs` directory for common changelog and roadmap filename casing. It reads at most 5,000 lines and 100 candidates per Markdown file. GitHub reads are limited to 100 issues, 100 pull requests, and 50 releases per repository. A per-repository scan returns at most 250 deduplicated proposals, and combined discovery returns at most 500 proposals across up to eight worktrees.
 
@@ -24,6 +28,8 @@ Standalone draft discovery reads only Projects linked to the repository, checks 
 - The Git worktree must have a recognizable `github.com` origin remote.
 - Public issues, pull requests, and releases can be discovered anonymously.
 - Set `BLUEPRINTS_GITHUB_TOKEN` in the application environment for private repositories, draft releases, or GitHub Projects. Use the narrowest read-only repository permissions that cover the sources you need.
+- A `gitlab.com` origin is detected for GitLab discovery, including nested group paths.
+- Public GitLab.com sources can be discovered anonymously. Set a read-only `BLUEPRINTS_GITLAB_TOKEN` in the application environment for private projects.
 
 Local Markdown discovery still works if GitHub is unavailable. Source Lens reports the skipped provider as a warning instead of failing the entire scan.
 
@@ -65,7 +71,7 @@ Applied items retain tags that identify:
 
 When several repositories are scanned, the source reference is qualified with the full local worktree path before it enters the proposal inbox. Source content remains informational. It does not inherit authority from GitHub, a roadmap, or a changelog.
 
-Internally, Source Lens classifies references without making one hosted provider the domain model. A reference records:
+Internally, Source Lens classifies references without making one hosted provider the domain model. GitHub pull requests and GitLab merge requests are both change requests; GitHub Projects and GitLab milestones are both hosted planning records. A reference records:
 
 - provider (`Local`, `GitHub`, or `GitLab`);
 - artifact kind (planning document, commit, issue, pull request, release, or project);
@@ -73,13 +79,14 @@ Internally, Source Lens classifies references without making one hosted provider
 - provider identifier;
 - an optional web location.
 
-Local Markdown and GitHub issue discovery already emit this structure. Pull-request, release, standalone project, and GitLab readers can use the same contract without changing signed Blueprints project truth.
+Local Markdown, GitHub, and GitLab discovery all emit this structure without changing signed Blueprints project truth.
 
 ## Security and privacy
 
 - Discovery is read-only for the repository and GitHub.
 - Blueprints never invokes provider write commands during discovery or apply.
 - GitHub credentials are read only from `BLUEPRINTS_GITHUB_TOKEN`. They are not written to integration settings, signed project files, logs, warnings, or proposal provenance.
+- GitLab credentials follow the same rule through `BLUEPRINTS_GITLAB_TOKEN`.
 - Untrusted source text is length- and count-bounded and rendered as text.
 - Proposals are transient UI state until explicit approval.
 - Invalid taxonomy, missing versions, frozen/released targets, broken trust, and sync conflicts block apply.

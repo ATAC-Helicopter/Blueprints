@@ -10,7 +10,7 @@
         <StackPanel Spacing="6">
           <TextBlock Text="SOURCE LENS" Foreground="#68D5EF" FontSize="11" FontWeight="Bold" LetterSpacing="1.6" />
           <TextBlock Text="Turn project signals into an editable blueprint" Foreground="White" FontSize="22" FontWeight="Black" />
-          <TextBlock Text="Blueprints reads local planning files and GitHub metadata. Every result remains a draft until you edit and approve it."
+          <TextBlock Text="Blueprints reads local planning files plus GitHub and GitLab metadata. Every result remains a draft until you edit and approve it."
                      Foreground="#B5D4E3"
                      TextWrapping="Wrap"
                      MaxWidth="760" />
