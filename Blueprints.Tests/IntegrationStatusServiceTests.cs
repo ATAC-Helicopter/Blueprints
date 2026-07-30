@@ -77,7 +77,7 @@ public sealed class IntegrationStatusServiceTests
             .Single(status => status.Provider == IntegrationProviderType.LocalGit);
 
         Assert.Equal(IntegrationConnectionState.Connected, localGit.State);
-        Assert.Equal("/repo", localGit.Target);
+        Assert.Equal(Path.GetFullPath("/repo"), localGit.Target);
         Assert.Contains("main", localGit.Summary, StringComparison.Ordinal);
         Assert.Contains("v1.0.0", localGit.Summary, StringComparison.Ordinal);
         Assert.Single(localGit.RecentChanges);
@@ -130,7 +130,9 @@ public sealed class IntegrationStatusServiceTests
             .ToArray();
 
         Assert.Equal(2, localGit.Length);
-        Assert.Equal(["/repo-a", "/repo-b"], localGit.Select(static status => status.Target));
+        Assert.Equal(
+            [Path.GetFullPath("/repo-a"), Path.GetFullPath("/repo-b")],
+            localGit.Select(static status => status.Target));
         Assert.All(localGit, status => Assert.Equal(IntegrationConnectionState.Connected, status.State));
     }
 
