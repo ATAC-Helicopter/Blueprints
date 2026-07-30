@@ -30,6 +30,17 @@ public sealed class FileSystemSyncManifestStore
             publicKey);
     }
 
+    public SignedDocumentReadResult<SyncManifestDocument> Read(
+        string sharedProjectRoot,
+        IReadOnlyDictionary<string, SignaturePublicKey> publicKeys)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sharedProjectRoot);
+
+        return _signedDocumentStore.Read<SyncManifestDocument>(
+            GetManifestPath(sharedProjectRoot),
+            publicKeys);
+    }
+
     public SignedDocumentWriteResult Write(
         string sharedProjectRoot,
         Guid projectId,

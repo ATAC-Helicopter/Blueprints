@@ -41,8 +41,8 @@ Release notes often live in scattered issues, commit messages, and private docum
 | Persistent signed canvas layout | Working |
 | Signed persistence and trust validation | Working |
 | Markdown changelog export | Working |
-| Shared-folder push/pull | Working foundation |
-| Conflict and audit diagnostics | Functional, needs UX polish |
+| Shared-folder push/pull | Working with distinct signed identities and staged validation |
+| Conflict and audit diagnostics | Document-aware, recoverable, and actionable |
 | Local Git awareness | Read-only integration available |
 | Changelog, roadmap, and GitHub issue discovery | Working, explicit approval required |
 | Full GitHub, GitLab, and VaultSync adapters | Planned |

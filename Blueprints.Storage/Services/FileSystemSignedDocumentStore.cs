@@ -30,15 +30,31 @@ public sealed class FileSystemSignedDocumentStore : ISignedDocumentStore
         string documentPath,
         SignaturePublicKey publicKey)
     {
+        ArgumentNullException.ThrowIfNull(publicKey);
+        return Read<T>(
+            documentPath,
+            new Dictionary<string, SignaturePublicKey>(StringComparer.Ordinal)
+            {
+                [publicKey.KeyId] = publicKey,
+            });
+    }
+
+    public SignedDocumentReadResult<T> Read<T>(
+        string documentPath,
+        IReadOnlyDictionary<string, SignaturePublicKey> publicKeys)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(documentPath);
+        ArgumentNullException.ThrowIfNull(publicKeys);
 
         var canonicalJson = File.ReadAllText(documentPath, Encoding.UTF8);
         var document = _canonicalJsonSerializer.Deserialize<T>(canonicalJson);
         var signature = ReadSignature(GetSignaturePath(documentPath));
-        var isSignatureValid = _signatureService.Verify(
-            Encoding.UTF8.GetBytes(canonicalJson),
-            signature,
-            publicKey);
+        var isSignatureValid =
+            publicKeys.TryGetValue(signature.KeyId, out var publicKey) &&
+            _signatureService.Verify(
+                Encoding.UTF8.GetBytes(canonicalJson),
+                signature,
+                publicKey);
 
         return new SignedDocumentReadResult<T>(
             document,

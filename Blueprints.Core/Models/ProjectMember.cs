@@ -8,4 +8,5 @@ public sealed record ProjectMember(
     string PublicKey,
     MemberRole Role,
     DateTimeOffset JoinedUtc,
-    bool IsActive);
+    bool IsActive,
+    string? KeyId = null);

@@ -14,17 +14,14 @@
             <TextBlock Text="{Binding Identity.UserId}" Classes="mono" FontSize="11" Foreground="#A9C8DC" TextWrapping="Wrap" />
             <Border Height="1" Background="#245A7D" />
             <TextBlock Text="{Binding Identity.KeyStorageProvider, StringFormat='Protected by {0}'}" Foreground="#A9C8DC" />
-            <TextBlock Text="Share the bundle only with an administrator who is intentionally inviting this identity."
+            <TextBlock Text="Export a signed identity invitation for an administrator who is intentionally adding you."
                        Foreground="#A9C8DC"
                        TextWrapping="Wrap"
                        FontSize="12" />
-            <TextBox Text="{Binding IdentityBundle}"
-                     AcceptsReturn="True"
-                     IsReadOnly="True"
-                     Height="90"
-                     TextWrapping="Wrap"
-                     FontFamily="Cascadia Mono, SFMono-Regular, Consolas, monospace"
-                     FontSize="11" />
+            <Button Classes="secondary"
+                    Content="Export identity invitation…"
+                    Click="ExportIdentityInvitation_Click"
+                    HorizontalAlignment="Left" />
           </StackPanel>
         </Border>
 
@@ -32,9 +29,14 @@
           <StackPanel Spacing="10">
             <StackPanel Spacing="3">
               <TextBlock Classes="eyebrow" Text="INVITATION NODE" />
-              <TextBlock Text="Add a signed member" FontSize="19" FontWeight="Bold" />
+              <TextBlock Text="Verify and add a member" FontSize="19" FontWeight="Bold" />
             </StackPanel>
-            <TextBox PlaceholderText="User ID" Text="{Binding InviteUserId}" IsEnabled="{Binding CanManageMembers}" />
+            <Button Classes="secondary"
+                    Content="Import signed identity invitation…"
+                    Click="ImportIdentityInvitation_Click"
+                    IsEnabled="{Binding CanManageMembers}"
+                    HorizontalAlignment="Left" />
+            <TextBox PlaceholderText="User ID" Text="{Binding InviteUserId}" IsReadOnly="True" />
             <TextBox PlaceholderText="Display name" Text="{Binding InviteDisplayName}" IsEnabled="{Binding CanManageMembers}" />
             <ComboBox ItemsSource="{Binding AvailableMemberRoles}" SelectedItem="{Binding InviteRole}" IsEnabled="{Binding CanManageMembers}" />
             <TextBox PlaceholderText="Public key (Base64)"
@@ -42,7 +44,7 @@
                      AcceptsReturn="True"
                      Height="88"
                      TextWrapping="Wrap"
-                     IsEnabled="{Binding CanManageMembers}"
+                     IsReadOnly="True"
                      FontFamily="Cascadia Mono, SFMono-Regular, Consolas, monospace"
                      FontSize="11" />
             <Button Classes="primary"
@@ -92,7 +94,7 @@
       </Border>
 
       <Border Grid.Row="1" Classes="card">
-        <Grid ColumnDefinitions="1.2*,1*,1*,Auto" ColumnSpacing="10">
+        <Grid ColumnDefinitions="1.2*,1*,1*,Auto,Auto" ColumnSpacing="10">
           <StackPanel Spacing="3">
             <TextBlock Classes="eyebrow" Text="SELECTED MEMBER" />
             <TextBlock Text="{Binding SelectedMemberStateSummary}" Classes="muted" TextWrapping="Wrap" />
@@ -107,6 +109,11 @@
                   Content="Save member"
                   Command="{Binding SaveMemberDetailsCommand}"
                   IsEnabled="{Binding CanEditSelectedMember}" />
+          <Button Grid.Column="4"
+                  Classes="secondary"
+                  Content="Export project invite…"
+                  Click="ExportProjectInvitation_Click"
+                  IsEnabled="{Binding CanManageMembers}" />
         </Grid>
       </Border>
     </Grid>

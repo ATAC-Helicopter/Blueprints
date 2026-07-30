@@ -52,8 +52,21 @@ public sealed class FileSystemAuditLogService
 
     public AuditLogValidationResult Validate(string workspaceRoot, SignaturePublicKey publicKey)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(workspaceRoot);
         ArgumentNullException.ThrowIfNull(publicKey);
+        return Validate(
+            workspaceRoot,
+            new Dictionary<string, SignaturePublicKey>(StringComparer.Ordinal)
+            {
+                [publicKey.KeyId] = publicKey,
+            });
+    }
+
+    public AuditLogValidationResult Validate(
+        string workspaceRoot,
+        IReadOnlyDictionary<string, SignaturePublicKey> publicKeys)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(workspaceRoot);
+        ArgumentNullException.ThrowIfNull(publicKeys);
 
         var entries = new List<(string Path, AuditLogEntry Entry, string Hash)>();
         var invalidPaths = new List<string>();
@@ -68,7 +81,7 @@ public sealed class FileSystemAuditLogService
         {
             try
             {
-                var read = _signedDocumentStore.Read<AuditLogEntry>(entryPath, publicKey);
+                var read = _signedDocumentStore.Read<AuditLogEntry>(entryPath, publicKeys);
                 if (!read.IsSignatureValid)
                 {
                     invalidPaths.Add(ToRelativePath(workspaceRoot, entryPath));

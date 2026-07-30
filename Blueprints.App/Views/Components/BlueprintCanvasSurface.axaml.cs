@@ -9,6 +9,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Blueprints.App.Models;
+using Blueprints.App.Services;
 using Blueprints.App.ViewModels;
 
 namespace Blueprints.App.Views.Components;
@@ -20,15 +21,24 @@ public partial class BlueprintCanvasSurface : UserControl
     private const double ItemNodeHeight = 82;
     private readonly Dictionary<Guid, Point> _positions = [];
     private readonly List<ConnectionVisual> _connections = [];
+    private readonly CanvasLayoutHistory _layoutHistory = new();
     private MainWindowViewModel? _viewModel;
     private Control? _draggedNode;
+    private IReadOnlyList<CanvasNodeLayoutEdit>? _dragStartLayout;
     private Point _dragOffset;
     private double _zoom = 1;
     private bool _isRestoringLayout;
+    private bool _isPersistingLayout;
     private readonly DispatcherTimer _viewportSaveTimer;
     private bool _isPanning;
     private Point _panStart;
     private Vector _panOrigin;
+
+    public event EventHandler? HistoryStateChanged;
+
+    public bool CanUndo => _viewModel?.CanMutateWorkspace == true && _layoutHistory.CanUndo;
+
+    public bool CanRedo => _viewModel?.CanMutateWorkspace == true && _layoutHistory.CanRedo;
 
     public BlueprintCanvasSurface()
     {
@@ -61,15 +71,49 @@ public partial class BlueprintCanvasSurface : UserControl
 
     public void AutoArrange()
     {
+        if (_viewModel?.CanMutateWorkspace != true)
+        {
+            return;
+        }
+
+        var previous = CaptureLayout();
         _positions.Clear();
         SetZoom(1);
         RenderGraph();
+        _layoutHistory.Record(previous, CaptureLayout());
+        NotifyHistoryStateChanged();
         Viewport.Offset = Vector.Zero;
         PersistLayout();
         PersistViewState();
     }
 
     public void SaveLayout() => PersistLayout();
+
+    public void UndoLayout()
+    {
+        if (_viewModel?.CanMutateWorkspace != true
+            || !_layoutHistory.TryUndo(CaptureLayout(), out var previous))
+        {
+            return;
+        }
+
+        ApplyLayout(previous);
+        PersistLayout();
+        NotifyHistoryStateChanged();
+    }
+
+    public void RedoLayout()
+    {
+        if (_viewModel?.CanMutateWorkspace != true
+            || !_layoutHistory.TryRedo(CaptureLayout(), out var next))
+        {
+            return;
+        }
+
+        ApplyLayout(next);
+        PersistLayout();
+        NotifyHistoryStateChanged();
+    }
 
     private void SetZoom(double value, bool persist = false)
     {
@@ -87,6 +131,7 @@ public partial class BlueprintCanvasSurface : UserControl
     private void HandleDataContextChanged(object? sender, EventArgs eventArgs)
     {
         DetachViewModel();
+        ClearLayoutHistory();
         _viewModel = DataContext as MainWindowViewModel;
         if (_viewModel is not null)
         {
@@ -115,6 +160,11 @@ public partial class BlueprintCanvasSurface : UserControl
     {
         _viewportSaveTimer.Stop();
         _isRestoringLayout = true;
+        if (!_isPersistingLayout)
+        {
+            ClearLayoutHistory();
+        }
+
         RenderGraph();
         Dispatcher.UIThread.Post(
             () => _isRestoringLayout = false,
@@ -130,6 +180,11 @@ public partial class BlueprintCanvasSurface : UserControl
         }
         else if (eventArgs.PropertyName is nameof(MainWindowViewModel.CanvasLayout))
         {
+            if (!_isPersistingLayout)
+            {
+                ClearLayoutHistory();
+            }
+
             RestoreLayout();
             RenderGraph();
         }
@@ -141,6 +196,10 @@ public partial class BlueprintCanvasSurface : UserControl
             or nameof(MainWindowViewModel.ItemCount))
         {
             RenderGraph();
+        }
+        else if (eventArgs.PropertyName is nameof(MainWindowViewModel.CanMutateWorkspace))
+        {
+            NotifyHistoryStateChanged();
         }
     }
 
@@ -428,7 +487,13 @@ public partial class BlueprintCanvasSurface : UserControl
             PointerPressedEvent,
             (_, eventArgs) =>
             {
+                if (_viewModel?.CanMutateWorkspace != true)
+                {
+                    return;
+                }
+
                 _draggedNode = node;
+                _dragStartLayout = CaptureLayout();
                 var pointer = eventArgs.GetPosition(Surface);
                 _dragOffset = new Point(pointer.X - Canvas.GetLeft(node), pointer.Y - Canvas.GetTop(node));
                 eventArgs.Pointer.Capture(node);
@@ -436,7 +501,9 @@ public partial class BlueprintCanvasSurface : UserControl
             RoutingStrategies.Tunnel);
         node.PointerMoved += (_, eventArgs) =>
         {
-            if (_draggedNode != node || !eventArgs.GetCurrentPoint(node).Properties.IsLeftButtonPressed)
+            if (_viewModel?.CanMutateWorkspace != true
+                || _draggedNode != node
+                || !eventArgs.GetCurrentPoint(node).Properties.IsLeftButtonPressed)
             {
                 return;
             }
@@ -455,7 +522,14 @@ public partial class BlueprintCanvasSurface : UserControl
             {
                 _draggedNode = null;
                 eventArgs.Pointer.Capture(null);
-                PersistLayout();
+                if (_dragStartLayout is not null
+                    && _layoutHistory.Record(_dragStartLayout, CaptureLayout()))
+                {
+                    NotifyHistoryStateChanged();
+                    PersistLayout();
+                }
+
+                _dragStartLayout = null;
             }
         };
     }
@@ -585,6 +659,20 @@ public partial class BlueprintCanvasSurface : UserControl
         {
             SaveLayout();
         }
+        else if (control
+                 && eventArgs.Key == Key.Z
+                 && eventArgs.KeyModifiers.HasFlag(KeyModifiers.Shift))
+        {
+            RedoLayout();
+        }
+        else if (control && eventArgs.Key == Key.Z)
+        {
+            UndoLayout();
+        }
+        else if (control && eventArgs.Key == Key.Y)
+        {
+            RedoLayout();
+        }
         else if (control && eventArgs.Key == Key.D0)
         {
             FitView();
@@ -623,9 +711,58 @@ public partial class BlueprintCanvasSurface : UserControl
             }
         }
 
-        _viewModel.SaveCanvasLayoutCommand.Execute(
-            new CanvasLayoutEditRequest(nodes));
+        _isPersistingLayout = true;
+        try
+        {
+            _viewModel.SaveCanvasLayoutCommand.Execute(
+                new CanvasLayoutEditRequest(nodes));
+        }
+        finally
+        {
+            _isPersistingLayout = false;
+        }
     }
+
+    private IReadOnlyList<CanvasNodeLayoutEdit> CaptureLayout()
+    {
+        if (_viewModel is null)
+        {
+            return [];
+        }
+
+        var nodes = new List<CanvasNodeLayoutEdit>();
+        AddLayoutNode(nodes, "project", _viewModel.CurrentProject.ProjectId);
+        foreach (var version in _viewModel.Versions)
+        {
+            AddLayoutNode(nodes, "version", version.VersionId);
+            foreach (var item in version.Items)
+            {
+                AddLayoutNode(nodes, "item", item.ItemId);
+            }
+        }
+
+        return nodes;
+    }
+
+    private void ApplyLayout(IReadOnlyList<CanvasNodeLayoutEdit> layout)
+    {
+        _positions.Clear();
+        foreach (var node in layout)
+        {
+            _positions[node.EntityId] = new Point(node.X, node.Y);
+        }
+
+        RenderGraph();
+    }
+
+    private void ClearLayoutHistory()
+    {
+        _layoutHistory.Clear();
+        NotifyHistoryStateChanged();
+    }
+
+    private void NotifyHistoryStateChanged() =>
+        HistoryStateChanged?.Invoke(this, EventArgs.Empty);
 
     private void PersistViewState()
     {

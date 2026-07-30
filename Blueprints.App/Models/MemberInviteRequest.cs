@@ -6,4 +6,5 @@ public sealed record MemberInviteRequest(
     string UserId,
     string DisplayName,
     string PublicKey,
-    MemberRole Role);
+    MemberRole Role,
+    string? KeyId = null);
