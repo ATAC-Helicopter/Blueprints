@@ -50,6 +50,7 @@ public sealed class FileSystemProjectWorkspaceStore : IProjectWorkspaceStore
             var totalDocuments = 2;
             var invalidSignatures = allSignaturesValid ? 0 : CountInvalid(projectResult.IsSignatureValid, membersResult.IsSignatureValid);
             CanvasLayoutDocument? canvasLayout = null;
+            RelationshipDocument? relationships = null;
 
             var canvasLayoutPath = GetCanvasLayoutDocumentPath(workspaceRoot);
             if (File.Exists(canvasLayoutPath))
@@ -61,6 +62,24 @@ public sealed class FileSystemProjectWorkspaceStore : IProjectWorkspaceStore
                 canvasLayout = canvasLayoutResult.Document;
                 totalDocuments++;
                 if (!canvasLayoutResult.IsSignatureValid)
+                {
+                    invalidSignatures++;
+                    allSignaturesValid = false;
+                }
+            }
+
+            var relationshipsPath = GetRelationshipsDocumentPath(workspaceRoot);
+            if (File.Exists(relationshipsPath))
+            {
+                var relationshipsResult = _signedDocumentStore.Read<RelationshipDocument>(
+                    relationshipsPath,
+                    publicKeys);
+                RelationshipDocumentValidator.Validate(
+                    relationshipsResult.Document,
+                    projectResult.Document.ProjectId);
+                relationships = relationshipsResult.Document;
+                totalDocuments++;
+                if (!relationshipsResult.IsSignatureValid)
                 {
                     invalidSignatures++;
                     allSignaturesValid = false;
@@ -117,13 +136,30 @@ public sealed class FileSystemProjectWorkspaceStore : IProjectWorkspaceStore
                         .ToHashSet());
             }
 
+            if (relationships is not null)
+            {
+                RelationshipDocumentValidator.ValidateEntityReferences(
+                    relationships,
+                    projectResult.Document.ProjectId,
+                    versionSnapshots.Select(static version => version.Version.VersionId).ToHashSet(),
+                    versionSnapshots
+                        .SelectMany(static version => version.Items)
+                        .Select(static item => item.ItemId)
+                        .ToHashSet());
+            }
+
             var trustState = allSignaturesValid ? TrustState.Trusted : TrustState.Untrusted;
             var summary = allSignaturesValid
                 ? $"Validated {totalDocuments} signed documents."
                 : $"Validated {totalDocuments} signed documents with {invalidSignatures} invalid signatures.";
 
             return new ProjectWorkspaceLoadResult(
-                new ProjectWorkspaceSnapshot(projectResult.Document, membersResult.Document, versionSnapshots, canvasLayout),
+                new ProjectWorkspaceSnapshot(
+                    projectResult.Document,
+                    membersResult.Document,
+                    versionSnapshots,
+                    canvasLayout,
+                    relationships),
                 new TrustReport(trustState, summary, DateTimeOffset.UtcNow));
         }
         catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException or InvalidOperationException)
@@ -160,6 +196,10 @@ public sealed class FileSystemProjectWorkspaceStore : IProjectWorkspaceStore
         if (workspace.CanvasLayout is not null)
         {
             SaveCanvasLayout(workspaceRoot, workspace.CanvasLayout, signingKey);
+        }
+        if (workspace.Relationships is not null)
+        {
+            SaveRelationships(workspaceRoot, workspace.Relationships, signingKey);
         }
 
         foreach (var versionSnapshot in workspace.Versions)
@@ -198,6 +238,21 @@ public sealed class FileSystemProjectWorkspaceStore : IProjectWorkspaceStore
             signingKey);
     }
 
+    public void SaveRelationships(
+        string workspaceRoot,
+        RelationshipDocument relationships,
+        SignatureKeyMaterial signingKey)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(workspaceRoot);
+        ArgumentNullException.ThrowIfNull(relationships);
+
+        RelationshipDocumentValidator.Validate(relationships, relationships.ProjectId);
+        _signedDocumentStore.Write(
+            GetRelationshipsDocumentPath(workspaceRoot),
+            relationships,
+            signingKey);
+    }
+
     private static ProjectWorkspaceSnapshot EmptyWorkspace() =>
         new(
             new ProjectConfigurationDocument(
@@ -231,6 +286,9 @@ public sealed class FileSystemProjectWorkspaceStore : IProjectWorkspaceStore
 
     private static string GetCanvasLayoutDocumentPath(string workspaceRoot) =>
         Path.Combine(GetProjectRoot(workspaceRoot), "canvas-layout.json");
+
+    private static string GetRelationshipsDocumentPath(string workspaceRoot) =>
+        Path.Combine(GetProjectRoot(workspaceRoot), "relationships.json");
 
     private static string GetVersionDirectory(string workspaceRoot, Guid versionId) =>
         Path.Combine(GetVersionsRoot(workspaceRoot), versionId.ToString("N"));

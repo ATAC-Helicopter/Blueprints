@@ -15,9 +15,18 @@ project
 - The project node uses `ProjectConfigurationDocument.ProjectId`.
 - A version node uses `VersionDocument.VersionId`.
 - A work-item node uses `ItemDocument.ItemId`.
-- Connector lines are derived from version ownership; they are not persisted separately.
+- Ownership connector lines are derived from version ownership; they are not persisted separately.
+- User-created typed connectors are projected from the optional signed relationship graph.
 
 Changing a node title, state, category, or completion value uses the existing version and item workflows. Moving a node changes only the layout document.
+
+## Typed relationships
+
+The inspector can define a relationship type with a stable lowercase ID, display name, optional description, `#RRGGBB` canvas color, and directional flag. A relationship then connects any two different existing project, version, or item nodes and may carry a short label. Its color is projected on the canvas alongside the built-in ownership lines.
+
+Relationship types and edges are stored together in `project/relationships.json`. Every edit increments the document revision, writes canonical signed JSON, and adds a specific audit action. A type cannot change between directional and undirected while an edge uses it. Archiving a version or item removes dangling edges in the same signed archive operation.
+
+The validator permits at most 100 types and 5,000 edges, rejects unknown types and entities, empty or duplicate IDs, self-links, malformed colors, and duplicate logical edges. For an undirected type, reversing endpoints does not create a distinct edge.
 
 ## Interaction model
 
@@ -112,13 +121,16 @@ Two collaborators moving the same canvas from a common baseline may produce a co
 
 Version and work-item content remain separate documents. A layout conflict does not imply that their content has conflicted.
 
+The relationship graph follows the same whole-document rule. A conflict in `project/relationships.json` compares revision, types, edges, update time, and author for diagnosis, then requires choosing the complete local or shared graph. Schema 1 deliberately does not attempt an unsafe automatic edge merge.
+
 ## Current limits
 
 - There is one shared release-planning canvas per project.
 - Node positions are shared project state, not per-user preferences.
-- Connectors represent ownership and cannot yet be created as arbitrary edge types.
+- Directional typed relationships use distinct type semantics and color, but the canvas does not yet draw arrowheads or edit labels directly on an edge.
 - Multi-selection groups nodes for movement only; it does not create a persistent group entity.
 - Auto arrangement is deterministic but not a graph-optimization engine.
 - Layout conflict resolution is whole-document.
+- Relationship conflict resolution is whole-document.
 
 These are product limitations, not hidden behavior. Planned work belongs in the canonical [roadmap](../Roadmap.md).

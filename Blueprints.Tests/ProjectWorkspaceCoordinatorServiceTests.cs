@@ -304,6 +304,119 @@ public sealed class ProjectWorkspaceCoordinatorServiceTests : IDisposable
     }
 
     [Fact]
+    public void Relationships_AreTypedSignedAuditedAndRemovable()
+    {
+        var localRoot = Path.Combine(_rootDirectory, "relationships-local", "BP");
+        var sharedRoot = Path.Combine(_rootDirectory, "relationships-shared", "BP");
+        var service = CreateService();
+        var created = service.CreateProject(
+            new ProjectCreateRequest(
+                "Blueprints",
+                "BP",
+                "SemVer",
+                localRoot,
+                sharedRoot));
+        var versionSession = service.SaveVersion(
+            localRoot,
+            sharedRoot,
+            new VersionEditRequest(null, "0.4.0", ReleaseStatus.InProgress, null));
+        var versionId = versionSession.LoadResult.Workspace.Versions.Single().Version.VersionId;
+
+        var typeSession = service.SaveRelationshipType(
+            localRoot,
+            sharedRoot,
+            new RelationshipTypeEditRequest(
+                "blocks",
+                "Blocks",
+                "Must complete first",
+                "#E05A47",
+                true));
+        var edgeSession = service.SaveRelationship(
+            localRoot,
+            sharedRoot,
+            new RelationshipEditRequest(
+                null,
+                "blocks",
+                new RelationshipEndpoint("project", created.LoadResult.Workspace.Project.ProjectId),
+                new RelationshipEndpoint("version", versionId),
+                "Release gate"));
+
+        var document = Assert.IsType<RelationshipDocument>(
+            edgeSession.LoadResult.Workspace.Relationships);
+        Assert.Equal(2, document.Revision);
+        Assert.Single(document.Types);
+        var edge = Assert.Single(document.Relationships);
+        Assert.True(File.Exists(Path.Combine(localRoot, "project", "relationships.sig")));
+        Assert.Contains(
+            Directory.EnumerateFiles(Path.Combine(localRoot, "log"), "*.json"),
+            path => File.ReadAllText(path).Contains("relationship.create", StringComparison.Ordinal));
+
+        var removed = service.RemoveRelationship(
+            localRoot,
+            sharedRoot,
+            edge.RelationshipId);
+
+        Assert.Empty(removed.LoadResult.Workspace.Relationships!.Relationships);
+        Assert.Equal(3, removed.LoadResult.Workspace.Relationships.Revision);
+        Assert.NotNull(typeSession.LoadResult.Workspace.Relationships);
+    }
+
+    [Fact]
+    public void ArchiveItem_RemovesRelationshipsThatReferenceIt()
+    {
+        var localRoot = Path.Combine(_rootDirectory, "relationship-archive-local", "BP");
+        var sharedRoot = Path.Combine(_rootDirectory, "relationship-archive-shared", "BP");
+        var service = CreateService();
+        var created = service.CreateProject(
+            new ProjectCreateRequest(
+                "Blueprints",
+                "BP",
+                "SemVer",
+                localRoot,
+                sharedRoot));
+        var versionSession = service.SaveVersion(
+            localRoot,
+            sharedRoot,
+            new VersionEditRequest(null, "0.4.0", ReleaseStatus.InProgress, null));
+        var versionId = versionSession.LoadResult.Workspace.Versions.Single().Version.VersionId;
+        var itemSession = service.SaveItem(
+            localRoot,
+            sharedRoot,
+            new ItemEditRequest(
+                versionId,
+                null,
+                "feature",
+                "added",
+                "Relationship target",
+                null,
+                false));
+        var itemId = itemSession.LoadResult.Workspace.Versions.Single().Items.Single().ItemId;
+        service.SaveRelationshipType(
+            localRoot,
+            sharedRoot,
+            new RelationshipTypeEditRequest(
+                "related",
+                "Related",
+                null,
+                "#52C7E8",
+                false));
+        service.SaveRelationship(
+            localRoot,
+            sharedRoot,
+            new RelationshipEditRequest(
+                null,
+                "related",
+                new RelationshipEndpoint("project", created.LoadResult.Workspace.Project.ProjectId),
+                new RelationshipEndpoint("item", itemId),
+                null));
+
+        var archived = service.ArchiveItem(localRoot, sharedRoot, versionId, itemId);
+
+        Assert.Empty(archived.Session.LoadResult.Workspace.Relationships!.Relationships);
+        Assert.Equal(3, archived.Session.LoadResult.Workspace.Relationships.Revision);
+    }
+
+    [Fact]
     public void PushWorkspace_PublishesLocalChangesAndRefreshesSyncState()
     {
         var localRoot = Path.Combine(_rootDirectory, "push-local", "BP");
