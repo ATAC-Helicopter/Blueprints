@@ -28,6 +28,7 @@ Release notes often live in scattered issues, commit messages, and private docum
 - generate stable human-readable item keys;
 - freeze and release versions with immutable released content;
 - export Markdown changelogs, optionally enriched by local Git history;
+- discover changelog, roadmap, GitHub issue, and Project signals as editable approval-first proposals;
 - validate signed project files and enter read-only mode when trust breaks;
 - exchange signed changes through a shared folder with explicit push, pull, and conflict resolution;
 - inspect membership, audit history, sync state, and integration boundaries in one desktop app.
@@ -43,7 +44,8 @@ Release notes often live in scattered issues, commit messages, and private docum
 | Shared-folder push/pull | Working foundation |
 | Conflict and audit diagnostics | Functional, needs UX polish |
 | Local Git awareness | Read-only integration available |
-| GitHub, GitLab, and VaultSync adapters | Planned |
+| Changelog, roadmap, and GitHub issue discovery | Working, explicit approval required |
+| Full GitHub, GitLab, and VaultSync adapters | Planned |
 | Installers and supported releases | Not ready |
 
 The canonical delivery plan is [ROADMAP.md](Roadmap.md). Older planning files remain as design history and are not the active backlog.
@@ -91,6 +93,7 @@ Blueprints uses a local workspace as the editable source of truth and a separate
 - [Documentation index](docs/README.md)
 - [User guide](docs/user-guide.md)
 - [Canvas engine](docs/canvas-engine.md)
+- [Source Lens](docs/source-lens.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Architecture](docs/architecture.md)
 - [Workspace format](docs/workspace-format.md)

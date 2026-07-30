@@ -28,11 +28,16 @@
           <Button Classes="tool" Content="Fit view" Click="FitViewClick" />
           <Button Classes="tool" Content="Auto arrange" Click="AutoArrangeClick" IsEnabled="{Binding CanMutateWorkspace}" />
           <Button Classes="tool" Content="Save layout" Click="SaveLayoutClick" IsEnabled="{Binding CanMutateWorkspace}" />
+          <Button Classes="tool" Content="⌁ Source lens" Command="{Binding NavigateToIntegrationsCommand}" />
         </StackPanel>
 
         <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-          <Border Background="#0C3859" BorderBrush="#2E6A8D" BorderThickness="1" CornerRadius="12" Padding="9,4">
-            <TextBlock Text="{Binding WorkspaceModeSummary}" Foreground="#B9D7E7" FontSize="11" TextTrimming="CharacterEllipsis" MaxWidth="330" />
+          <Border Background="#0C3859" BorderBrush="#2E6A8D" BorderThickness="1" CornerRadius="6" Padding="10,4"
+                  ToolTip.Tip="{Binding AdaptiveGuidanceDetail}">
+            <StackPanel MaxWidth="300">
+              <TextBlock Text="NEXT BEST ACTION" Foreground="#60D1ED" FontSize="8" FontWeight="Bold" LetterSpacing="1" />
+              <TextBlock Text="{Binding AdaptiveGuidanceTitle}" Foreground="#E4F3F8" FontSize="11" FontWeight="Bold" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
           </Border>
           <Button Classes="tool" Content="↻ Refresh" Command="{Binding RefreshWorkspaceCommand}" />
         </StackPanel>

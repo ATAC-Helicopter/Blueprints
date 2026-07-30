@@ -16,11 +16,15 @@ Notable changes to Blueprints are documented here. The project follows semantic 
 - Machine-local canvas zoom and viewport persistence that cannot create audit noise or collaboration conflicts.
 - Canvas-engine and troubleshooting documentation covering behavior, format, security, compatibility, conflicts, and recovery.
 - Native folder pickers for project creation and opening.
+- Source Lens discovery for changelogs, roadmaps, GitHub issues, and issue-linked GitHub Projects.
+- Editable proposal review with duplicate warnings, provenance, confidence, target-version selection, and explicit batch approval.
+- Adaptive next-action guidance based on workspace trust, conflicts, release state, source proposals, and sync status.
 
 ### Changed
 
 - Upgraded the application to .NET 10 LTS, Avalonia 12.1.1, and the latest stable direct dependencies.
 - Replaced the dashboard-style overview and wide navigation sidebar with a hands-on canvas, contextual inspector, compact tool rail, and focused secondary workspaces.
+- Reworked secondary navigation into a readable workflow rail and promoted source discovery from passive status cards to an approval-first workspace.
 - Made command feedback visible across the active workspace.
 - Clarified local-workspace and shared-exchange terminology.
 - Moved superseded planning and handoff documents into `docs/archive`.
