@@ -16,6 +16,12 @@ public partial class OverviewView : UserControl
     private void ZoomOutClick(object? sender, RoutedEventArgs eventArgs) =>
         BlueprintSurface.ZoomOut();
 
-    private void ResetViewClick(object? sender, RoutedEventArgs eventArgs) =>
-        BlueprintSurface.ResetView();
+    private void FitViewClick(object? sender, RoutedEventArgs eventArgs) =>
+        BlueprintSurface.FitView();
+
+    private void AutoArrangeClick(object? sender, RoutedEventArgs eventArgs) =>
+        BlueprintSurface.AutoArrange();
+
+    private void SaveLayoutClick(object? sender, RoutedEventArgs eventArgs) =>
+        BlueprintSurface.SaveLayout();
 }

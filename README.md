@@ -24,6 +24,7 @@
 Release notes often live in scattered issues, commit messages, and private documents. Blueprints keeps release intent in a portable workspace that remains readable without a server:
 
 - plan versions and categorized release items;
+- arrange versions and work items on a persistent signed blueprint canvas;
 - generate stable human-readable item keys;
 - freeze and release versions with immutable released content;
 - export Markdown changelogs, optionally enriched by local Git history;
@@ -36,6 +37,7 @@ Release notes often live in scattered issues, commit messages, and private docum
 | Area | Status |
 | --- | --- |
 | Local project, version, and item workflow | Working |
+| Persistent signed canvas layout | Working |
 | Signed persistence and trust validation | Working |
 | Markdown changelog export | Working |
 | Shared-folder push/pull | Working foundation |
@@ -88,6 +90,8 @@ Blueprints uses a local workspace as the editable source of truth and a separate
 
 - [Documentation index](docs/README.md)
 - [User guide](docs/user-guide.md)
+- [Canvas engine](docs/canvas-engine.md)
+- [Troubleshooting](docs/troubleshooting.md)
 - [Architecture](docs/architecture.md)
 - [Workspace format](docs/workspace-format.md)
 - [Security model](docs/security-model.md)

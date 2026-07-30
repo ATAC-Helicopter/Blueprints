@@ -10,6 +10,7 @@ Blueprints uses signatures and explicit validation to detect unauthorized or inc
 - sync manifest continuity;
 - audit-history continuity;
 - user control over incoming shared changes.
+- canvas integrity and resistance to malicious rendering input.
 
 ## Trust boundaries
 
@@ -20,6 +21,8 @@ Blueprints uses signatures and explicit validation to detect unauthorized or inc
 | Local identity directory | Sensitive local state protected by OS permissions and key protection |
 | Git/provider integration | Informational; not authoritative project truth |
 | UI input | Validated by application workflows before persistence |
+| Canvas layout | Signed shared node positions; entity references and coordinate bounds validated before rendering or saving |
+| Canvas viewport | Unsigned machine-local preference; bounded and excluded from sync and trust decisions |
 
 ## Cryptography
 
@@ -39,6 +42,10 @@ Blueprints uses signatures and explicit validation to detect unauthorized or inc
 - At least one active Admin must remain.
 - Released versions reject further version and item edits.
 - Local and shared roots may not overlap.
+- A persisted canvas node must reference an existing signed project entity.
+- Canvas coordinates, node count, project identity, schema, and uniqueness are bounded and validated.
+- Local viewport values are bounded but cannot affect signed project truth or workspace trust.
+- Invalid canvas signatures place the workspace in read-only untrusted state.
 
 ## Important limitations
 
@@ -48,6 +55,7 @@ Blueprints uses signatures and explicit validation to detect unauthorized or inc
 - The audit chain detects many edits and deletions, but is not anchored to an external transparency service.
 - Shared-folder availability, confidentiality, and rollback resistance depend on the underlying storage.
 - Current workspace saves are not a single atomic transaction across all changed files.
+- Canvas layout is a whole signed document; concurrent arrangements conflict as a unit and are not field-merged.
 - Conflict resolution currently exposes low-level previews and supports whole-document choices.
 - Blueprints does not encrypt project content.
 
