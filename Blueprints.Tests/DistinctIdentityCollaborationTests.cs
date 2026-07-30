@@ -91,6 +91,31 @@ public sealed class DistinctIdentityCollaborationTests : IDisposable
             new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
         Assert.NotNull(signature);
         Assert.Equal(joined.Identity.Profile.KeyId, signature.KeyId);
+
+        alice.UpdateMember(
+            aliceLocal,
+            sharedRoot,
+            new MemberUpdateRequest(
+                bobMember.UserId,
+                bobMember.DisplayName,
+                MemberRole.Editor,
+                false));
+        Assert.True(alice.PushWorkspace(aliceLocal, sharedRoot).Success);
+        Assert.True(bob.PullWorkspace(bobLocal, sharedRoot).Success);
+
+        var deactivatedException = Assert.Throws<InvalidOperationException>(
+            () => bob.SaveVersion(
+                bobLocal,
+                sharedRoot,
+                new VersionEditRequest(
+                    null,
+                    "0.3.1",
+                    ReleaseStatus.InProgress,
+                    "Should be blocked")));
+        Assert.Contains(
+            "active editors or administrators",
+            deactivatedException.Message,
+            StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

@@ -61,6 +61,44 @@ public sealed class FileSystemProjectTrustStore
         return keys;
     }
 
+    public IReadOnlyDictionary<string, SignaturePublicKey> LoadActiveContributorKeys(
+        string localWorkspaceRoot,
+        StoredIdentity currentIdentity)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(localWorkspaceRoot);
+        ArgumentNullException.ThrowIfNull(currentIdentity);
+
+        var document = LoadDocument(localWorkspaceRoot);
+        if (document is null)
+        {
+            return new Dictionary<string, SignaturePublicKey>(StringComparer.Ordinal)
+            {
+                [currentIdentity.PublicKey.KeyId] = currentIdentity.PublicKey,
+            };
+        }
+
+        var keys = new Dictionary<string, SignaturePublicKey>(StringComparer.Ordinal);
+        foreach (var key in document.Keys.Where(static key =>
+                     key.IsActive &&
+                     key.Role is not Blueprints.Core.Enums.MemberRole.Viewer))
+        {
+            try
+            {
+                keys[key.KeyId] = new SignaturePublicKey(
+                    key.KeyId,
+                    Convert.FromBase64String(key.PublicKeyBase64));
+            }
+            catch (FormatException exception)
+            {
+                throw new InvalidOperationException(
+                    $"Trusted public key {key.KeyId} is not valid Base64.",
+                    exception);
+            }
+        }
+
+        return keys;
+    }
+
     public void Initialize(
         string localWorkspaceRoot,
         Guid projectId,
@@ -107,7 +145,9 @@ public sealed class FileSystemProjectTrustStore
                 member.DisplayName,
                 ResolveKeyId(member),
                 member.PublicKey,
-                trustedUtc)));
+                trustedUtc,
+                member.Role,
+                member.IsActive)));
     }
 
     private static string ResolveKeyId(ProjectMember member) =>

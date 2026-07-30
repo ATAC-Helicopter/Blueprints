@@ -14,6 +14,8 @@ Use this directory as the canonical technical and user documentation.
 | Understanding the code | [Architecture](architecture.md) |
 | Inspecting project files | [Workspace format](workspace-format.md) |
 | Reviewing trust boundaries | [Security model](security-model.md) |
+| Rotating or recovering member keys | [Member key lifecycle](key-lifecycle.md) |
+| Backing up or restoring a project | [Backup and disaster recovery](backup-recovery.md) |
 | Activating SonarQube Cloud | [SonarQube Cloud](sonarqube.md) |
 | Reviewing milestone accomplishments | [Release history](releases.md) |
 | Publishing a build | [Release process](releasing.md) |

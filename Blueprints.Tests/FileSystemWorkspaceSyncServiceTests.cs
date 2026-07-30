@@ -162,6 +162,78 @@ public sealed class FileSystemWorkspaceSyncServiceTests : IDisposable
     }
 
     [Fact]
+    public void Pull_BlocksAPartialSharedCopyWithoutMutatingLocalState()
+    {
+        var localRoot = Path.Combine(_rootDirectory, "partial-local");
+        var sharedRoot = Path.Combine(_rootDirectory, "partial-shared");
+        var keyPair = new Ed25519KeyPairGenerator().Generate("partial-admin");
+        var signingKey = new SignatureKeyMaterial(keyPair.KeyId, keyPair.PrivateKeyBytes);
+        var publicKey = new SignaturePublicKey(keyPair.KeyId, keyPair.PublicKeyBytes);
+        var signedStore = new FileSystemSignedDocumentStore(
+            new CanonicalJsonSerializer(),
+            new Ed25519SignatureService());
+        var workspaceStore = new FileSystemProjectWorkspaceStore(signedStore);
+        var workspace = TestWorkspaceFactory.CreateWorkspaceSnapshot();
+        workspaceStore.Save(sharedRoot, workspace, signingKey);
+        var manifestStore = new FileSystemSyncManifestStore(
+            signedStore,
+            new WorkspaceExchangeSnapshotBuilder());
+        manifestStore.Write(
+            sharedRoot,
+            workspace.Project.ProjectId,
+            1,
+            "batch-partial",
+            signingKey);
+        var versionSignature = Directory.EnumerateFiles(
+            Path.Combine(sharedRoot, "versions"),
+            "version.sig",
+            SearchOption.AllDirectories).Single();
+        File.Delete(versionSignature);
+
+        var result = CreateService(signedStore).Pull(
+            new WorkspacePaths(localRoot, sharedRoot),
+            publicKey);
+
+        Assert.False(result.Success);
+        Assert.Contains("no longer matches", result.Summary, StringComparison.OrdinalIgnoreCase);
+        Assert.False(File.Exists(Path.Combine(localRoot, "project", "project.json")));
+    }
+
+    [Fact]
+    public void Push_BlocksDeletionOfRequiredProjectDocuments()
+    {
+        var localRoot = Path.Combine(_rootDirectory, "required-local");
+        var sharedRoot = Path.Combine(_rootDirectory, "required-shared");
+        var keyPair = new Ed25519KeyPairGenerator().Generate("required-admin");
+        var signingKey = new SignatureKeyMaterial(keyPair.KeyId, keyPair.PrivateKeyBytes);
+        var publicKey = new SignaturePublicKey(keyPair.KeyId, keyPair.PublicKeyBytes);
+        var signedStore = new FileSystemSignedDocumentStore(
+            new CanonicalJsonSerializer(),
+            new Ed25519SignatureService());
+        var workspaceStore = new FileSystemProjectWorkspaceStore(signedStore);
+        var workspace = TestWorkspaceFactory.CreateWorkspaceSnapshot();
+        workspaceStore.Save(localRoot, workspace, signingKey);
+        var service = CreateService(signedStore);
+        Assert.True(service.Push(
+            new WorkspacePaths(localRoot, sharedRoot),
+            workspace.Project.ProjectId,
+            signingKey,
+            publicKey).Success);
+
+        File.Delete(Path.Combine(localRoot, "project", "project.json"));
+        File.Delete(Path.Combine(localRoot, "project", "project.sig"));
+        var blocked = service.Push(
+            new WorkspacePaths(localRoot, sharedRoot),
+            workspace.Project.ProjectId,
+            signingKey,
+            publicKey);
+
+        Assert.False(blocked.Success);
+        Assert.Contains("required", blocked.Summary, StringComparison.OrdinalIgnoreCase);
+        Assert.True(File.Exists(Path.Combine(sharedRoot, "project", "project.json")));
+    }
+
+    [Fact]
     public void Pull_BlocksWhenSharedAuditLogChainIsInvalid()
     {
         var localRoot = Path.Combine(_rootDirectory, "audit-local");
@@ -208,6 +280,127 @@ public sealed class FileSystemWorkspaceSyncServiceTests : IDisposable
         Assert.False(result.Success);
         Assert.Contains("audit log", result.Summary, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("log/", result.Conflicts.Single(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void DeletedItem_RoundTripsAsAnExplicitRecoverableDeletion()
+    {
+        var aliceRoot = Path.Combine(_rootDirectory, "delete-alice");
+        var bobRoot = Path.Combine(_rootDirectory, "delete-bob");
+        var sharedRoot = Path.Combine(_rootDirectory, "delete-shared");
+        var keyPair = new Ed25519KeyPairGenerator().Generate("delete-admin");
+        var signingKey = new SignatureKeyMaterial(keyPair.KeyId, keyPair.PrivateKeyBytes);
+        var publicKey = new SignaturePublicKey(keyPair.KeyId, keyPair.PublicKeyBytes);
+        var signedStore = new FileSystemSignedDocumentStore(
+            new CanonicalJsonSerializer(),
+            new Ed25519SignatureService());
+        var workspaceStore = new FileSystemProjectWorkspaceStore(signedStore);
+        var workspace = TestWorkspaceFactory.CreateWorkspaceSnapshot();
+        workspaceStore.Save(aliceRoot, workspace, signingKey);
+        var service = CreateService(signedStore);
+
+        Assert.True(service.Push(
+            new WorkspacePaths(aliceRoot, sharedRoot),
+            workspace.Project.ProjectId,
+            signingKey,
+            publicKey).Success);
+        Assert.True(service.Pull(new WorkspacePaths(bobRoot, sharedRoot), publicKey).Success);
+
+        var itemPath = Directory.EnumerateFiles(
+            Path.Combine(aliceRoot, "versions"),
+            "*.json",
+            SearchOption.AllDirectories)
+            .Single(path => path.Contains(
+                $"{Path.DirectorySeparatorChar}items{Path.DirectorySeparatorChar}",
+                StringComparison.Ordinal));
+        var relativeItemPath = Path.GetRelativePath(aliceRoot, itemPath).Replace('\\', '/');
+        File.Delete(itemPath);
+        File.Delete(Path.ChangeExtension(itemPath, ".sig"));
+
+        var deletionPush = service.Push(
+            new WorkspacePaths(aliceRoot, sharedRoot),
+            workspace.Project.ProjectId,
+            signingKey,
+            publicKey);
+        var deletionPull = service.Pull(
+            new WorkspacePaths(bobRoot, sharedRoot),
+            publicKey);
+
+        Assert.True(deletionPush.Success);
+        Assert.True(deletionPull.Success);
+        Assert.False(File.Exists(Path.Combine(
+            bobRoot,
+            relativeItemPath.Replace('/', Path.DirectorySeparatorChar))));
+        Assert.True(Directory.EnumerateFiles(
+            Path.Combine(bobRoot, "sync", "inbox"),
+            "*.deleted",
+            SearchOption.AllDirectories).Any());
+        Assert.True(Directory.EnumerateFiles(
+            Path.Combine(bobRoot, "sync", "inbox"),
+            Path.GetFileName(relativeItemPath),
+            SearchOption.AllDirectories).Any());
+    }
+
+    [Fact]
+    public void Pull_BlocksAValidlySignedManifestRollback()
+    {
+        var aliceRoot = Path.Combine(_rootDirectory, "rollback-alice");
+        var bobRoot = Path.Combine(_rootDirectory, "rollback-bob");
+        var sharedRoot = Path.Combine(_rootDirectory, "rollback-shared");
+        var keyPair = new Ed25519KeyPairGenerator().Generate("rollback-admin");
+        var signingKey = new SignatureKeyMaterial(keyPair.KeyId, keyPair.PrivateKeyBytes);
+        var publicKey = new SignaturePublicKey(keyPair.KeyId, keyPair.PublicKeyBytes);
+        var signedStore = new FileSystemSignedDocumentStore(
+            new CanonicalJsonSerializer(),
+            new Ed25519SignatureService());
+        var workspaceStore = new FileSystemProjectWorkspaceStore(signedStore);
+        var workspace = TestWorkspaceFactory.CreateWorkspaceSnapshot();
+        workspaceStore.Save(aliceRoot, workspace, signingKey);
+        var service = CreateService(signedStore);
+
+        Assert.True(service.Push(
+            new WorkspacePaths(aliceRoot, sharedRoot),
+            workspace.Project.ProjectId,
+            signingKey,
+            publicKey).Success);
+        Assert.True(service.Pull(new WorkspacePaths(bobRoot, sharedRoot), publicKey).Success);
+        var manifestPath = Path.Combine(sharedRoot, "manifest", "sync-manifest.json");
+        var manifestSignaturePath = Path.ChangeExtension(manifestPath, ".sig");
+        var versionOneManifest = File.ReadAllBytes(manifestPath);
+        var versionOneSignature = File.ReadAllBytes(manifestSignaturePath);
+
+        var version = workspace.Versions.Single();
+        workspaceStore.Save(
+            aliceRoot,
+            workspace with
+            {
+                Versions =
+                [
+                    version with
+                    {
+                        Version = version.Version with { Notes = "Manifest version two" },
+                    },
+                ],
+            },
+            signingKey);
+        Assert.True(service.Push(
+            new WorkspacePaths(aliceRoot, sharedRoot),
+            workspace.Project.ProjectId,
+            signingKey,
+            publicKey).Success);
+        Assert.True(service.Pull(new WorkspacePaths(bobRoot, sharedRoot), publicKey).Success);
+
+        File.WriteAllBytes(manifestPath, versionOneManifest);
+        File.WriteAllBytes(manifestSignaturePath, versionOneSignature);
+        var rollbackPull = service.Pull(
+            new WorkspacePaths(bobRoot, sharedRoot),
+            publicKey);
+
+        Assert.False(rollbackPull.Success);
+        Assert.Contains("rolled back", rollbackPull.Summary, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(
+            "Manifest version two",
+            workspaceStore.Load(bobRoot, publicKey).Workspace.Versions.Single().Version.Notes);
     }
 
     private static FileSystemWorkspaceSyncService CreateService(FileSystemSignedDocumentStore signedStore)

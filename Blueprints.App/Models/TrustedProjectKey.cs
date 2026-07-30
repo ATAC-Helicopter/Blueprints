@@ -1,3 +1,5 @@
+using Blueprints.Core.Enums;
+
 namespace Blueprints.App.Models;
 
 public sealed record TrustedProjectKey(
@@ -5,4 +7,6 @@ public sealed record TrustedProjectKey(
     string DisplayName,
     string KeyId,
     string PublicKeyBase64,
-    DateTimeOffset FirstTrustedUtc);
+    DateTimeOffset FirstTrustedUtc,
+    MemberRole Role = MemberRole.Editor,
+    bool IsActive = true);

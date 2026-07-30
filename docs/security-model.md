@@ -42,7 +42,9 @@ Blueprints uses signatures and explicit validation to detect unauthorized or inc
 - Project invitations bind the target identity, inviter administrator, project, membership revision, and initial member-key set.
 - A join is staged and fully validated before the final local workspace is created.
 - Documents, manifests, and audit entries are verified against their signer key ID in the locally trusted project-key set.
+- Current workspace and incoming project content require an active Editor or Admin key; inactive and Viewer keys remain usable only for historical audit verification.
 - Invalid incoming signatures block pull.
+- Pull copies incoming data to a local inbox, rechecks signatures and manifest hashes there, snapshots rollback pairs, and only then mutates the local workspace.
 - Invalid or missing signed local content produces untrusted or corrupt read-only state.
 - Conflicting concurrent changes block further mutation.
 - Whole-document conflict choices preserve both available sides in machine-local recovery storage before mutation.
@@ -84,3 +86,5 @@ Security-sensitive pull requests should include:
 - any workspace compatibility impact.
 
 Report vulnerabilities using [SECURITY.md](../SECURITY.md).
+
+Operational behavior for planned rotation, compromise, and lost keys is defined in [member key lifecycle](key-lifecycle.md). Automated same-user rotation and revocation remain unimplemented.

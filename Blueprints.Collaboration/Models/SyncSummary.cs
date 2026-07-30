@@ -9,4 +9,9 @@ public sealed record SyncSummary(
     int ConflictCount,
     int LastPulledManifestVersion = 0,
     int LastPushedManifestVersion = 0,
-    DateTimeOffset? LastSuccessfulTrustValidationUtc = null);
+    DateTimeOffset? LastSuccessfulTrustValidationUtc = null,
+    int? SharedManifestVersion = null,
+    string SharedBatchId = "",
+    bool? SharedManifestSignatureValid = null,
+    bool AuditLogValid = true,
+    int AuditEntryCount = 0);

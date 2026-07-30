@@ -23,8 +23,11 @@ This document describes the current schema-1 layout. The format is pre-release a
 ├── log/
 │   ├── <change-id>.json
 │   └── <change-id>.sig
+├── sync/
+│   ├── state.json
+│   ├── inbox/                   # staged pull batches and rollback pairs
+│   └── staging/                 # prepared push batches
 └── .blueprints/
-    ├── sync-state.json
     ├── canvas-view.json
     ├── trusted-project-keys.json
     └── recovery/
@@ -35,7 +38,7 @@ This document describes the current schema-1 layout. The format is pre-release a
                 └── shared/      # preserved document/signature pair, when present
 ```
 
-The collaboration layer also writes a signed manifest in the shared project root. Files under `.blueprints/` are local bookkeeping and are not signed project truth or exchange input.
+The collaboration layer also writes a signed manifest in the shared project root. Files under `.blueprints/` and `sync/` are local bookkeeping and are not signed project truth or exchange input.
 
 `trusted-project-keys.json` is the machine-local trust-anchor set established when a project is created or a signed project invitation is accepted. It lets documents and audit entries signed by different project members validate without placing trust in the shared folder itself. A verified membership revision may extend this set, but unverified shared membership data cannot.
 

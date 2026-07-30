@@ -47,13 +47,13 @@ Exit criteria:
 Goal: two people can exchange signed changes through a shared directory and understand every blocked action.
 
 - [x] Add a two-workspace end-to-end collaboration test harness.
-- [ ] Replace raw JSON conflict previews with document-aware field comparisons.
+- [x] Replace raw-first conflict previews with bounded document-aware field comparisons and retained raw evidence.
 - [x] Add guided whole-document conflict resolution and machine-local recovery copies.
-- [ ] Show manifest version, last push/pull, audit status, and actionable recovery steps.
+- [x] Show shared/last push/last pull manifest evidence, audit status, and actionable recovery steps.
 - [x] Replace identity-bundle copy/paste with signed identity and project invitation files.
-- [ ] Define behavior for member key rotation and lost keys.
-- [ ] Test network-share interruption, partial copies, deleted files, and stale manifests.
-- [ ] Document backup and disaster-recovery procedures.
+- [x] Define behavior for member key rotation, compromise, and lost keys.
+- [x] Test interrupted/partial shared copies, deleted files, required-file deletion, and stale or replayed manifests.
+- [x] Document backup and disaster-recovery procedures.
 
 Exit criteria:
 

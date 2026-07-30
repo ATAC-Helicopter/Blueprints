@@ -13,6 +13,9 @@ Notable changes to Blueprints are documented here. The project follows semantic 
 - Signed identity-request and project-invitation files with proof-of-key-possession validation.
 - Member-key-aware workspace, manifest, incoming-document, and audit validation for distinct local identities.
 - A staged join flow that validates invitation targets, trust anchors, membership, signatures, manifest continuity, and audit history before creating the final local workspace.
+- Document-aware conflict comparisons for project configuration, membership, versions, items, and audit entries, with bounded raw evidence retained for diagnosis.
+- Explicit member-key rotation, compromise, and lost-key operating rules.
+- Backup, shared-exchange restoration, conflict reversal, identity recovery, and recovery-drill procedures.
 
 ### Changed
 
@@ -20,6 +23,7 @@ Notable changes to Blueprints are documented here. The project follows semantic 
 - Conflict resolution reports the recovery-copy location and writes its status metadata atomically.
 - The exchange view now shows the last pulled and pushed manifest versions and the last successful trust-validation time persisted for the local workspace.
 - Team setup now uses native invitation-file import/export instead of identity-bundle copy and paste.
+- The exchange workspace now surfaces current shared manifest evidence, local push/pull versions, audit-chain status, and state-specific recovery guidance.
 
 ### Fixed
 
@@ -28,6 +32,11 @@ Notable changes to Blueprints are documented here. The project follows semantic 
 - Conflict recovery rejects paths that escape the expected workspace root.
 - Project invitations targeting another local identity are rejected before a workspace is created.
 - Tampered identity invitation fields are rejected when their proof no longer verifies.
+- Signed manifest rollback and same-version unknown-batch replay are rejected.
+- Item deletions propagate with local recovery copies and deletion markers while required project-document deletion remains blocked.
+- Workspace exchange paths are contained beneath their expected roots.
+- Pull stages and revalidates a complete inbox before local mutation, records rollback pairs, and restores them if application or sync-state persistence fails.
+- Viewer and inactive-member keys are excluded from current workspace and incoming-change authority while remaining available for historical audit verification.
 
 ## 0.2.0-alpha.2 — 2026-07-30
 

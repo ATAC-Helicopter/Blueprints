@@ -115,4 +115,4 @@ Back up both:
 
 A workspace without the signing identity may remain readable but cannot be safely continued as the same member. Formal key recovery is not implemented yet.
 
-See [workspace format](workspace-format.md) and [security model](security-model.md) for details.
+See [workspace format](workspace-format.md), [security model](security-model.md), [member key lifecycle](key-lifecycle.md), and [backup and disaster recovery](backup-recovery.md) for details.

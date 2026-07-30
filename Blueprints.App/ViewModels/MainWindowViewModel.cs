@@ -94,6 +94,7 @@ public partial class MainWindowViewModel : ViewModelBase
         RecentProjects = new ObservableCollection<RecentProjectReference>();
         Members = new ObservableCollection<WorkspaceMemberCard>();
         Conflicts = new ObservableCollection<string>();
+        ConflictFieldComparisons = new ObservableCollection<ConflictFieldComparison>();
         SyncDiagnostics = new ObservableCollection<SyncDiagnosticCard>();
         TrustDiagnostics = new ObservableCollection<TrustDiagnosticCard>();
         Integrations = new ObservableCollection<IntegrationStatusCard>();
@@ -122,6 +123,7 @@ public partial class MainWindowViewModel : ViewModelBase
         RecentProjects = new ObservableCollection<RecentProjectReference>();
         Members = new ObservableCollection<WorkspaceMemberCard>();
         Conflicts = new ObservableCollection<string>();
+        ConflictFieldComparisons = new ObservableCollection<ConflictFieldComparison>();
         SyncDiagnostics = new ObservableCollection<SyncDiagnosticCard>();
         TrustDiagnostics = new ObservableCollection<TrustDiagnosticCard>();
         Integrations = new ObservableCollection<IntegrationStatusCard>();
@@ -145,6 +147,8 @@ public partial class MainWindowViewModel : ViewModelBase
     public ObservableCollection<WorkspaceMemberCard> Members { get; }
 
     public ObservableCollection<string> Conflicts { get; }
+
+    public ObservableCollection<ConflictFieldComparison> ConflictFieldComparisons { get; }
 
     public ObservableCollection<SyncDiagnosticCard> SyncDiagnostics { get; }
 
@@ -305,6 +309,8 @@ public partial class MainWindowViewModel : ViewModelBase
             {
                 OnPropertyChanged(nameof(SyncStatus));
                 OnPropertyChanged(nameof(SyncEvidenceSummary));
+                OnPropertyChanged(nameof(SyncAuditSummary));
+                OnPropertyChanged(nameof(SyncRecoveryGuidance));
             }
         }
     }
@@ -760,11 +766,33 @@ public partial class MainWindowViewModel : ViewModelBase
             var validation = Sync.LastSuccessfulTrustValidationUtc is DateTimeOffset validatedUtc
                 ? validatedUtc.ToLocalTime().ToString("g")
                 : "not yet validated";
-            return $"Last pulled manifest: {FormatManifestVersion(Sync.LastPulledManifestVersion)} · " +
+            var shared = Sync.SharedManifestVersion is int sharedVersion
+                ? $"v{sharedVersion}"
+                : "none";
+            return $"Shared manifest: {shared} · " +
+                   $"last pulled: {FormatManifestVersion(Sync.LastPulledManifestVersion)} · " +
                    $"last pushed manifest: {FormatManifestVersion(Sync.LastPushedManifestVersion)} · " +
                    $"trust check: {validation}";
         }
     }
+
+    public string SyncAuditSummary =>
+        Sync.AuditLogValid
+            ? $"Audit chain valid · {Sync.AuditEntryCount} signed entries"
+            : $"Audit chain blocked · {Sync.AuditEntryCount} valid entries before failure";
+
+    public string SyncRecoveryGuidance =>
+        Sync.SharedManifestSignatureValid == false
+            ? "Do not pull or overwrite files manually. Restore the shared manifest and matching content from a known pack or backup, then refresh."
+            : !Sync.AuditLogValid
+                ? "Restore the complete signed audit chain from a known-good workspace or backup before exchanging more changes."
+                : Sync.ConflictCount > 0
+                    ? "Review changed fields, choose one whole-document side, and retain the reported local recovery directory until the project is verified."
+                    : Sync.PendingIncomingChanges > 0
+                        ? "Pull validates the manifest, audit chain, and every incoming signer before changing local project files."
+                        : Sync.PendingOutgoingChanges > 0
+                            ? "Push publishes document pairs first and the signed manifest last. If publication is interrupted, restore or retry from the recorded pack."
+                            : "No recovery action is required. Keep the local workspace and protected identity included in separate backups.";
 
     private static string FormatManifestVersion(int version) =>
         version > 0 ? $"v{version}" : "none";
@@ -2188,6 +2216,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void RefreshSelectedConflictPreview()
     {
+        ConflictFieldComparisons.Clear();
         if (_currentSession is null || string.IsNullOrWhiteSpace(SelectedConflictPath))
         {
             SelectedConflictSemanticSummary = "Select a diagnostic path to see the document summary.";
@@ -2207,10 +2236,19 @@ public partial class MainWindowViewModel : ViewModelBase
 
         SelectedConflictLocalPreview = localPreview;
         SelectedConflictSharedPreview = sharedPreview;
-        SelectedConflictSemanticSummary = BuildSemanticConflictSummary(
+        foreach (var comparison in BuildSemanticConflictComparisons(
             SelectedConflictPath,
             localPreview,
-            sharedPreview);
+            sharedPreview))
+        {
+            ConflictFieldComparisons.Add(comparison);
+        }
+
+        SelectedConflictSemanticSummary = ConflictFieldComparisons.Count == 0
+            ? "No document-aware comparison is available because one side is missing, invalid, or not yet supported."
+            : $"{GetDocumentKind(SelectedConflictPath)} · " +
+              $"{ConflictFieldComparisons.Count(static field => field.IsDifferent)} of " +
+              $"{ConflictFieldComparisons.Count} compared fields differ.";
     }
 
     private static string ReadWorkspacePreview(
@@ -2239,7 +2277,7 @@ public partial class MainWindowViewModel : ViewModelBase
             : text[..maxPreviewLength] + $"{Environment.NewLine}... preview truncated ...";
     }
 
-    private static string BuildSemanticConflictSummary(
+    private static IReadOnlyList<ConflictFieldComparison> BuildSemanticConflictComparisons(
         string relativePath,
         string localJson,
         string sharedJson)
@@ -2248,31 +2286,37 @@ public partial class MainWindowViewModel : ViewModelBase
         using var sharedDocument = TryParseJson(sharedJson);
         if (localDocument is null || sharedDocument is null)
         {
-            return "Document summary unavailable because one side is missing or is not valid JSON.";
+            return [];
         }
 
         var fields = GetSemanticFields(relativePath);
         if (fields.Count == 0)
         {
-            return "No semantic presenter exists for this document type yet. Use the raw local/shared previews below.";
+            return [];
         }
 
-        var lines = new List<string>
-        {
-            $"Document: {GetDocumentKind(relativePath)}",
-        };
+        return fields
+            .Select(field =>
+            {
+                var localValue = BoundComparisonValue(
+                    ReadJsonValue(localDocument.RootElement, field.PropertyPath));
+                var sharedValue = BoundComparisonValue(
+                    ReadJsonValue(sharedDocument.RootElement, field.PropertyPath));
+                return new ConflictFieldComparison(
+                    field.Label,
+                    localValue,
+                    sharedValue,
+                    !string.Equals(localValue, sharedValue, StringComparison.Ordinal));
+            })
+            .ToArray();
+    }
 
-        foreach (var (label, propertyPath) in fields)
-        {
-            var localValue = ReadJsonValue(localDocument.RootElement, propertyPath);
-            var sharedValue = ReadJsonValue(sharedDocument.RootElement, propertyPath);
-            var marker = string.Equals(localValue, sharedValue, StringComparison.Ordinal) ? "=" : "!=";
-            lines.Add($"{label}: local {marker} shared");
-            lines.Add($"  local: {localValue}");
-            lines.Add($"  shared: {sharedValue}");
-        }
-
-        return string.Join(Environment.NewLine, lines);
+    private static string BoundComparisonValue(string value)
+    {
+        const int maxLength = 500;
+        return value.Length <= maxLength
+            ? value
+            : value[..maxLength] + "…";
     }
 
     private static JsonDocument? TryParseJson(string text)

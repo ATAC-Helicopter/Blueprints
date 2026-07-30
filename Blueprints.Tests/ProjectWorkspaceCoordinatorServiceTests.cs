@@ -345,6 +345,8 @@ public sealed class ProjectWorkspaceCoordinatorServiceTests : IDisposable
         Assert.Equal(0, refreshed.Sync.PendingOutgoingChanges);
         Assert.Equal(0, refreshed.Sync.PendingIncomingChanges);
         Assert.Equal(1, refreshed.Sync.LastPushedManifestVersion);
+        Assert.Equal(1, refreshed.Sync.SharedManifestVersion);
+        Assert.True(refreshed.Sync.SharedManifestSignatureValid);
         Assert.NotNull(refreshed.Sync.LastSuccessfulTrustValidationUtc);
     }
 
@@ -391,6 +393,8 @@ public sealed class ProjectWorkspaceCoordinatorServiceTests : IDisposable
         Assert.Equal(0, refreshed.Sync.PendingIncomingChanges);
         Assert.Equal(0, refreshed.Sync.PendingOutgoingChanges);
         Assert.Equal(2, refreshed.Sync.LastPulledManifestVersion);
+        Assert.Equal(2, refreshed.Sync.SharedManifestVersion);
+        Assert.True(refreshed.Sync.SharedManifestSignatureValid);
         Assert.NotNull(refreshed.Sync.LastSuccessfulTrustValidationUtc);
     }
 

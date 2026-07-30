@@ -40,10 +40,12 @@ public sealed class FileSystemSyncStateStore
             Directory.CreateDirectory(directory);
         }
 
+        var tempPath = statePath + ".tmp";
         File.WriteAllText(
-            statePath,
+            tempPath,
             JsonSerializer.Serialize(state, SerializerOptions),
             new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        File.Move(tempPath, statePath, overwrite: true);
     }
 
     public SyncStateDocument CreateDefault() =>

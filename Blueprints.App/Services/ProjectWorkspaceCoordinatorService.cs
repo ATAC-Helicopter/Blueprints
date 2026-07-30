@@ -97,7 +97,9 @@ public sealed class ProjectWorkspaceCoordinatorService
                     identity.Profile.DisplayName,
                     identity.Profile.KeyId,
                     identity.Profile.PublicKeyBase64,
-                    DateTimeOffset.UtcNow),
+                    DateTimeOffset.UtcNow,
+                    MemberRole.Admin,
+                    true),
             ]);
         AppendAuditEntry(localRoot, identity, snapshot, "project.create", $"Created project {snapshot.Project.Name}.");
         Directory.CreateDirectory(sharedRoot);
@@ -116,8 +118,11 @@ public sealed class ProjectWorkspaceCoordinatorService
         Directory.CreateDirectory(paths.SharedProjectRoot);
         var safetyReport = _sharedFolderSafetyInspector.Inspect(paths.SharedProjectRoot, paths.LocalWorkspaceRoot);
         var trustedKeys = _projectTrustStore.LoadKeys(paths.LocalWorkspaceRoot, identity);
+        var activeContributorKeys = _projectTrustStore.LoadActiveContributorKeys(
+            paths.LocalWorkspaceRoot,
+            identity);
 
-        var loadResult = _workspaceStore.Load(paths.LocalWorkspaceRoot, trustedKeys);
+        var loadResult = _workspaceStore.Load(paths.LocalWorkspaceRoot, activeContributorKeys);
         var auditValidation = _auditLogService.Validate(paths.LocalWorkspaceRoot, trustedKeys);
         loadResult = ApplyWorkspaceSafety(loadResult, safetyReport, auditValidation);
         if (loadResult.TrustReport.State == TrustState.Trusted)
@@ -133,6 +138,9 @@ public sealed class ProjectWorkspaceCoordinatorService
             .Union(analysis.PotentialConflictDocumentPaths, StringComparer.Ordinal)
             .OrderBy(static path => path, StringComparer.Ordinal)
             .ToArray();
+        var sharedManifest = _workspaceSyncService.InspectSharedManifest(
+            paths.SharedProjectRoot,
+            activeContributorKeys);
         var sync = new SyncSummary(
             DetermineHealth(analysis, conflictPaths.Length),
             analysis.OutgoingDocumentPaths.Count,
@@ -140,7 +148,12 @@ public sealed class ProjectWorkspaceCoordinatorService
             conflictPaths.Length,
             syncState.LastPulledManifestVersion,
             syncState.LastPushedManifestVersion,
-            syncState.LastSuccessfulTrustValidationUtc);
+            syncState.LastSuccessfulTrustValidationUtc,
+            sharedManifest.ManifestVersion,
+            sharedManifest.BatchId,
+            sharedManifest.Exists ? sharedManifest.SignatureValid : null,
+            auditValidation.IsValid,
+            auditValidation.EntryCount);
 
         var session = new LocalWorkspaceSession(
             identity,
@@ -668,7 +681,9 @@ public sealed class ProjectWorkspaceCoordinatorService
                 member.DisplayName,
                 ResolveMemberKeyId(member),
                 member.PublicKey,
-                member.JoinedUtc))
+                member.JoinedUtc,
+                member.Role,
+                member.IsActive))
             .ToArray();
         var project = session.LoadResult.Workspace.Project;
         var payload = new ProjectInvitationPayload(
@@ -736,8 +751,12 @@ public sealed class ProjectWorkspaceCoordinatorService
                 invitation.ProjectId,
                 invitation.TrustedKeys);
             var trustedKeys = _projectTrustStore.LoadKeys(stageRoot, identity);
+            var activeContributorKeys = _projectTrustStore.LoadActiveContributorKeys(
+                stageRoot,
+                identity);
             var pull = _workspaceSyncService.Pull(
                 new WorkspacePaths(stageRoot, resolvedSharedRoot),
+                activeContributorKeys,
                 trustedKeys);
             if (!pull.Success)
             {
@@ -745,7 +764,7 @@ public sealed class ProjectWorkspaceCoordinatorService
                     $"Project join was blocked: {pull.Summary}");
             }
 
-            var loadResult = _workspaceStore.Load(stageRoot, trustedKeys);
+            var loadResult = _workspaceStore.Load(stageRoot, activeContributorKeys);
             var auditValidation = _auditLogService.Validate(stageRoot, trustedKeys);
             if (loadResult.TrustReport.State != TrustState.Trusted ||
                 !auditValidation.IsValid)
@@ -789,6 +808,7 @@ public sealed class ProjectWorkspaceCoordinatorService
         var identity = _identityService.GetOrCreateDefaultIdentity("Local Admin");
         var session = OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
         EnsureTrustedWorkspace(session);
+        EnsureCurrentIdentityCanContribute(session);
         var trustedKeys = _projectTrustStore.LoadKeys(localWorkspaceRoot, identity);
 
         return _workspaceSyncService.Push(
@@ -808,9 +828,12 @@ public sealed class ProjectWorkspaceCoordinatorService
         var identity = _identityService.GetOrCreateDefaultIdentity("Local Admin");
         var session = OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
         EnsureTrustedWorkspace(session);
-        var trustedKeys = _projectTrustStore.LoadKeys(localWorkspaceRoot, identity);
+        var trustedKeys = _projectTrustStore.LoadActiveContributorKeys(
+            localWorkspaceRoot,
+            identity);
+        var auditKeys = _projectTrustStore.LoadKeys(localWorkspaceRoot, identity);
 
-        return _workspaceSyncService.Pull(session.Paths, trustedKeys);
+        return _workspaceSyncService.Pull(session.Paths, trustedKeys, auditKeys);
     }
 
     public ConflictResolutionResult ResolveConflict(
@@ -825,6 +848,7 @@ public sealed class ProjectWorkspaceCoordinatorService
 
         var session = OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
         EnsureConflictExists(session, documentPath);
+        EnsureCurrentIdentityCanContribute(session);
 
         var recoveryDirectory = CreateConflictRecovery(
             localWorkspaceRoot,
@@ -1159,6 +1183,7 @@ public sealed class ProjectWorkspaceCoordinatorService
         }
 
         EnsureNoSyncConflicts(session);
+        EnsureCurrentIdentityCanContribute(session);
     }
 
     private static void EnsureNoSyncConflicts(LocalWorkspaceSession session)
@@ -1178,6 +1203,20 @@ public sealed class ProjectWorkspaceCoordinatorService
         if (currentMember is null || currentMember.Role != MemberRole.Admin)
         {
             throw new InvalidOperationException("Only active admins can change project membership.");
+        }
+    }
+
+    private static void EnsureCurrentIdentityCanContribute(LocalWorkspaceSession session)
+    {
+        var currentMember = session.LoadResult.Workspace.Members.Members
+            .FirstOrDefault(member =>
+                member.UserId == session.Identity.Profile.UserId &&
+                member.IsActive);
+        if (currentMember is null ||
+            currentMember.Role is not MemberRole.Editor and not MemberRole.Admin)
+        {
+            throw new InvalidOperationException(
+                "Only active editors or administrators can change or publish this project.");
         }
     }
 
