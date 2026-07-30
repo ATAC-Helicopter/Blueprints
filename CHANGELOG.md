@@ -12,6 +12,7 @@ Notable changes to Blueprints are documented here. The project follows semantic 
 - A provider-neutral reference contract for planning documents, commits, issues, pull requests, releases, and project records across local Git, GitHub, and GitLab.
 - Bounded read-only discovery for up to 100 GitHub pull requests and 50 GitHub release records per linked repository, including merge/publication state and provider-neutral provenance.
 - Repository-linked GitHub Project discovery for standalone draft items through a bounded read-only GraphQL query covering at most 10 projects, 100 items per project, and 100 returned drafts.
+- An injectable provider-neutral hosted-source reader boundary, keeping repository discovery and approval workflows independent from the current authenticated GitHub CLI implementation.
 
 ### Changed
 

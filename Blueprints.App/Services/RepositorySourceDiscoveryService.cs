@@ -16,15 +16,28 @@ public sealed partial class RepositorySourceDiscoveryService : ISourceDiscoveryS
         "__typename ... on DraftIssue{title body} ... on Issue{number} ... on PullRequest{number}" +
         "}}}}}}}";
     private readonly MarkdownSourceDiscoveryParser _markdownParser;
+    private readonly IHostedSourceProviderReader _hostedSourceProviderReader;
 
     public RepositorySourceDiscoveryService()
-        : this(new MarkdownSourceDiscoveryParser())
+        : this(
+            new MarkdownSourceDiscoveryParser(),
+            new GitHubCliSourceProviderReader())
     {
     }
 
     public RepositorySourceDiscoveryService(MarkdownSourceDiscoveryParser markdownParser)
+        : this(markdownParser, new GitHubCliSourceProviderReader())
     {
+    }
+
+    public RepositorySourceDiscoveryService(
+        MarkdownSourceDiscoveryParser markdownParser,
+        IHostedSourceProviderReader hostedSourceProviderReader)
+    {
+        ArgumentNullException.ThrowIfNull(markdownParser);
+        ArgumentNullException.ThrowIfNull(hostedSourceProviderReader);
         _markdownParser = markdownParser;
+        _hostedSourceProviderReader = hostedSourceProviderReader;
     }
 
     public SourceDiscoveryResult Discover(string repositoryPath)
@@ -53,26 +66,13 @@ public sealed partial class RepositorySourceDiscoveryService : ISourceDiscoveryS
         }
         else
         {
-            var issues = ReadGitHubIssues(root, repositoryName);
-            candidates.AddRange(issues.Candidates);
-            warnings.AddRange(issues.Warnings);
-            githubIssueCount = issues.Candidates.Count;
-            githubProjectCount = issues.Candidates.Count(static candidate => candidate.Kind == SourceArtifactKind.GitHubProject);
-
-            var pullRequests = ReadGitHubPullRequests(root, repositoryName);
-            candidates.AddRange(pullRequests.Candidates);
-            warnings.AddRange(pullRequests.Warnings);
-            pullRequestCount = pullRequests.Candidates.Count;
-
-            var releases = ReadGitHubReleases(root, repositoryName);
-            candidates.AddRange(releases.Candidates);
-            warnings.AddRange(releases.Warnings);
-            releaseCount = releases.Candidates.Count;
-
-            var projectDrafts = ReadGitHubProjectDrafts(root, repositoryName);
-            candidates.AddRange(projectDrafts.Candidates);
-            warnings.AddRange(projectDrafts.Warnings);
-            githubProjectCount += projectDrafts.Candidates.Count;
+            var hosted = _hostedSourceProviderReader.Read(root, repositoryName);
+            candidates.AddRange(hosted.Candidates);
+            warnings.AddRange(hosted.Warnings);
+            githubIssueCount = hosted.IssueCount;
+            githubProjectCount = hosted.ProjectCount;
+            pullRequestCount = hosted.PullRequestCount;
+            releaseCount = hosted.ReleaseCount;
         }
 
         var deduplicated = candidates
@@ -492,4 +492,35 @@ public sealed partial class RepositorySourceDiscoveryService : ISourceDiscoveryS
     private sealed record GitHubDiscovery(
         IReadOnlyList<SourceDiscoveryCandidate> Candidates,
         IReadOnlyList<string> Warnings);
+
+    private sealed class GitHubCliSourceProviderReader : IHostedSourceProviderReader
+    {
+        public HostedSourceDiscoveryResult Read(
+            string repositoryRoot,
+            string repositoryName)
+        {
+            var issues = ReadGitHubIssues(repositoryRoot, repositoryName);
+            var pullRequests = ReadGitHubPullRequests(repositoryRoot, repositoryName);
+            var releases = ReadGitHubReleases(repositoryRoot, repositoryName);
+            var projectDrafts = ReadGitHubProjectDrafts(repositoryRoot, repositoryName);
+            return new HostedSourceDiscoveryResult(
+                [
+                    .. issues.Candidates,
+                    .. pullRequests.Candidates,
+                    .. releases.Candidates,
+                    .. projectDrafts.Candidates,
+                ],
+                [
+                    .. issues.Warnings,
+                    .. pullRequests.Warnings,
+                    .. releases.Warnings,
+                    .. projectDrafts.Warnings,
+                ],
+                issues.Candidates.Count,
+                issues.Candidates.Count(static candidate => candidate.Kind == SourceArtifactKind.GitHubProject)
+                + projectDrafts.Candidates.Count,
+                pullRequests.Candidates.Count,
+                releases.Candidates.Count);
+        }
+    }
 }

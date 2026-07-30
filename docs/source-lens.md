@@ -26,6 +26,8 @@ Standalone draft discovery reads only Projects linked to the repository, checks 
 
 Local Markdown discovery still works if GitHub is unavailable. Source Lens reports the skipped provider as a warning instead of failing the entire scan.
 
+Repository discovery talks to hosted services through a provider-neutral reader contract. The current GitHub implementation uses the authenticated GitHub CLI behind that boundary; replacing its transport does not require changing proposal approval, provenance, or signed workspace behavior.
+
 ## Approval workflow
 
 1. Open **Source Lens**.
