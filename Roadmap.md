@@ -84,7 +84,7 @@ Exit criteria:
 - provider credentials and settings never enter signed project truth;
 - no hosted provider is required for core release planning.
 
-## In progress — v0.5: VaultSync integration
+## Completed — v0.5: VaultSync integration
 
 Goal: let VaultSync improve transport and recovery while each product keeps a clear responsibility.
 
@@ -92,7 +92,7 @@ Goal: let VaultSync improve transport and recovery while each product keeps a cl
 - [x] Detect a VaultSync-managed location and report backup health.
 - [x] Register Blueprints exchange roots through an explicit opt-in adapter.
 - [x] Add a release safety gate based on verified backup state.
-- [ ] Test restore of both local and exchange workspaces.
+- [x] Test restore of both local and exchange workspaces.
 
 Exit criteria:
 

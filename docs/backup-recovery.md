@@ -49,6 +49,16 @@ If the protected identity cannot be restored, follow [member key lifecycle](key-
 
 The `packs/` directories help diagnose individual publications, but they are not guaranteed to be complete project backups.
 
+### Restore a VaultSync-managed exchange
+
+1. Restore the complete project-specific directory, including `.blueprints-exchange.json`, under `<destination>/.blueprints/projects/<project-id>/`.
+2. Confirm the destination still exposes `.vaultsync/meta/vaultsync.meta.db`.
+3. Link the restored VaultSync destination in Source Lens and select **Register exchange** twice. A valid matching marker is accepted idempotently; a mismatched or malformed marker is rejected.
+4. Reopen the restored local project with the restored project-specific path as its shared root.
+5. Refresh and confirm project trust, audit continuity, the shared manifest version, and VaultSync health before pulling or pushing.
+
+The automated recovery drill relocates both backups independently, opens the local copy as trusted, accepts only the matching registered exchange, pulls the restored manifest, and successfully pushes a later signed change. This verifies the Blueprints workflow and file contracts; it does not claim that VaultSync payload verification itself ran.
+
 ## Recover from a conflict choice
 
 Before applying a conflict choice, Blueprints stores both available sides under:
@@ -72,3 +82,4 @@ Before relying on a backup policy, perform a drill on a disposable copy:
 - join a second disposable workspace through an invitation;
 - push and pull one signed change;
 - confirm a tampered copy is rejected.
+- for a VaultSync-managed exchange, relocate both backups and confirm a new signed change can be pushed after restore.

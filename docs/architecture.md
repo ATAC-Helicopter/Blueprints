@@ -103,6 +103,8 @@ Exchange registration is a separate write adapter. It derives the canonical `<de
 
 The release-readiness builder consumes the structured passive-health result rather than parsing display text. It reports absent, risky, incomplete, stale, future-dated, and recent healthy evidence. The default policy is advisory: seven-day freshness and five-minute future clock skew inform the human decision but do not disable release.
 
+The VaultSync recovery drill exercises the boundary without invoking VaultSync: local and registered exchange snapshots are copied independently, relocated, validated, pulled, and then used for another signed publication. This proves Blueprints path, marker, trust, manifest, and continuation behavior while leaving transport-level verification to VaultSync.
+
 ### Push
 
 1. Build local and shared snapshots.

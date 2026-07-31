@@ -83,4 +83,4 @@ The ownership boundary is:
 - Registration does not switch the open project's shared root. Reopen the project with the prepared root when ready, so a confirmation can never silently redirect collaboration.
 - Future VaultSync commands remain explicit and reversible; passive health detection never writes.
 
-The end-to-end restore exercise remains v0.5 work.
+The automated recovery drill backs up the local workspace and registered exchange independently, restores each to a new location, revalidates project trust and shared-manifest continuity, and publishes another signed change through the restored exchange.

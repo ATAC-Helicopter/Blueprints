@@ -11,6 +11,7 @@ Notable changes to Blueprints are documented here. The project follows semantic 
 - An injectable VaultSync status-reader boundary and filesystem tests covering supported root forms, absent sidecars, malformed schemas, and oversized input.
 - Explicit two-step registration for project-specific VaultSync exchange roots, backed by a fresh exact-target approval, an atomic bounded marker, canonical path containment, and refusal to adopt unexpected content.
 - Advisory release-readiness diagnostics for missing, risky, incomplete, stale, future-dated, or recent healthy VaultSync recovery evidence.
+- An end-to-end VaultSync recovery drill that independently relocates local and exchange backups, revalidates signed project trust and manifest continuity, and publishes a new signed change after restore.
 
 ### Changed
 
