@@ -147,6 +147,17 @@ public sealed class GitCommandRepositoryServiceTests : IDisposable
     {
         if (Directory.Exists(_root))
         {
+            if (OperatingSystem.IsWindows())
+            {
+                foreach (var file in Directory.EnumerateFiles(
+                             _root,
+                             "*",
+                             SearchOption.AllDirectories))
+                {
+                    File.SetAttributes(file, FileAttributes.Normal);
+                }
+            }
+
             Directory.Delete(_root, recursive: true);
         }
     }
