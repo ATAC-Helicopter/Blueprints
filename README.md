@@ -94,6 +94,7 @@ Blueprints uses a local workspace as the editable source of truth and a separate
 
 - [Documentation index](docs/README.md)
 - [User guide](docs/user-guide.md)
+- [Accessibility](docs/accessibility.md)
 - [Canvas engine](docs/canvas-engine.md)
 - [Source Lens](docs/source-lens.md)
 - [VaultSync integration](docs/vaultsync-integration.md)

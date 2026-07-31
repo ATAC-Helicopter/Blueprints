@@ -6,6 +6,7 @@ Blueprints uses versions as durable milestone checkpoints. Each entry links a Gi
 
 | Version | Date | Milestone | Accomplishments |
 | --- | --- | --- | --- |
+| `v0.6.0` | 2026-07-31 | Stable foundations and approachable desktop | Beginner-first desktop redesign, atomic signed workspace and archive mutations, migration and compatibility infrastructure, encrypted identity recovery, stable bounded provider contracts, accessibility shortcuts, threat modeling, and support targets |
 | `v0.5.0` | 2026-07-31 | VaultSync recovery integration | Passive bounded backup-health awareness, explicit project-specific exchange registration, advisory release-safety diagnostics, atomic local integration settings, and an end-to-end local/exchange restore drill |
 | `v0.4.0` | 2026-07-30 | Provider-neutral source-control awareness | Advanced canvas editing, signed typed relationships, multi-repository readiness analysis, provider-neutral references, direct bounded GitHub and GitLab discovery, isolated credentials, and an explicit approval boundary for future provider writes |
 | `v0.3.0` | 2026-07-30 | Understandable collaboration | Distinct signing identities, signed invitation onboarding, member-key-aware trust, staged and recoverable sync, semantic conflict comparison, manifest/audit evidence, recoverable archives, explicit identity setup, and disaster-recovery guidance |
@@ -16,7 +17,6 @@ Blueprints uses versions as durable milestone checkpoints. Each entry links a Gi
 
 | Version | Milestone outcome |
 | --- | --- |
-| `v0.2.0` | Complete the coherent solo workflow with identity onboarding, editing history, archive/delete flows, and release polish |
 | `v1.0.0` | A dependable, supported small-team release planner |
 
 ## Release record requirements

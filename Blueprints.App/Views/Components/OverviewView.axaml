@@ -4,6 +4,7 @@
              xmlns:models="using:Blueprints.App.Models"
              xmlns:core="using:Blueprints.Core.Models"
              xmlns:views="using:Blueprints.App.Views.Components"
+             xmlns:automation="using:Avalonia.Automation"
              x:Class="Blueprints.App.Views.Components.OverviewView"
              x:DataType="vm:MainWindowViewModel">
   <Grid RowDefinitions="64,*">
@@ -25,10 +26,10 @@
         <Border Grid.Column="1" Width="1" Background="#E2E4EC" Margin="8,0" />
 
         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="7">
-          <Button x:Name="UndoButton" Classes="tool square" Content="↶" Click="UndoClick" ToolTip.Tip="Undo layout change (Ctrl+Z)" />
-          <Button x:Name="RedoButton" Classes="tool square" Content="↷" Click="RedoClick" ToolTip.Tip="Redo layout change (Ctrl+Shift+Z or Ctrl+Y)" />
-          <Button Classes="tool square" Content="−" Click="ZoomOutClick" ToolTip.Tip="Zoom out" />
-          <Button Classes="tool square" Content="＋" Click="ZoomInClick" ToolTip.Tip="Zoom in" />
+          <Button x:Name="UndoButton" Classes="tool square" Content="↶" Click="UndoClick" ToolTip.Tip="Undo layout change (Ctrl+Z)" automation:AutomationProperties.Name="Undo layout change" />
+          <Button x:Name="RedoButton" Classes="tool square" Content="↷" Click="RedoClick" ToolTip.Tip="Redo layout change (Ctrl+Shift+Z or Ctrl+Y)" automation:AutomationProperties.Name="Redo layout change" />
+          <Button Classes="tool square" Content="−" Click="ZoomOutClick" ToolTip.Tip="Zoom out" automation:AutomationProperties.Name="Zoom out" />
+          <Button Classes="tool square" Content="＋" Click="ZoomInClick" ToolTip.Tip="Zoom in" automation:AutomationProperties.Name="Zoom in" />
           <Button Classes="tool" Content="Fit view" Click="FitViewClick" />
           <Button Classes="tool" Content="Auto arrange" Click="AutoArrangeClick" IsEnabled="{Binding CanMutateWorkspace}" />
           <Button Classes="tool" Content="Save layout" Click="SaveLayoutClick" IsEnabled="{Binding CanMutateWorkspace}" />

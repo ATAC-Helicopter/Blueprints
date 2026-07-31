@@ -727,76 +727,71 @@ public sealed class ProjectWorkspaceCoordinatorService
             ?? throw new InvalidOperationException("The selected version was not found.");
         EnsureArchivable(version.Version.Status, "version");
 
-        var archiveDirectory = CreateArchiveDirectory(
+        var archiveId = CreateArchiveId("version", versionId);
+        var archiveDirectory = Path.Combine(
             localWorkspaceRoot,
-            "version",
-            versionId);
-        var versionDirectory = Path.Combine(
-            localWorkspaceRoot,
-            "versions",
-            versionId.ToString("N"));
-        var archivedVersionDirectory = Path.Combine(
-            archiveDirectory,
-            "versions",
-            versionId.ToString("N"));
-        CopyDirectory(versionDirectory, archivedVersionDirectory);
-        WriteArchiveRecord(
-            archiveDirectory,
-            new WorkspaceArchiveRecord(
-                CurrentSchemaVersion,
-                Path.GetFileName(archiveDirectory),
-                "version",
-                versionId,
-                version.Version.Name,
-                DateTimeOffset.UtcNow,
-                identity.Profile.UserId,
-                identity.Profile.DisplayName,
-                "Prepared"));
-
-        Directory.Delete(versionDirectory, recursive: true);
-        try
+            ".blueprints",
+            "archive",
+            archiveId);
+        var removedEntityIds = version.Items
+            .Select(static item => item.ItemId)
+            .Append(versionId)
+            .ToHashSet();
+        var updatedWorkspace = workspace with
         {
-            var removedEntityIds = version.Items
-                .Select(static item => item.ItemId)
-                .Append(versionId)
-                .ToHashSet();
-            var updatedWorkspace = workspace with
-            {
-                Versions = workspace.Versions
-                    .Where(entry => entry.Version.VersionId != versionId)
-                    .ToArray(),
-                CanvasLayout = RemoveArchivedLayoutNodes(
-                    workspace.CanvasLayout,
-                    removedEntityIds,
-                    identity),
-                Relationships = RemoveArchivedRelationships(
-                    workspace.Relationships,
-                    removedEntityIds,
-                    identity),
-            };
-            var updatedSession = SaveWorkspace(
-                localWorkspaceRoot,
-                sharedWorkspaceRoot,
+            Versions = workspace.Versions
+                .Where(entry => entry.Version.VersionId != versionId)
+                .ToArray(),
+            CanvasLayout = RemoveArchivedLayoutNodes(
+                workspace.CanvasLayout,
+                removedEntityIds,
+                identity),
+            Relationships = RemoveArchivedRelationships(
+                workspace.Relationships,
+                removedEntityIds,
+                identity),
+        };
+        _workspaceTransactionService.Execute(localWorkspaceRoot, stagedRoot =>
+        {
+            var versionDirectory = Path.Combine(
+                stagedRoot,
+                "versions",
+                versionId.ToString("N"));
+            var stagedArchiveDirectory = Path.Combine(
+                stagedRoot,
+                ".blueprints",
+                "archive",
+                archiveId);
+            var archivedVersionDirectory = Path.Combine(
+                stagedArchiveDirectory,
+                "versions",
+                versionId.ToString("N"));
+            CopyDirectory(versionDirectory, archivedVersionDirectory);
+            WriteArchiveRecord(
+                stagedArchiveDirectory,
+                new WorkspaceArchiveRecord(
+                    CurrentSchemaVersion,
+                    archiveId,
+                    "version",
+                    versionId,
+                    version.Version.Name,
+                    DateTimeOffset.UtcNow,
+                    identity.Profile.UserId,
+                    identity.Profile.DisplayName,
+                    "Applied"));
+            Directory.Delete(versionDirectory, recursive: true);
+            _workspaceStore.Save(stagedRoot, updatedWorkspace, identity.SigningKey);
+            AppendAuditEntry(
+                stagedRoot,
                 identity,
                 updatedWorkspace,
                 "version.archive",
                 $"Archived draft version {version.Version.Name}.");
-            UpdateArchiveStatus(archiveDirectory, "Applied");
-            return new WorkspaceArchiveResult(
-                updatedSession,
-                archiveDirectory,
-                $"Archived version {version.Version.Name}. Recovery copy: {archiveDirectory}");
-        }
-        catch
-        {
-            if (!Directory.Exists(versionDirectory))
-            {
-                CopyDirectory(archivedVersionDirectory, versionDirectory);
-            }
-
-            UpdateArchiveStatus(archiveDirectory, "Failed and restored");
-            throw;
-        }
+        });
+        return new WorkspaceArchiveResult(
+            OpenProject(localWorkspaceRoot, sharedWorkspaceRoot),
+            archiveDirectory,
+            $"Archived version {version.Version.Name}. Recovery copy: {archiveDirectory}");
     }
 
     public WorkspaceArchiveResult ArchiveItem(
@@ -826,79 +821,76 @@ public sealed class ProjectWorkspaceCoordinatorService
             ?? throw new InvalidOperationException("The selected item was not found.");
         var relativeDocumentPath =
             $"versions/{versionId:N}/items/{itemId:N}.json";
-        var archiveDirectory = CreateArchiveDirectory(
+        var archiveId = CreateArchiveId("item", itemId);
+        var archiveDirectory = Path.Combine(
             localWorkspaceRoot,
-            "item",
-            itemId);
-        CopyDocumentPair(
-            localWorkspaceRoot,
-            archiveDirectory,
-            relativeDocumentPath);
-        WriteArchiveRecord(
-            archiveDirectory,
-            new WorkspaceArchiveRecord(
-                CurrentSchemaVersion,
-                Path.GetFileName(archiveDirectory),
-                "item",
-                itemId,
-                item.ItemKey,
-                DateTimeOffset.UtcNow,
-                identity.Profile.UserId,
-                identity.Profile.DisplayName,
-                "Prepared"));
-        DeleteFileIfPresent(localWorkspaceRoot, relativeDocumentPath);
-        DeleteFileIfPresent(
-            localWorkspaceRoot,
-            Path.ChangeExtension(relativeDocumentPath, ".sig"));
-
-        try
+            ".blueprints",
+            "archive",
+            archiveId);
+        var versions = workspace.Versions.ToArray();
+        versions[versionIndex.index] = versionIndex.entry with
         {
-            var versions = workspace.Versions.ToArray();
-            versions[versionIndex.index] = versionIndex.entry with
+            Version = versionIndex.entry.Version with
             {
-                Version = versionIndex.entry.Version with
-                {
-                    ManualOrder = versionIndex.entry.Version.ManualOrder
-                        .Where(id => id != itemId)
-                        .ToArray(),
-                },
-                Items = versionIndex.entry.Items
-                    .Where(candidate => candidate.ItemId != itemId)
+                ManualOrder = versionIndex.entry.Version.ManualOrder
+                    .Where(id => id != itemId)
                     .ToArray(),
-            };
-            var updatedSession = SaveWorkspace(
-                localWorkspaceRoot,
-                sharedWorkspaceRoot,
+            },
+            Items = versionIndex.entry.Items
+                .Where(candidate => candidate.ItemId != itemId)
+                .ToArray(),
+        };
+        var updatedWorkspace = workspace with
+        {
+            Versions = versions,
+            CanvasLayout = RemoveArchivedLayoutNodes(
+                workspace.CanvasLayout,
+                new HashSet<Guid> { itemId },
+                identity),
+            Relationships = RemoveArchivedRelationships(
+                workspace.Relationships,
+                new HashSet<Guid> { itemId },
+                identity),
+        };
+        _workspaceTransactionService.Execute(localWorkspaceRoot, stagedRoot =>
+        {
+            var stagedArchiveDirectory = Path.Combine(
+                stagedRoot,
+                ".blueprints",
+                "archive",
+                archiveId);
+            CopyDocumentPair(
+                stagedRoot,
+                stagedArchiveDirectory,
+                relativeDocumentPath);
+            WriteArchiveRecord(
+                stagedArchiveDirectory,
+                new WorkspaceArchiveRecord(
+                    CurrentSchemaVersion,
+                    archiveId,
+                    "item",
+                    itemId,
+                    item.ItemKey,
+                    DateTimeOffset.UtcNow,
+                    identity.Profile.UserId,
+                    identity.Profile.DisplayName,
+                    "Applied"));
+            DeleteFileIfPresent(stagedRoot, relativeDocumentPath);
+            DeleteFileIfPresent(
+                stagedRoot,
+                Path.ChangeExtension(relativeDocumentPath, ".sig"));
+            _workspaceStore.Save(stagedRoot, updatedWorkspace, identity.SigningKey);
+            AppendAuditEntry(
+                stagedRoot,
                 identity,
-                workspace with
-                {
-                    Versions = versions,
-                    CanvasLayout = RemoveArchivedLayoutNodes(
-                        workspace.CanvasLayout,
-                        new HashSet<Guid> { itemId },
-                        identity),
-                    Relationships = RemoveArchivedRelationships(
-                        workspace.Relationships,
-                        new HashSet<Guid> { itemId },
-                        identity),
-                },
+                updatedWorkspace,
                 "item.archive",
                 $"Archived item {item.ItemKey}.");
-            UpdateArchiveStatus(archiveDirectory, "Applied");
-            return new WorkspaceArchiveResult(
-                updatedSession,
-                archiveDirectory,
-                $"Archived item {item.ItemKey}. Recovery copy: {archiveDirectory}");
-        }
-        catch
-        {
-            CopyDocumentPair(
-                archiveDirectory,
-                localWorkspaceRoot,
-                relativeDocumentPath);
-            UpdateArchiveStatus(archiveDirectory, "Failed and restored");
-            throw;
-        }
+        });
+        return new WorkspaceArchiveResult(
+            OpenProject(localWorkspaceRoot, sharedWorkspaceRoot),
+            archiveDirectory,
+            $"Archived item {item.ItemKey}. Recovery copy: {archiveDirectory}");
     }
 
     public ChangelogExportResult ExportVersionChangelog(
@@ -1876,35 +1868,10 @@ public sealed class ProjectWorkspaceCoordinatorService
         return recoveryDirectory;
     }
 
-    private static string CreateArchiveDirectory(
-        string localWorkspaceRoot,
+    private static string CreateArchiveId(
         string entityType,
         Guid entityId)
-    {
-        var archiveId =
-            $"{DateTimeOffset.UtcNow:yyyyMMddTHHmmssfffZ}-{entityType}-{entityId:N}-{Guid.NewGuid():N}";
-        var archiveDirectory = Path.Combine(
-            localWorkspaceRoot,
-            ".blueprints",
-            "archive",
-            archiveId);
-        Directory.CreateDirectory(archiveDirectory);
-        return archiveDirectory;
-    }
-
-    private static void UpdateArchiveStatus(
-        string archiveDirectory,
-        string status)
-    {
-        var recordPath = Path.Combine(archiveDirectory, "archive.json");
-        var record = JsonSerializer.Deserialize<WorkspaceArchiveRecord>(
-            File.ReadAllText(recordPath),
-            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })
-            ?? throw new InvalidOperationException("Archive metadata could not be read.");
-        WriteArchiveRecord(
-            archiveDirectory,
-            record with { Status = status });
-    }
+        => $"{DateTimeOffset.UtcNow:yyyyMMddTHHmmssfffZ}-{entityType}-{entityId:N}-{Guid.NewGuid():N}";
 
     private static void WriteArchiveRecord(
         string archiveDirectory,

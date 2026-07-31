@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Blueprints.App.ViewModels"
         xmlns:views="using:Blueprints.App.Views.Components"
+        xmlns:automation="using:Avalonia.Automation"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
@@ -67,7 +68,11 @@
 
         <StackPanel Grid.Row="2" Spacing="2">
           <TextBlock Text="WORKSPACE" Foreground="#747789" FontSize="10" FontWeight="SemiBold" Margin="12,0,0,7" />
-          <Button Classes="nav" Classes.active="{Binding IsOverviewSelected}" Command="{Binding NavigateToOverviewCommand}">
+          <Button Classes="nav"
+                  Classes.active="{Binding IsOverviewSelected}"
+                  Command="{Binding NavigateToOverviewCommand}"
+                  ToolTip.Tip="Home (Ctrl/Command+1)"
+                  automation:AutomationProperties.Name="Home">
             <Grid ColumnDefinitions="28,*">
               <TextBlock Text="⌂" FontSize="16" VerticalAlignment="Center" />
               <StackPanel Grid.Column="1" Spacing="1">
@@ -76,7 +81,11 @@
               </StackPanel>
             </Grid>
           </Button>
-          <Button Classes="nav" Classes.active="{Binding IsReleasesSelected}" Command="{Binding NavigateToReleasesCommand}">
+          <Button Classes="nav"
+                  Classes.active="{Binding IsReleasesSelected}"
+                  Command="{Binding NavigateToReleasesCommand}"
+                  ToolTip.Tip="Plan releases (Ctrl/Command+2)"
+                  automation:AutomationProperties.Name="Plan releases">
             <Grid ColumnDefinitions="28,*">
               <TextBlock Text="◫" FontSize="15" VerticalAlignment="Center" />
               <StackPanel Grid.Column="1" Spacing="1">
@@ -85,7 +94,11 @@
               </StackPanel>
             </Grid>
           </Button>
-          <Button Classes="nav" Classes.active="{Binding IsIntegrationsSelected}" Command="{Binding NavigateToIntegrationsCommand}">
+          <Button Classes="nav"
+                  Classes.active="{Binding IsIntegrationsSelected}"
+                  Command="{Binding NavigateToIntegrationsCommand}"
+                  ToolTip.Tip="Find work (Ctrl/Command+3)"
+                  automation:AutomationProperties.Name="Find work">
             <Grid ColumnDefinitions="28,*">
               <TextBlock Text="⌕" FontSize="17" VerticalAlignment="Center" />
               <StackPanel Grid.Column="1" Spacing="1">
@@ -96,19 +109,31 @@
           </Button>
 
           <TextBlock Text="COLLABORATE" Foreground="#747789" FontSize="10" FontWeight="SemiBold" Margin="12,17,0,7" />
-          <Button Classes="nav" Classes.active="{Binding IsTeamSelected}" Command="{Binding NavigateToTeamCommand}">
+          <Button Classes="nav"
+                  Classes.active="{Binding IsTeamSelected}"
+                  Command="{Binding NavigateToTeamCommand}"
+                  ToolTip.Tip="People (Ctrl/Command+4)"
+                  automation:AutomationProperties.Name="People">
             <Grid ColumnDefinitions="28,*">
               <TextBlock Text="♙" FontSize="16" VerticalAlignment="Center" />
               <TextBlock Grid.Column="1" Text="People" FontWeight="SemiBold" VerticalAlignment="Center" />
             </Grid>
           </Button>
-          <Button Classes="nav" Classes.active="{Binding IsSyncSelected}" Command="{Binding NavigateToSyncCommand}">
+          <Button Classes="nav"
+                  Classes.active="{Binding IsSyncSelected}"
+                  Command="{Binding NavigateToSyncCommand}"
+                  ToolTip.Tip="Share changes (Ctrl/Command+5)"
+                  automation:AutomationProperties.Name="Share changes">
             <Grid ColumnDefinitions="28,*">
               <TextBlock Text="↕" FontSize="17" VerticalAlignment="Center" />
               <TextBlock Grid.Column="1" Text="Share changes" FontWeight="SemiBold" VerticalAlignment="Center" />
             </Grid>
           </Button>
-          <Button Classes="nav" Classes.active="{Binding IsTrustSelected}" Command="{Binding NavigateToTrustCommand}">
+          <Button Classes="nav"
+                  Classes.active="{Binding IsTrustSelected}"
+                  Command="{Binding NavigateToTrustCommand}"
+                  ToolTip.Tip="Safety check (Ctrl/Command+6)"
+                  automation:AutomationProperties.Name="Safety check">
             <Grid ColumnDefinitions="28,*">
               <TextBlock Text="✓" FontSize="15" VerticalAlignment="Center" />
               <TextBlock Grid.Column="1" Text="Safety check" FontWeight="SemiBold" VerticalAlignment="Center" />

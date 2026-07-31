@@ -4,6 +4,10 @@ Notable changes to Blueprints are documented here. The project follows semantic 
 
 ## Unreleased
 
+## 0.6.0 — 2026-07-31
+
+Stable-foundations milestone. This release rebuilds the desktop experience for first-time users while adding atomic local mutation, migration, identity-recovery, provider-contract, accessibility, and security-policy foundations for v1.0.
+
 ### Added
 
 - A completely rebuilt beginner-first desktop shell with task-based setup, plain-language navigation, modern visual hierarchy, and focused new/open/join project paths.
@@ -15,11 +19,14 @@ Notable changes to Blueprints are documented here. The project follows semantic 
 
 ### Changed
 
+- Completed release builds identify themselves as `0.6.0`.
 - Primary navigation now uses familiar outcomes—Home, Plan releases, Find work, People, Share changes, and Safety check—instead of implementation terminology.
 - The canvas retains the blueprint concept while the surrounding application uses a calmer neutral-and-violet product system, clearer primary actions, larger targets, and simpler guidance.
 - Project creation now commits the project, local trust anchors, and initial audit entry as one recoverable transaction.
 - Canvas and relationship mutations now commit signed data and audit evidence through the same transaction boundary.
+- Draft item and version archives now create their recovery copy, remove active files, update signed state, and append audit evidence inside one transaction; interruption publishes neither the removal nor a partial archive.
 - Source-provider routing now validates contract versions, provider capabilities, duplicate registrations, and bounded response counts before accepting extension output.
+- Main destinations now expose explicit accessibility names and `Ctrl`/`Command` plus number shortcuts; icon-only canvas actions expose readable names and tooltips.
 
 ### Security
 

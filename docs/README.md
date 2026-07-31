@@ -7,6 +7,7 @@ Use this directory as the canonical technical and user documentation.
 | Audience | Document |
 | --- | --- |
 | Trying the app | [User guide](user-guide.md) |
+| Using keyboard or assistive technology | [Accessibility](accessibility.md) |
 | Understanding the visual workspace | [Canvas engine](canvas-engine.md) |
 | Importing issues and planning files | [Source Lens](source-lens.md) |
 | Inspecting VaultSync backup health | [VaultSync integration](vaultsync-integration.md) |

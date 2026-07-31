@@ -154,7 +154,7 @@ The VaultSync recovery drill exercises the boundary without invoking VaultSync: 
 - `MainWindowViewModel` combines screen state, workflow commands, mapping, diagnostics, and design data.
 - `MainWindow.axaml` contains all application sections in one file.
 - `ProjectWorkspaceCoordinatorService` combines multiple application use cases.
-- archive and shared-exchange operations use their own staging/recovery flows rather than the core local transaction boundary;
+- shared-exchange operations use their own staging, rollback-pair, and recovery flow rather than the core local transaction boundary;
 - no schema-2 migration exists yet because schema 1 remains current, although the compatibility and migration engine is in place;
 - automated end-to-end desktop UI tests are absent;
 - automated same-user key rotation and time-qualified revocation remain unimplemented.
