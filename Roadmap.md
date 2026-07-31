@@ -90,7 +90,7 @@ Goal: let VaultSync improve transport and recovery while each product keeps a cl
 
 - [x] Finalize the exchange-root contract.
 - [x] Detect a VaultSync-managed location and report backup health.
-- [ ] Register Blueprints exchange roots through an explicit opt-in adapter.
+- [x] Register Blueprints exchange roots through an explicit opt-in adapter.
 - [ ] Add a release safety gate based on verified backup state.
 - [ ] Test restore of both local and exchange workspaces.
 

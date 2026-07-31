@@ -99,6 +99,8 @@ The hosted-provider operation policy allows discovery reads without a write appr
 
 The reader boundary is injectable so a future stable VaultSync CLI/API adapter can replace the file contract without changing integration presentation or Blueprints trust semantics.
 
+Exchange registration is a separate write adapter. It derives the canonical `<destination>/.blueprints/projects/<project-id>/` path from detected metadata, requires a fresh exact-target single-use approval, refuses ambiguous existing content, and writes one atomic registration marker. The adapter does not mutate the current session or its configured shared root.
+
 ### Push
 
 1. Build local and shared snapshots.

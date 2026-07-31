@@ -27,6 +27,7 @@ public sealed class FileSystemIntegrationSettingsStoreTests : IDisposable
         var expected = new IntegrationSettings("/repo-a", "/backup")
         {
             LocalGitRepositoryPaths = ["/repo-a", "/repo-b"],
+            RegisteredVaultSyncExchangeRoot = "/backup/.blueprints/projects/project-42",
         };
 
         store.Save(expected);
@@ -35,6 +36,9 @@ public sealed class FileSystemIntegrationSettingsStoreTests : IDisposable
         Assert.Equal(expected.LocalGitRepositoryPath, actual.LocalGitRepositoryPath);
         Assert.Equal(expected.VaultSyncMetadataRoot, actual.VaultSyncMetadataRoot);
         Assert.Equal(expected.LocalGitRepositoryPaths, actual.LocalGitRepositoryPaths);
+        Assert.Equal(
+            expected.RegisteredVaultSyncExchangeRoot,
+            actual.RegisteredVaultSyncExchangeRoot);
         Assert.Empty(Directory.GetFiles(_root, "*.tmp"));
     }
 

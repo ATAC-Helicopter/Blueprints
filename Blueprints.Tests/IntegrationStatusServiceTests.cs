@@ -169,6 +169,44 @@ public sealed class IntegrationStatusServiceTests
     }
 
     [Fact]
+    public void GetIntegrationStatuses_WarnsWhenRegisteredExchangeRootDisappears()
+    {
+        var missingRoot = Path.Combine(
+            Path.GetTempPath(),
+            "Blueprints.Tests",
+            Guid.NewGuid().ToString("N"));
+        var settings = new IntegrationSettings(string.Empty, "/backup")
+        {
+            RegisteredVaultSyncExchangeRoot = missingRoot,
+        };
+        var vaultStatus = new VaultSyncStatusSummary(
+            true,
+            "/backup/.vaultsync/meta/vaultsync.meta.db",
+            "/backup/.vaultsync/meta/blueprints.status.json",
+            DateTimeOffset.Parse("2026-07-30T20:00:00Z"),
+            "project-42",
+            "Blueprints",
+            "NAS",
+            true,
+            DateTimeOffset.Parse("2026-07-30T20:00:00Z"),
+            DateTimeOffset.Parse("2026-07-30T21:00:00Z"),
+            DateTimeOffset.Parse("2026-07-30T22:00:00Z"),
+            true,
+            "Ready",
+            0,
+            [],
+            "Restore readiness: Ready.");
+        var service = CreateService(settings, vaultStatus: vaultStatus);
+
+        var vaultSync = service.GetIntegrationStatuses()
+            .Single(status => status.Provider == IntegrationProviderType.VaultSync);
+
+        Assert.Equal(IntegrationConnectionState.Warning, vaultSync.State);
+        Assert.Contains("unavailable", vaultSync.Guidance, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(missingRoot, vaultSync.Guidance, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void GetIntegrationStatuses_DetectsConfiguredCleanLocalGitRepository()
     {
         var service = CreateService(

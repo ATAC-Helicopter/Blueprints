@@ -46,7 +46,7 @@
               Command="{Binding SaveLocalGitRepositoryPathCommand}" />
     </Grid>
 
-    <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+    <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="10">
       <Border Classes="card" Padding="12,8">
         <StackPanel Orientation="Horizontal" Spacing="8">
           <TextBlock Text="VAULTSYNC" Classes="eyebrow" VerticalAlignment="Center" />
@@ -60,6 +60,11 @@
               Classes="secondary"
               Content="Save health link"
               Command="{Binding SaveVaultSyncMetadataRootCommand}" />
+      <Button Grid.Column="3"
+              Classes="secondary"
+              Content="Register exchange"
+              Command="{Binding RegisterVaultSyncExchangeRootCommand}"
+              IsEnabled="{Binding CanRegisterVaultSyncExchangeRoot}" />
     </Grid>
 
     <Grid Grid.Row="3" ColumnDefinitions="390,*" ColumnSpacing="12">
