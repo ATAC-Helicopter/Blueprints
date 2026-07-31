@@ -2,7 +2,7 @@
 
 This is the canonical product roadmap. It is organized by outcomes, not implementation layers, and should be updated when an issue changes scope or a milestone is completed.
 
-Last reviewed: 2026-07-30
+Last reviewed: 2026-07-31
 
 ## Product direction
 
