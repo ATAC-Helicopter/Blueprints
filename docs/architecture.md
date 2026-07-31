@@ -101,6 +101,8 @@ The reader boundary is injectable so a future stable VaultSync CLI/API adapter c
 
 Exchange registration is a separate write adapter. It derives the canonical `<destination>/.blueprints/projects/<project-id>/` path from detected metadata, requires a fresh exact-target single-use approval, refuses ambiguous existing content, and writes one atomic registration marker. The adapter does not mutate the current session or its configured shared root.
 
+The release-readiness builder consumes the structured passive-health result rather than parsing display text. It reports absent, risky, incomplete, stale, future-dated, and recent healthy evidence. The default policy is advisory: seven-day freshness and five-minute future clock skew inform the human decision but do not disable release.
+
 ### Push
 
 1. Build local and shared snapshots.

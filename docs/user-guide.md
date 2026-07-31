@@ -78,8 +78,11 @@ Before freezing or releasing, review **Release readiness** in the release planne
 - incomplete items in the selected version;
 - missing post-tag history;
 - recent commits that do not reference a completed item key in the selected version.
+- missing, risky, incomplete, stale, future-dated, or recent healthy VaultSync recovery evidence.
 
 Repository errors and dirty state are blockers. Unmatched commits and incomplete items require attention because they may be intentionally out of scope; Blueprints explains them but does not silently change source history or the release plan.
+
+VaultSync recovery evidence is advisory by default. Snapshot, backup, and verification reports are considered recent for seven days, with five minutes allowed for producer clock skew. Blueprints does not disable release merely because VaultSync is absent or needs attention.
 
 ## Archive draft work
 

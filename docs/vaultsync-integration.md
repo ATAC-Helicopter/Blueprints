@@ -51,6 +51,17 @@ Connection states:
 
 Timestamps and readiness values are evidence reported by the producer. Passive awareness does not independently inspect backup payloads or claim verification.
 
+## Release safety
+
+The release planner treats VaultSync health as an advisory safety gate:
+
+- no configured health link, unavailable metadata, reported risk, and incomplete evidence need attention;
+- snapshot, backup, and verification timestamps older than seven days are stale;
+- timestamps more than five minutes in the future require a producer clock check;
+- reachable, consistent, Ready/Healthy evidence with all three recent timestamps is shown as ready.
+
+These diagnostics do not silently disable the release action. Teams can still make an explicit release decision when VaultSync is absent or when older evidence is intentional. Blueprints reports what the producer claimed and never substitutes that claim for signed workspace validation or a real restore exercise.
+
 ## Exchange-root contract
 
 An explicitly registered Blueprints exchange root managed beneath a VaultSync destination uses:
@@ -72,4 +83,4 @@ The ownership boundary is:
 - Registration does not switch the open project's shared root. Reopen the project with the prepared root when ready, so a confirmation can never silently redirect collaboration.
 - Future VaultSync commands remain explicit and reversible; passive health detection never writes.
 
-The release safety gate and end-to-end restore exercise remain v0.5 work.
+The end-to-end restore exercise remains v0.5 work.
