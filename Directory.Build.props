@@ -6,7 +6,6 @@
     <LangVersion>latestmajor</LangVersion>
     <RollForward>LatestPatch</RollForward>
     <VersionPrefix>0.5.0</VersionPrefix>
-    <VersionSuffix>alpha.5-dev</VersionSuffix>
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
