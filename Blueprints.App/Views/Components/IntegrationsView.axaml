@@ -8,9 +8,9 @@
     <Border Background="#202238" BorderBrush="#343650" BorderThickness="1" CornerRadius="13" Padding="18">
       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="20">
         <StackPanel Spacing="6">
-          <TextBlock Text="SOURCE LENS" Foreground="#68D5EF" FontSize="11" FontWeight="Bold" LetterSpacing="1.6" />
-          <TextBlock Text="Turn project signals into an editable blueprint" Foreground="White" FontSize="22" FontWeight="Black" />
-          <TextBlock Text="Blueprints reads local planning files plus GitHub and GitLab metadata. Every result remains a draft until you edit and approve it."
+          <TextBlock Text="REPOSITORIES + IMPORT" Foreground="#68D5EF" FontSize="11" FontWeight="Bold" LetterSpacing="1.6" />
+          <TextBlock Text="Bring your repository into the plan" Foreground="White" FontSize="22" FontWeight="Black" />
+          <TextBlock Text="Open a repository already on this computer, clone one, safely synchronize it, and turn its planning signals into work you review."
                      Foreground="#B5D4E3"
                      TextWrapping="Wrap"
                      MaxWidth="760" />
@@ -20,36 +20,107 @@
                   Content="Refresh health"
                   Command="{Binding RefreshIntegrationStatusesCommand}" />
           <Button Classes="primary"
-                  Content="Scan sources"
+                  Content="Find work to import"
                   Command="{Binding DiscoverSourcesCommand}"
                   IsEnabled="{Binding CanDiscoverSources}" />
         </StackPanel>
       </Grid>
     </Border>
 
-    <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
-      <Border Classes="card" Padding="12,8">
-        <StackPanel Orientation="Horizontal" Spacing="8">
-          <TextBlock Text="REPOSITORIES" Classes="eyebrow" VerticalAlignment="Center" />
-          <TextBlock Text="read-only" Foreground="#277A67" FontSize="11" FontWeight="Bold" VerticalAlignment="Center" />
+    <Border Grid.Row="1" Classes="card" Padding="16">
+      <Grid ColumnDefinitions="1.05*,1*" ColumnSpacing="22">
+        <StackPanel Spacing="10">
+          <StackPanel Spacing="2">
+            <TextBlock Text="Use a repository on this computer" FontSize="16" FontWeight="Bold" />
+            <TextBlock Text="Choose a folder once. Blueprints remembers it on this device."
+                       Classes="muted"
+                       FontSize="11" />
+          </StackPanel>
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <ComboBox ItemsSource="{Binding LinkedRepositoryPaths}"
+                      SelectedItem="{Binding SelectedRepositoryPath}"
+                      PlaceholderText="Choose a linked repository" />
+            <Button Grid.Column="1"
+                    Classes="secondary"
+                    Content="Browse…"
+                    Click="BrowseRepository_Click" />
+          </Grid>
+          <TextBlock Text="{Binding SelectedRepositoryName}"
+                     Foreground="#6254D9"
+                     FontWeight="Bold" />
+          <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+            <Button Classes="secondary"
+                    Content="Pull latest"
+                    Command="{Binding PullRepositoryCommand}"
+                    IsEnabled="{Binding CanRunSelectedRepositoryOperation}" />
+            <Button Grid.Column="1"
+                    Classes="secondary"
+                    Content="Push commits"
+                    Command="{Binding PushRepositoryCommand}"
+                    IsEnabled="{Binding CanRunSelectedRepositoryOperation}" />
+          </Grid>
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <TextBox Text="{Binding GitCommitMessage}"
+                     PlaceholderText="Describe all local changes to commit" />
+            <Button Grid.Column="1"
+                    Classes="primary"
+                    Content="Commit all"
+                    Command="{Binding CommitRepositoryCommand}"
+                    IsEnabled="{Binding CanCommitRepository}"
+                    ToolTip.Tip="Stages tracked, untracked, and deleted files, then creates one commit" />
+          </Grid>
+          <Expander Header="Manage linked paths manually">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="0,8,0,0">
+              <TextBox Text="{Binding LocalGitRepositoryPath}"
+                       AcceptsReturn="True"
+                       MinHeight="58"
+                       VerticalContentAlignment="Top"
+                       PlaceholderText="One local repository path per line" />
+              <Button Grid.Column="1"
+                      Classes="secondary"
+                      Content="Save"
+                      Command="{Binding SaveLocalGitRepositoryPathCommand}" />
+            </Grid>
+          </Expander>
         </StackPanel>
-      </Border>
-      <TextBox Grid.Column="1"
-               Text="{Binding LocalGitRepositoryPath}"
-               AcceptsReturn="True"
-               MinHeight="58"
-               VerticalContentAlignment="Top"
-               PlaceholderText="One local Git worktree path per line" />
-      <Button Grid.Column="2"
-              Classes="secondary"
-              Content="Save links"
-              Command="{Binding SaveLocalGitRepositoryPathCommand}" />
-    </Grid>
+
+        <StackPanel Grid.Column="1" Spacing="10">
+          <StackPanel Spacing="2">
+            <TextBlock Text="Clone a repository" FontSize="16" FontWeight="Bold" />
+            <TextBlock Text="Downloads into a new folder. Hooks and submodules are not run."
+                       Classes="muted"
+                       FontSize="11" />
+          </StackPanel>
+          <TextBox Text="{Binding CloneRemote}"
+                   PlaceholderText="https://github.com/owner/project.git" />
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <TextBox Text="{Binding CloneDestinationParent}"
+                     PlaceholderText="Where should it be downloaded?" />
+            <Button Grid.Column="1"
+                    Classes="secondary"
+                    Content="Browse…"
+                    Click="BrowseCloneDestination_Click" />
+          </Grid>
+          <TextBox Text="{Binding CloneFolderName}"
+                   PlaceholderText="Folder name (optional)" />
+          <Button Classes="primary"
+                  Content="Clone and link repository"
+                  Command="{Binding CloneRepositoryCommand}"
+                  IsEnabled="{Binding CanCloneRepository}" />
+          <Border Background="#F4F2FF" BorderBrush="#D8D3F3" BorderThickness="1" CornerRadius="9" Padding="10">
+            <TextBlock Text="Pull only accepts fast-forward updates and is blocked while local files are changed. Push, pull, clone, and commit are always explicit."
+                       Foreground="#554E72"
+                       FontSize="10"
+                       TextWrapping="Wrap" />
+          </Border>
+        </StackPanel>
+      </Grid>
+    </Border>
 
     <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="10">
       <Border Classes="card" Padding="12,8">
         <StackPanel Orientation="Horizontal" Spacing="8">
-          <TextBlock Text="VAULTSYNC" Classes="eyebrow" VerticalAlignment="Center" />
+          <TextBlock Text="BACKUP HEALTH" Classes="eyebrow" VerticalAlignment="Center" />
           <TextBlock Text="read-only" Foreground="#277A67" FontSize="11" FontWeight="Bold" VerticalAlignment="Center" />
         </StackPanel>
       </Border>

@@ -84,6 +84,20 @@ public sealed class MarkdownSourceDiscoveryParserTests : IDisposable
     }
 
     [Fact]
+    public void Parse_DoesNotStopAtTheFormerOneHundredItemLimit()
+    {
+        var lines = Enumerable.Range(1, 175)
+            .Select(index => $"- [ ] Import repository item {index}");
+        var path = Write("Roadmap.md", string.Join(Environment.NewLine, lines));
+
+        var candidates = new MarkdownSourceDiscoveryParser()
+            .Parse(path, SourceArtifactKind.Roadmap);
+
+        Assert.Equal(175, candidates.Count);
+        Assert.Equal("Import repository item 175", candidates[^1].Title);
+    }
+
+    [Fact]
     public void Discover_ReturnsLocalSourcesWhenGitHubIsUnavailable()
     {
         Write(

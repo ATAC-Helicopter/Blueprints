@@ -43,8 +43,9 @@ The validator permits at most 100 types and 5,000 edges, rejects unknown types a
 | Middle-drag empty canvas | Pan without changing shared node positions |
 | Scroll the canvas | Save machine-local viewport offsets after a short debounce |
 | Ctrl+mouse wheel or zoom buttons | Change and save machine-local zoom |
-| Fit view | Use the standard local overview zoom and return to the origin |
-| Auto arrange | Rebuild deterministic default positions and save them |
+| Fit view | Calculate a zoom that fits the complete blueprint and return to the origin |
+| Group selector | Choose category, work type, or version lanes for related work |
+| Organize | Rebuild deterministic positions in the selected lanes and save them |
 | Undo / redo | Restore the previous or next arrangement and save it as a new signed revision |
 | Save layout | Explicitly write the current shared node positions |
 | Ctrl+S | Save shared node positions |
@@ -53,7 +54,9 @@ The validator permits at most 100 types and 5,000 edges, rejects unknown types a
 | Ctrl+0 | Fit the local view |
 | Ctrl+plus/minus | Zoom the local view |
 
-Live guides appear when the edge or center of a moving node approaches another node's edge or center. The minimap shows the full graph, selected nodes, and the current viewport. Selection, guides, and minimap visuals are session-local UI state; only resulting node coordinates are persisted.
+Category grouping is the default because it matches changelog output. Switching grouping mode automatically organizes the canvas when mutation is allowed; the resulting node positions use the normal signed layout workflow. The grouping choice itself is a local presentation preference and does not change item categories, types, version ownership, or relationship semantics.
+
+Live guides appear when the edge or center of a moving node approaches another node's edge or center. The minimap shows the full graph, selected nodes, and the current viewport. Selection, guides, lane headers, and minimap visuals are session-local UI state; only resulting node coordinates are persisted.
 
 Editing and layout controls are disabled when the workspace is untrusted or has unresolved sync conflicts.
 
@@ -111,7 +114,7 @@ The schema-1 validator enforces:
 
 These limits prevent malformed, non-finite, or unbounded layout input from reaching Avalonia rendering.
 
-The local view-state store separately accepts zoom from `0.6` through `1.5` and non-negative offsets through `100000`.
+The local view-state store separately accepts zoom from `0.25` through `2.5` and non-negative offsets through `100000`.
 
 ## Sync and conflicts
 
@@ -128,8 +131,8 @@ The relationship graph follows the same whole-document rule. A conflict in `proj
 - There is one shared release-planning canvas per project.
 - Node positions are shared project state, not per-user preferences.
 - Directional typed relationships use distinct type semantics and color, but the canvas does not yet draw arrowheads or edit labels directly on an edge.
-- Multi-selection groups nodes for movement only; it does not create a persistent group entity.
-- Auto arrangement is deterministic but not a graph-optimization engine.
+- Multi-selection groups nodes for movement only; lane headers are projections and do not create persistent group entities.
+- Automatic organization is deterministic but not a graph-optimization engine.
 - Layout conflict resolution is whole-document.
 - Relationship conflict resolution is whole-document.
 

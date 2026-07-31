@@ -4,6 +4,47 @@ Notable changes to Blueprints are documented here. The project follows semantic 
 
 ## Unreleased
 
+## 0.7.0 — 2026-07-31
+
+Repository-workflow and blueprint-clarity milestone. This release overhauls the planning canvas around automatic related-work lanes and turns local Git repositories into browsable, actionable project inputs without weakening signed Blueprints workspace boundaries.
+
+### Added
+
+- Automatic canvas grouping by changelog category, work type, or version, with named lanes, group counts, deterministic organization, and simpler card hierarchy.
+- Visible 25%–250% zoom, pointer-centered `Ctrl`/Command-wheel scaling, accurate fit-to-view behavior, a live percentage indicator, and retained machine-local viewport preferences.
+- Native local-repository folder selection and a focused repository workbench for choosing linked repositories.
+- Explicit clone, fast-forward-only pull, commit-all, and push workflows with upstream ahead/behind status.
+- End-to-end Git tests covering clone, commit, push, pull, hook suppression, dirty-pull refusal, and executable-filter refusal.
+
+### Changed
+
+- Completed release builds identify themselves as `0.7.0`.
+- Source discovery no longer stops at 100 Markdown proposals. A planning document can yield up to 5,000 proposals within an 8 MiB file bound, a repository can return 5,000 deduplicated proposals, and combined discovery remains bounded at 20,000.
+- Approved source imports accept up to 5,000 reviewed proposals in one atomic signed workspace mutation.
+- The canvas uses a lighter drafting surface, rounded cards, quieter connector lines, clearer plain-language controls, and progressive disclosure for manual repository-path management.
+- Repository health now reports upstream tracking and ahead/behind counts.
+
+### Security
+
+- Git arguments use structured process arguments instead of shell interpolation, reject control characters and option-like repository addresses, and accept only HTTPS, SSH, Git protocol, SCP-style SSH, or existing absolute local sources.
+- Clone does not initialize submodules; pull does not recurse into submodules and refuses dirty worktrees or non-fast-forward integration.
+- Repository hooks are redirected to a fresh empty directory for every write operation, while commit and push also use their no-hook flags.
+- Git write operations reject repository-local executable filters, merge drivers, and file-monitor commands. Operations time out after five minutes, disable terminal prompts, and cap captured output.
+- Repository settings and Git operations remain machine-local and never enter signed Blueprints project truth or authorize hosted-provider writes.
+
+### Workspace compatibility
+
+- Signed workspace schema remains version 1.
+- Grouping mode and zoom remain UI preferences; grouping changes only signed node positions when the user organizes the canvas.
+- Existing linked repositories and canvas layouts remain compatible.
+
+### Known limitations
+
+- Commit all intentionally stages every tracked, untracked, and deleted file in the selected repository; partial staging remains the job of a dedicated Git client.
+- Git authentication relies on the user's existing credential helper or SSH agent and never prompts in an embedded terminal.
+- Submodule initialization, history rewriting, force push, conflict merges, branch creation, tagging, and hosted-provider writes are intentionally unavailable.
+- Distribution and installer work remains deferred.
+
 ## 0.6.0 — 2026-07-31
 
 Stable-foundations milestone. This release rebuilds the desktop experience for first-time users while adding atomic local mutation, migration, identity-recovery, provider-contract, accessibility, and security-policy foundations for v1.0.

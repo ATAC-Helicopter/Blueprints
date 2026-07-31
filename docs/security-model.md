@@ -21,7 +21,7 @@ Blueprints uses signatures and explicit validation to detect unauthorized or inc
 | Local identity directory | Sensitive local state protected by OS permissions and key protection |
 | Project invitation | Out-of-band signed trust bootstrap targeted to one local identity |
 | Local project trust anchors | Machine-local accepted member keys; never sourced from unverified shared data |
-| Git/provider integration | Informational; not authoritative project truth |
+| Git/provider integration | Machine-local repository operations and informational provider inputs; never authoritative project truth |
 | VaultSync metadata and health sidecar | Untrusted, bounded, read-only recovery evidence; never Blueprints trust authority |
 | Source Lens proposals | Untrusted transient suggestions; no persistence before explicit approval |
 | UI input | Validated by application workflows before persistence |
@@ -57,7 +57,8 @@ Blueprints uses signatures and explicit validation to detect unauthorized or inc
 - Canvas coordinates, node count, project identity, schema, and uniqueness are bounded and validated.
 - Local viewport values are bounded but cannot affect signed project truth or workspace trust.
 - Invalid canvas signatures place the workspace in read-only untrusted state.
-- Source discovery uses read-only local/GitHub commands and enforces count, line, and text bounds.
+- Source discovery is read-only and enforces file, response, count, and text bounds.
+- Git write operations are explicit, use structured arguments, suppress hooks and submodule recursion, reject unsafe transports and executable repository-local configuration, cap output, and time out.
 - Source apply validates the complete batch before persistence and requires trusted, conflict-free, mutable targets.
 - GitHub API credentials are accepted only through the process environment variable `BLUEPRINTS_GITHUB_TOKEN` and remain outside Blueprints workspaces and settings.
 - GitLab API credentials follow the same isolation rule through `BLUEPRINTS_GITLAB_TOKEN`.
@@ -80,6 +81,7 @@ Blueprints uses signatures and explicit validation to detect unauthorized or inc
 - Conflict recovery copies are local, unsigned operational records; protect and back them up according to the sensitivity of project content.
 - Blueprints does not encrypt project content.
 - Duplicate detection is an exact normalized-title warning, not semantic identity proof.
+- Git commit-all intentionally stages every repository change and cannot provide filesystem-transaction rollback across Git object, index, and worktree updates. A failed commit may leave changes staged for recovery in another Git client.
 - VaultSync health freshness is reported from supplied timestamps; passive awareness does not independently verify backup payloads or destination contents.
 
 ## Reviewing security changes

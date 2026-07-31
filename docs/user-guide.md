@@ -88,17 +88,19 @@ VaultSync recovery evidence is advisory by default. Snapshot, backup, and verifi
 
 Draft versions and items in Planned or In Progress state can be archived. Select the archive action twice to confirm. The entity leaves the active signed plan, its removal participates in sync, and its signed files remain under `.blueprints/archive/` for recovery. Frozen and released versions are immutable and cannot be archived.
 
-## Discover work with Source Lens
+## Work with repositories and discover work
 
-1. Open **Source Lens** from the navigation.
-2. Enter up to eight Git worktree paths, one per line.
-3. Select **Save links**, then **Scan sources**.
-4. Review the proposal inbox produced from changelogs, roadmaps, GitHub issues, and issue-linked GitHub Projects.
-5. Edit the selected proposal’s title, context, target version, type, changelog group, and completion state.
-6. Exclude anything that should not enter Blueprints.
-7. Select **Apply approved to blueprint**.
+1. Open **Find work** from the navigation.
+2. Select **Browse…** to choose an existing local repository, or enter a remote address and choose **Clone and link repository**.
+3. Select the linked repository. Use **Pull latest**, **Commit all**, or **Push commits** only when you intend that exact Git action.
+4. Select **Find work to import**.
+5. Review the proposal inbox produced from changelogs, roadmaps, GitHub/GitLab issues, changes, releases, and planning records.
+6. Edit the selected proposal’s title, context, target version, type, changelog group, and completion state.
+7. Exclude anything that should not enter Blueprints, then select **Apply approved to blueprint**.
 
-Discovery is read-only. It does not commit, push, edit issues, change Projects, or modify planning files. Proposals are not project data until Apply. Apply requires a trusted workspace, adds the reviewed proposals as signed work items, records their provenance, and writes one audit action.
+Discovery remains read-only and never triggers the neighboring Git buttons. Proposals are not project data until Apply. Apply requires a trusted workspace, adds the reviewed proposals as signed work items, records their provenance, and writes one audit action.
+
+Pull requires a clean worktree and accepts fast-forward updates only. Commit all stages every tracked, untracked, and deleted file, so inspect the repository first when only some changes belong together. Blueprints disables hooks and refuses repository-local executable filters, merge drivers, and file monitors for its Git write operations. It does not initialize submodules, force-push, rewrite history, or resolve merge conflicts.
 
 Public GitHub issues, pull requests, and releases are read directly without requiring the GitHub CLI. For private repositories, draft releases, and GitHub Projects, start Blueprints with a read-only token in `BLUEPRINTS_GITHUB_TOKEN`. Blueprints reads that variable for the current process and does not store it in project or integration settings. Local changelog and roadmap discovery remains available when GitHub cannot be reached. See [Source Lens](source-lens.md) for limits, duplicate behavior, and security details.
 

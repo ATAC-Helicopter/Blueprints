@@ -17,13 +17,13 @@ Source Lens converts existing project signals into editable Blueprints work-item
 | GitLab releases | Direct REST API request | Published and upcoming release records |
 | GitLab milestones | Direct REST API request | Active and closed planning milestones |
 
-The scanner checks each linked repository root and its `docs` directory for common changelog and roadmap filename casing. It reads at most 5,000 lines and 100 candidates per Markdown file. GitHub reads are limited to 100 issues, 100 pull requests, and 50 releases per repository. A per-repository scan returns at most 250 deduplicated proposals, and combined discovery returns at most 500 proposals across up to eight worktrees.
+The scanner checks each linked repository root and its `docs` directory for common changelog and roadmap filename casing. A Markdown planning document may be up to 8 MiB and can yield up to 5,000 candidates; the former 100-candidate cutoff no longer applies. GitHub and GitLab retain provider-specific response bounds. A repository scan returns at most 5,000 deduplicated proposals, and combined discovery returns at most 20,000 proposals across up to eight worktrees.
 
 Standalone draft discovery reads only Projects linked to the repository, checks at most 10 Projects and 100 items per Project, and returns at most 100 drafts. Issues and pull requests found in those Projects remain owned by their dedicated discovery feeds, preventing duplicate Project proposals.
 
 ## Requirements
 
-- Link one or more local Git worktrees in **Source Lens**, one path per line.
+- Browse to one or more local Git worktrees in **Find work**, or clone a repository there.
 - Install Git.
 - The Git worktree must have a recognizable `github.com` origin remote.
 - Public issues, pull requests, and releases can be discovered anonymously.
@@ -37,8 +37,8 @@ Repository discovery talks to hosted services through a provider-neutral reader 
 
 ## Approval workflow
 
-1. Open **Source Lens**.
-2. Link up to eight local repositories, one path per line, and select **Scan sources**.
+1. Open **Find work**.
+2. Browse to or clone a repository, select it, and choose **Find work to import**.
 3. Select a proposal from the inbox.
 4. Review and edit its title, description, target version, work type, changelog category, and completion state.
 5. Include or exclude the proposal with **Approved**.
@@ -83,7 +83,7 @@ Local Markdown, GitHub, and GitLab discovery all emit this structure without cha
 
 ## Security and privacy
 
-- Discovery is read-only for the repository and GitHub.
+- Discovery is read-only for the repository and hosted providers. Separate Git actions are never implied by a scan.
 - Blueprints never invokes provider write commands during discovery or apply.
 - GitHub credentials are read only from `BLUEPRINTS_GITHUB_TOKEN`. They are not written to integration settings, signed project files, logs, warnings, or proposal provenance.
 - GitLab credentials follow the same rule through `BLUEPRINTS_GITLAB_TOKEN`.
@@ -99,3 +99,16 @@ No Source Lens workflow writes to a hosted provider. The provider-operation cont
 Adding a transport method is not enough to authorize a write: a UI workflow must show the exact mutation, collect approval for that one target, and pass it through the policy at execution time. Credentials and a Blueprints workspace edit do not imply provider-write consent.
 
 Source Lens does not prove that imported statements are true. Review is the human trust decision.
+
+## Local Git operations
+
+The repository workbench also exposes explicit local Git actions. These are separate from Source Lens discovery and never modify signed Blueprints project documents:
+
+- **Clone and link** creates a new working tree without initializing submodules.
+- **Pull latest** requires a clean worktree and uses fast-forward-only integration without submodule recursion.
+- **Commit all** stages tracked, untracked, and deleted files and creates one commit from the supplied one-line message.
+- **Push commits** pushes the current named branch, creating its `origin` upstream when needed.
+
+Blueprints passes Git arguments without a shell, disables terminal prompts, redirects hooks to a fresh empty directory, and rejects repository-local executable filters, merge drivers, or filesystem monitors before write operations. Supported remote forms are HTTPS, SSH, Git protocol, SCP-style SSH, and existing absolute local paths. Authentication is delegated to the user's existing credential helper or SSH agent.
+
+Blueprints intentionally does not initialize submodules, rewrite history, force-push, merge conflicts, create branches or tags, or write to GitHub/GitLab issue and project APIs.

@@ -399,9 +399,10 @@ public sealed class ProjectWorkspaceCoordinatorService
         ArgumentException.ThrowIfNullOrWhiteSpace(sharedWorkspaceRoot);
         ArgumentNullException.ThrowIfNull(request);
 
-        if (request.Items.Count is < 1 or > 100)
+        if (request.Items.Count is < 1 or > RepositorySourceDiscoveryService.MaximumCandidatesPerRepository)
         {
-            throw new InvalidOperationException("Approve between 1 and 100 source proposals at a time.");
+            throw new InvalidOperationException(
+                $"Approve between 1 and {RepositorySourceDiscoveryService.MaximumCandidatesPerRepository} source proposals at a time.");
         }
 
         var identity = _identityService.GetOrCreateDefaultIdentity("Local Admin");

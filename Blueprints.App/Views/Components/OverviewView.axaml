@@ -7,11 +7,11 @@
              xmlns:automation="using:Avalonia.Automation"
              x:Class="Blueprints.App.Views.Components.OverviewView"
              x:DataType="vm:MainWindowViewModel">
-  <Grid RowDefinitions="64,*">
-    <Border Background="#FFFFFF" BorderBrush="#E2E4EC" BorderThickness="0,0,0,1" Padding="16,11">
+  <Grid RowDefinitions="72,*">
+    <Border Background="#FFFFFF" BorderBrush="#E2E4EC" BorderThickness="0,0,0,1" Padding="16,12">
       <Grid ColumnDefinitions="Auto,18,Auto,*,Auto" ColumnSpacing="8">
         <StackPanel Orientation="Horizontal" Spacing="7">
-          <Button Classes="tool active" Content="↖ Select" />
+          <Button Classes="tool active" Content="Select" ToolTip.Tip="Select and move blueprint cards" />
           <TextBox Text="{Binding NewVersionName}"
                    PlaceholderText="0.2.0"
                    Width="86"
@@ -20,7 +20,7 @@
                    VerticalContentAlignment="Center"
                    IsEnabled="{Binding CanMutateWorkspace}" />
           <Button Classes="tool" Content="＋ Version" Command="{Binding CreateVersionCommand}" IsEnabled="{Binding CanMutateWorkspace}" />
-          <Button Classes="tool" Content="⌁ Work item" Command="{Binding BeginNewItemCommand}" IsEnabled="{Binding CanEditItems}" />
+          <Button Classes="tool" Content="＋ Work" Command="{Binding BeginNewItemCommand}" IsEnabled="{Binding CanEditItems}" />
         </StackPanel>
 
         <Border Grid.Column="1" Width="1" Background="#E2E4EC" Margin="8,0" />
@@ -29,23 +29,31 @@
           <Button x:Name="UndoButton" Classes="tool square" Content="↶" Click="UndoClick" ToolTip.Tip="Undo layout change (Ctrl+Z)" automation:AutomationProperties.Name="Undo layout change" />
           <Button x:Name="RedoButton" Classes="tool square" Content="↷" Click="RedoClick" ToolTip.Tip="Redo layout change (Ctrl+Shift+Z or Ctrl+Y)" automation:AutomationProperties.Name="Redo layout change" />
           <Button Classes="tool square" Content="−" Click="ZoomOutClick" ToolTip.Tip="Zoom out" automation:AutomationProperties.Name="Zoom out" />
+          <Border Background="#F3F2F8" CornerRadius="8" Padding="8,5" MinWidth="52">
+            <TextBlock x:Name="ZoomLevelText"
+                       Text="100%"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       FontSize="11"
+                       FontWeight="Bold" />
+          </Border>
           <Button Classes="tool square" Content="＋" Click="ZoomInClick" ToolTip.Tip="Zoom in" automation:AutomationProperties.Name="Zoom in" />
-          <Button Classes="tool" Content="Fit view" Click="FitViewClick" />
-          <Button Classes="tool" Content="Auto arrange" Click="AutoArrangeClick" IsEnabled="{Binding CanMutateWorkspace}" />
-          <Button Classes="tool" Content="Save layout" Click="SaveLayoutClick" IsEnabled="{Binding CanMutateWorkspace}" />
-          <Button Classes="tool" Content="⌁ Source lens" Command="{Binding NavigateToIntegrationsCommand}" />
+          <Button Classes="tool" Content="Fit" Click="FitViewClick" ToolTip.Tip="Fit the whole blueprint in view (Ctrl+0)" />
+          <ComboBox ItemsSource="{Binding CanvasGroupingOptions}"
+                    SelectedItem="{Binding CanvasGroupingSelection}"
+                    MinWidth="145"
+                    MinHeight="34"
+                    ToolTip.Tip="Choose how related work is grouped" />
+          <Button Classes="tool" Content="Organize" Click="AutoArrangeClick" IsEnabled="{Binding CanMutateWorkspace}" />
+          <Button Classes="tool" Content="Find work" Command="{Binding NavigateToIntegrationsCommand}" />
         </StackPanel>
 
-        <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-          <Border Background="#F0EEFF" BorderBrush="#D5D0F6" BorderThickness="1" CornerRadius="9" Padding="10,5"
-                  ToolTip.Tip="{Binding AdaptiveGuidanceDetail}">
-            <StackPanel MaxWidth="300">
-              <TextBlock Text="NEXT STEP" Foreground="#6B5CE7" FontSize="8" FontWeight="Bold" LetterSpacing="1" />
-              <TextBlock Text="{Binding AdaptiveGuidanceTitle}" Foreground="#37324E" FontSize="11" FontWeight="Bold" TextTrimming="CharacterEllipsis" />
-            </StackPanel>
-          </Border>
-          <Button Classes="tool" Content="↻ Refresh" Command="{Binding RefreshWorkspaceCommand}" />
-        </StackPanel>
+        <Button Grid.Column="4"
+                Classes="tool square"
+                Content="↻"
+                Command="{Binding RefreshWorkspaceCommand}"
+                ToolTip.Tip="Refresh workspace"
+                automation:AutomationProperties.Name="Refresh workspace" />
       </Grid>
     </Border>
 
@@ -59,7 +67,7 @@
         <Grid RowDefinitions="Auto,*,Auto">
           <Border Background="#FAFAFD" BorderBrush="#E2E4EC" BorderThickness="0,0,0,1" Padding="16,12">
             <StackPanel Spacing="3">
-              <TextBlock Classes="eyebrow" Text="NODE INSPECTOR" />
+              <TextBlock Classes="eyebrow" Text="DETAILS" />
               <TextBlock Text="{Binding InspectorSelectionSummary}" Classes="mono" FontWeight="Bold" FontSize="12" />
             </StackPanel>
           </Border>
@@ -69,7 +77,7 @@
               <StackPanel Spacing="10">
                 <Grid ColumnDefinitions="*,Auto">
                   <StackPanel Spacing="2">
-                    <TextBlock Classes="eyebrow" Text="VERSION NODE" />
+                    <TextBlock Classes="eyebrow" Text="RELEASE VERSION" />
                     <TextBlock Text="{Binding SelectedVersion.Name}" FontSize="21" FontWeight="Bold" />
                   </StackPanel>
                   <Border Grid.Column="1" Background="#DCEEF7" CornerRadius="10" Padding="8,3" VerticalAlignment="Center">
@@ -99,7 +107,7 @@
               <StackPanel Spacing="10">
                 <Grid ColumnDefinitions="*,Auto">
                   <StackPanel Spacing="2">
-                    <TextBlock Classes="eyebrow" Text="CONNECTED WORK ITEM" />
+                    <TextBlock Classes="eyebrow" Text="WORK ITEM" />
                     <TextBlock Text="{Binding ItemEditorTitle}" FontSize="17" FontWeight="Bold" TextTrimming="CharacterEllipsis" />
                   </StackPanel>
                   <Border Grid.Column="1" Background="#E6F5EF" CornerRadius="10" Padding="8,3" VerticalAlignment="Center" IsVisible="{Binding HasSelectedItem}">
