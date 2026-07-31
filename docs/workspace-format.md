@@ -1,6 +1,6 @@
 # Workspace format
 
-This document describes the current schema-1 layout. The format is pre-release and may change before v1.0.
+This document describes the current schema-1 layout. The format remains pre-release, but Blueprints now inspects it through an explicit compatibility and migration boundary before loading signed project state.
 
 ## Local workspace
 
@@ -166,7 +166,13 @@ Contains a unique change ID, operation, human summary, author, membership revisi
 
 ## Compatibility
 
-There is no general migration engine yet. Optional schema-1 documents, including the canvas layout and relationship graph, use explicit missing-file compatibility. Do not manually change `schemaVersion`. Before adopting a future schema, preserve a complete copy of the workspace and identity data.
+Schema 1 is the minimum and current supported schema. Optional schema-1 documents, including the canvas layout and relationship graph, use explicit missing-file compatibility.
+
+Before normal loading, Blueprints reads the bounded `project.json` schema field. A schema newer than the application supports is rejected with an upgrade instruction instead of being interpreted optimistically. Current-schema workspaces are not rewritten.
+
+The migration engine requires an uninterrupted one-version-at-a-time chain. Before a migration it creates a complete ZIP backup in a machine-local sibling migration-backup directory. Each migration runs against a staged workspace, must produce its declared target schema, and is promoted through the atomic workspace transaction only after validation. A failure restores the original directory and removes the incomplete backup.
+
+Do not manually change `schemaVersion`. Project backups do not contain private signing keys; preserve and test an encrypted identity backup separately.
 
 ## Files that must never be shared as project data
 

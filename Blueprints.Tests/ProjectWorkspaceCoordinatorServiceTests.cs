@@ -658,6 +658,67 @@ public sealed class ProjectWorkspaceCoordinatorServiceTests : IDisposable
     }
 
     [Fact]
+    public void ArchiveItem_WhenPromotionIsInterrupted_RestoresItemAndDoesNotPublishArchive()
+    {
+        var localRoot = Path.Combine(_rootDirectory, "archive-failure-local", "BP");
+        var sharedRoot = Path.Combine(_rootDirectory, "archive-failure-shared", "BP");
+        var interruptArchive = false;
+        var transactionService = new FileSystemWorkspaceTransactionService(phase =>
+        {
+            if (interruptArchive
+                && phase == Blueprints.Storage.Models.WorkspaceTransactionPhase.OriginalBackedUp)
+            {
+                throw new IOException("Simulated archive promotion interruption.");
+            }
+        });
+        var service = CreateService(transactionService);
+        service.CreateProject(
+            new ProjectCreateRequest(
+                "Blueprints",
+                "BP",
+                "SemVer",
+                localRoot,
+                sharedRoot));
+        var versionSession = service.SaveVersion(
+            localRoot,
+            sharedRoot,
+            new VersionEditRequest(
+                null,
+                "0.6.0",
+                ReleaseStatus.InProgress,
+                null));
+        var versionId = Assert.Single(versionSession.LoadResult.Workspace.Versions)
+            .Version.VersionId;
+        var itemSession = service.SaveItem(
+            localRoot,
+            sharedRoot,
+            new ItemEditRequest(
+                versionId,
+                null,
+                "feature",
+                "added",
+                "Must survive",
+                null,
+                false));
+        var itemId = Assert.Single(
+            itemSession.LoadResult.Workspace.Versions.Single().Items).ItemId;
+
+        interruptArchive = true;
+        Assert.Throws<IOException>(() =>
+            service.ArchiveItem(localRoot, sharedRoot, versionId, itemId));
+        interruptArchive = false;
+
+        var restored = service.OpenProject(localRoot, sharedRoot);
+        Assert.Equal(
+            itemId,
+            Assert.Single(restored.LoadResult.Workspace.Versions.Single().Items).ItemId);
+        var archiveRoot = Path.Combine(localRoot, ".blueprints", "archive");
+        Assert.True(
+            !Directory.Exists(archiveRoot)
+            || !Directory.EnumerateDirectories(archiveRoot).Any());
+    }
+
+    [Fact]
     public void ExportVersionChangelog_WritesMarkdownAndExcludesIncompleteItemsByDefault()
     {
         var localRoot = Path.Combine(_rootDirectory, "changelog-local", "BP");
@@ -1121,7 +1182,8 @@ public sealed class ProjectWorkspaceCoordinatorServiceTests : IDisposable
         Assert.Contains("not configured", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
-    private ProjectWorkspaceCoordinatorService CreateService()
+    private ProjectWorkspaceCoordinatorService CreateService(
+        Blueprints.Storage.Abstractions.IWorkspaceTransactionService? transactionService = null)
     {
         var identityRoot = Path.Combine(_rootDirectory, "identities");
         var signedStore = new FileSystemSignedDocumentStore(
@@ -1154,7 +1216,8 @@ public sealed class ProjectWorkspaceCoordinatorServiceTests : IDisposable
             workspaceSyncService,
             new RecentProjectsStore(Path.Combine(_rootDirectory, "recent-projects.json")),
             auditLogService,
-            new Blueprints.Collaboration.Services.SharedFolderSafetyInspector());
+            new Blueprints.Collaboration.Services.SharedFolderSafetyInspector(),
+            transactionService);
     }
 
     private static string FindGenesisAuditEntry(string logRoot) =>

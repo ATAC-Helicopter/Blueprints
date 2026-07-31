@@ -7,6 +7,7 @@ Use this directory as the canonical technical and user documentation.
 | Audience | Document |
 | --- | --- |
 | Trying the app | [User guide](user-guide.md) |
+| Using keyboard or assistive technology | [Accessibility](accessibility.md) |
 | Understanding the visual workspace | [Canvas engine](canvas-engine.md) |
 | Importing issues and planning files | [Source Lens](source-lens.md) |
 | Inspecting VaultSync backup health | [VaultSync integration](vaultsync-integration.md) |
@@ -15,6 +16,8 @@ Use this directory as the canonical technical and user documentation.
 | Understanding the code | [Architecture](architecture.md) |
 | Inspecting project files | [Workspace format](workspace-format.md) |
 | Reviewing trust boundaries | [Security model](security-model.md) |
+| Understanding attacker assumptions | [Threat model](threat-model.md) |
+| Reviewing platform and response targets | [Support policy](support-policy.md) |
 | Rotating or recovering member keys | [Member key lifecycle](key-lifecycle.md) |
 | Backing up or restoring a project | [Backup and disaster recovery](backup-recovery.md) |
 | Activating SonarQube Cloud | [SonarQube Cloud](sonarqube.md) |

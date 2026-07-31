@@ -8,6 +8,16 @@ public sealed class GitLabRestSourceProviderReader : IHostedSourceProviderReader
     private readonly HttpClient _httpClient;
     private readonly IProviderCredentialSource _credentialSource;
 
+    public int ContractVersion => HostedSourceProviderContract.CurrentVersion;
+
+    public SourceProviderKind Provider => SourceProviderKind.GitLab;
+
+    public SourceProviderCapabilities Capabilities =>
+        SourceProviderCapabilities.Issues
+        | SourceProviderCapabilities.ChangeRequests
+        | SourceProviderCapabilities.Releases
+        | SourceProviderCapabilities.PlanningBoards;
+
     public GitLabRestSourceProviderReader()
         : this(
             new HttpClient

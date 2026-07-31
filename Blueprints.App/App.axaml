@@ -7,14 +7,21 @@
     <local:ViewLocator />
   </Application.DataTemplates>
 
+  <!--
+    Blueprints' visual language is intentionally calm and familiar. Purple carries
+    actions, teal carries healthy state, and red is reserved for destructive work.
+    The old drafting-table metaphor remains in the canvas instead of leaking into
+    every form and navigation label.
+  -->
   <Application.Resources>
-    <Color x:Key="BlueprintInk">#102A43</Color>
-    <Color x:Key="BlueprintBlue">#0B4F8A</Color>
-    <Color x:Key="BlueprintBright">#168AD0</Color>
-    <Color x:Key="BlueprintCyan">#54C8E8</Color>
-    <Color x:Key="BlueprintPaper">#F2F8FC</Color>
-    <Color x:Key="BlueprintLine">#BED8E8</Color>
-    <Color x:Key="BlueprintMuted">#58758A</Color>
+    <Color x:Key="BlueprintInk">#191A2C</Color>
+    <Color x:Key="BlueprintBlue">#6254D9</Color>
+    <Color x:Key="BlueprintBright">#7767EA</Color>
+    <Color x:Key="BlueprintCyan">#35B5A5</Color>
+    <Color x:Key="BlueprintPaper">#F6F7FB</Color>
+    <Color x:Key="BlueprintLine">#E2E4EC</Color>
+    <Color x:Key="BlueprintMuted">#686B7B</Color>
+
     <SolidColorBrush x:Key="InkBrush" Color="{StaticResource BlueprintInk}" />
     <SolidColorBrush x:Key="BlueBrush" Color="{StaticResource BlueprintBlue}" />
     <SolidColorBrush x:Key="BrightBrush" Color="{StaticResource BlueprintBright}" />
@@ -34,56 +41,83 @@
       <Setter Property="FontFamily" Value="Cascadia Mono, SFMono-Regular, Consolas, monospace" />
     </Style>
     <Style Selector="TextBlock.eyebrow">
-      <Setter Property="FontFamily" Value="Cascadia Mono, SFMono-Regular, Consolas, monospace" />
       <Setter Property="FontSize" Value="11" />
-      <Setter Property="FontWeight" Value="Bold" />
+      <Setter Property="FontWeight" Value="SemiBold" />
       <Setter Property="Foreground" Value="{StaticResource BrightBrush}" />
-      <Setter Property="LetterSpacing" Value="1.4" />
+      <Setter Property="LetterSpacing" Value="0.8" />
     </Style>
     <Style Selector="TextBlock.muted">
       <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
     </Style>
+    <Style Selector="TextBlock.page-title">
+      <Setter Property="FontSize" Value="30" />
+      <Setter Property="FontWeight" Value="Bold" />
+      <Setter Property="LetterSpacing" Value="-0.5" />
+    </Style>
+    <Style Selector="TextBlock.section-title">
+      <Setter Property="FontSize" Value="19" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
 
     <Style Selector="TextBox">
-      <Setter Property="CornerRadius" Value="4" />
-      <Setter Property="Padding" Value="11,9" />
-      <Setter Property="MinHeight" Value="40" />
-      <Setter Property="Background" Value="#F9FCFE" />
+      <Setter Property="CornerRadius" Value="9" />
+      <Setter Property="Padding" Value="12,9" />
+      <Setter Property="MinHeight" Value="42" />
+      <Setter Property="Background" Value="#FFFFFF" />
       <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
       <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="SelectionBrush" Value="#DCD8FA" />
+    </Style>
+    <Style Selector="TextBox:pointerover">
+      <Setter Property="BorderBrush" Value="#C8C5DC" />
     </Style>
     <Style Selector="TextBox:focus">
       <Setter Property="BorderBrush" Value="{StaticResource BrightBrush}" />
       <Setter Property="BorderThickness" Value="2" />
     </Style>
     <Style Selector="ComboBox">
-      <Setter Property="CornerRadius" Value="4" />
-      <Setter Property="MinHeight" Value="40" />
-      <Setter Property="Background" Value="#F9FCFE" />
+      <Setter Property="CornerRadius" Value="9" />
+      <Setter Property="MinHeight" Value="42" />
+      <Setter Property="Background" Value="#FFFFFF" />
       <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
     </Style>
+    <Style Selector="CheckBox">
+      <Setter Property="MinHeight" Value="32" />
+    </Style>
+
     <Style Selector="Button">
-      <Setter Property="CornerRadius" Value="4" />
-      <Setter Property="Padding" Value="14,9" />
+      <Setter Property="CornerRadius" Value="9" />
+      <Setter Property="Padding" Value="15,9" />
       <Setter Property="MinHeight" Value="40" />
       <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
     <Style Selector="Button.primary">
       <Setter Property="Background" Value="{StaticResource BlueBrush}" />
       <Setter Property="Foreground" Value="White" />
+      <Setter Property="BorderBrush" Value="{StaticResource BlueBrush}" />
     </Style>
     <Style Selector="Button.primary:pointerover">
-      <Setter Property="Background" Value="#0D66A8" />
+      <Setter Property="Background" Value="#5145C7" />
+      <Setter Property="BorderBrush" Value="#5145C7" />
     </Style>
     <Style Selector="Button.secondary">
-      <Setter Property="Background" Value="#E5F2F9" />
-      <Setter Property="Foreground" Value="{StaticResource BlueprintBlue}" />
-      <Setter Property="BorderBrush" Value="{StaticResource BlueprintLine}" />
+      <Setter Property="Background" Value="#FFFFFF" />
+      <Setter Property="Foreground" Value="{StaticResource BlueprintInk}" />
+      <Setter Property="BorderBrush" Value="#D9DAE4" />
       <Setter Property="BorderThickness" Value="1" />
     </Style>
+    <Style Selector="Button.secondary:pointerover">
+      <Setter Property="Background" Value="#F1F0FA" />
+      <Setter Property="BorderBrush" Value="#C6C1EC" />
+    </Style>
     <Style Selector="Button.danger">
-      <Setter Property="Background" Value="#A63D40" />
-      <Setter Property="Foreground" Value="White" />
+      <Setter Property="Background" Value="#FFF1F1" />
+      <Setter Property="Foreground" Value="#B02E36" />
+      <Setter Property="BorderBrush" Value="#F1C9CC" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="Button.danger:pointerover">
+      <Setter Property="Background" Value="#FFE2E3" />
     </Style>
     <Style Selector="Button.compact">
       <Setter Property="Padding" Value="10,6" />
@@ -93,88 +127,106 @@
     <Style Selector="Button.nav">
       <Setter Property="HorizontalContentAlignment" Value="Stretch" />
       <Setter Property="Background" Value="Transparent" />
-      <Setter Property="Foreground" Value="#A9C8DC" />
+      <Setter Property="Foreground" Value="#B9BBCB" />
       <Setter Property="BorderThickness" Value="0" />
-      <Setter Property="Padding" Value="12,9" />
-      <Setter Property="Margin" Value="0,0,0,4" />
+      <Setter Property="Padding" Value="12,10" />
+      <Setter Property="Margin" Value="0,0,0,3" />
+      <Setter Property="CornerRadius" Value="9" />
+      <Setter Property="FontWeight" Value="Medium" />
     </Style>
     <Style Selector="Button.nav:pointerover">
-      <Setter Property="Background" Value="#103B5D" />
+      <Setter Property="Background" Value="#282A43" />
+      <Setter Property="Foreground" Value="White" />
     </Style>
     <Style Selector="Button.nav.active">
-      <Setter Property="Background" Value="#0F4F7A" />
+      <Setter Property="Background" Value="#373455" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.nav TextBlock">
+      <Setter Property="Foreground" Value="#B9BBCB" />
+    </Style>
+    <Style Selector="Button.nav:pointerover TextBlock">
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.nav.active TextBlock">
       <Setter Property="Foreground" Value="White" />
     </Style>
     <Style Selector="Button.tool">
-      <Setter Property="Background" Value="#0B304D" />
-      <Setter Property="Foreground" Value="#C7E2EF" />
-      <Setter Property="BorderBrush" Value="#2A6485" />
+      <Setter Property="Background" Value="#FFFFFF" />
+      <Setter Property="Foreground" Value="#3E4050" />
+      <Setter Property="BorderBrush" Value="#DEDFE7" />
       <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="MinHeight" Value="32" />
-      <Setter Property="Padding" Value="10,5" />
+      <Setter Property="MinHeight" Value="34" />
+      <Setter Property="Padding" Value="10,6" />
       <Setter Property="FontSize" Value="12" />
+      <Setter Property="CornerRadius" Value="8" />
     </Style>
     <Style Selector="Button.tool:pointerover">
-      <Setter Property="Background" Value="#11496D" />
-      <Setter Property="BorderBrush" Value="#59BFDE" />
+      <Setter Property="Background" Value="#F0EEFA" />
+      <Setter Property="BorderBrush" Value="#C8C2EF" />
     </Style>
     <Style Selector="Button.tool.active">
-      <Setter Property="Background" Value="#146B9F" />
-      <Setter Property="Foreground" Value="White" />
-      <Setter Property="BorderBrush" Value="#6BD8F2" />
+      <Setter Property="Background" Value="#EAE7FF" />
+      <Setter Property="Foreground" Value="#5145C7" />
+      <Setter Property="BorderBrush" Value="#BFB7F4" />
     </Style>
     <Style Selector="Button.tool.square">
-      <Setter Property="Width" Value="32" />
+      <Setter Property="Width" Value="34" />
       <Setter Property="Padding" Value="0" />
     </Style>
-    <Style Selector="Button.rail">
-      <Setter Property="Width" Value="56" />
-      <Setter Property="Height" Value="48" />
-      <Setter Property="MinHeight" Value="48" />
-      <Setter Property="Padding" Value="0" />
-      <Setter Property="Background" Value="Transparent" />
-      <Setter Property="Foreground" Value="#8CB6CC" />
-      <Setter Property="BorderBrush" Value="Transparent" />
+    <Style Selector="Button.item-row">
+      <Setter Property="Background" Value="#FFFFFF" />
+      <Setter Property="BorderBrush" Value="#E4E5EC" />
       <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="FontFamily" Value="Cascadia Mono, SFMono-Regular, Consolas, monospace" />
-      <Setter Property="FontSize" Value="17" />
-      <Setter Property="FontWeight" Value="Bold" />
+      <Setter Property="Padding" Value="12" />
+      <Setter Property="CornerRadius" Value="9" />
     </Style>
-    <Style Selector="Button.rail:pointerover">
-      <Setter Property="Background" Value="#0C3858" />
-      <Setter Property="Foreground" Value="White" />
-      <Setter Property="BorderBrush" Value="#2C6D91" />
-    </Style>
-    <Style Selector="Button.rail.active">
-      <Setter Property="Background" Value="#12679A" />
-      <Setter Property="Foreground" Value="White" />
-      <Setter Property="BorderBrush" Value="#65D2EF" />
+    <Style Selector="Button.item-row:pointerover">
+      <Setter Property="Background" Value="#F5F3FF" />
+      <Setter Property="BorderBrush" Value="#C9C3F0" />
     </Style>
 
     <Style Selector="Border.card">
       <Setter Property="Background" Value="#FFFFFF" />
       <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
       <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="CornerRadius" Value="6" />
-      <Setter Property="Padding" Value="18" />
+      <Setter Property="CornerRadius" Value="13" />
+      <Setter Property="Padding" Value="19" />
     </Style>
     <Style Selector="Border.blueprint-card">
-      <Setter Property="Background" Value="#F8FCFF" />
-      <Setter Property="BorderBrush" Value="#80B8D8" />
+      <Setter Property="Background" Value="#FAFAFD" />
+      <Setter Property="BorderBrush" Value="#E1E2EA" />
       <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="CornerRadius" Value="4" />
-      <Setter Property="Padding" Value="16" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="14" />
     </Style>
     <Style Selector="Border.dark-card">
-      <Setter Property="Background" Value="#0B2D49" />
-      <Setter Property="BorderBrush" Value="#245A7D" />
+      <Setter Property="Background" Value="#202238" />
+      <Setter Property="BorderBrush" Value="#323550" />
       <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="CornerRadius" Value="5" />
-      <Setter Property="Padding" Value="16" />
+      <Setter Property="CornerRadius" Value="13" />
+      <Setter Property="Padding" Value="18" />
+    </Style>
+    <Style Selector="Border.callout">
+      <Setter Property="Background" Value="#F0EEFF" />
+      <Setter Property="BorderBrush" Value="#D5D0F6" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="13" />
+    </Style>
+    <Style Selector="Border.success">
+      <Setter Property="Background" Value="#EAF8F4" />
+      <Setter Property="BorderBrush" Value="#BDE8DC" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="12" />
     </Style>
     <Style Selector="ListBox">
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="ListBoxItem">
+      <Setter Property="CornerRadius" Value="10" />
     </Style>
   </Application.Styles>
 </Application>
