@@ -91,6 +91,67 @@ public sealed class FileSystemIdentityStore : IIdentityStore
             new SignaturePublicKey(profile.KeyId, publicKeyBytes));
     }
 
+    public StoredIdentity Import(IdentityProfile profile, byte[] privateKeyBytes)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        ArgumentNullException.ThrowIfNull(privateKeyBytes);
+        if (profile.UserId == Guid.Empty
+            || string.IsNullOrWhiteSpace(profile.DisplayName)
+            || string.IsNullOrWhiteSpace(profile.KeyId)
+            || privateKeyBytes.Length == 0)
+        {
+            throw new InvalidOperationException("The restored identity is incomplete.");
+        }
+
+        var identityDirectory = GetIdentityDirectory(profile.UserId);
+        if (Directory.Exists(identityDirectory))
+        {
+            throw new InvalidOperationException(
+                "An identity with this user ID already exists on this device.");
+        }
+
+        var importedProfile = profile with
+        {
+            DisplayName = profile.DisplayName.Trim(),
+            KeyStorageProvider = _privateKeyProtector.ProviderName,
+        };
+        var stagingDirectory = identityDirectory + ".importing";
+        if (Directory.Exists(stagingDirectory))
+        {
+            throw new InvalidOperationException(
+                "An incomplete identity import directory already exists. Inspect or move it before retrying.");
+        }
+
+        Directory.CreateDirectory(stagingDirectory);
+        try
+        {
+            File.WriteAllText(
+                Path.Combine(stagingDirectory, "identity.json"),
+                JsonSerializer.Serialize(importedProfile, SerializerOptions),
+                new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            File.WriteAllBytes(
+                Path.Combine(stagingDirectory, "private.key.protected"),
+                _privateKeyProtector.Protect(privateKeyBytes));
+            Directory.Move(stagingDirectory, identityDirectory);
+        }
+        catch
+        {
+            if (Directory.Exists(stagingDirectory))
+            {
+                Directory.Delete(stagingDirectory, recursive: true);
+            }
+
+            throw;
+        }
+
+        return new StoredIdentity(
+            importedProfile,
+            new SignatureKeyMaterial(importedProfile.KeyId, privateKeyBytes.ToArray()),
+            new SignaturePublicKey(
+                importedProfile.KeyId,
+                Convert.FromBase64String(importedProfile.PublicKeyBase64)));
+    }
+
     private string GetIdentityDirectory(Guid userId) =>
         Path.Combine(_rootDirectory, userId.ToString("N"));
 

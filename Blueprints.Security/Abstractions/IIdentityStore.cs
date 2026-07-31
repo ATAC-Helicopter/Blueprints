@@ -7,4 +7,6 @@ public interface IIdentityStore
     StoredIdentity Create(string displayName);
 
     StoredIdentity Load(Guid userId);
+
+    StoredIdentity Import(IdentityProfile profile, byte[] privateKeyBytes);
 }

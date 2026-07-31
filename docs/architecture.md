@@ -56,10 +56,24 @@ There is no dependency-injection container. Constructor composition keeps the cu
 
 1. Require a trusted workspace and no unresolved conflicts.
 2. Validate role or lifecycle rules.
-3. create the updated immutable record graph.
-4. Write canonical JSON and detached signatures.
-5. Append a signed, hash-linked audit entry.
-6. Reload the session so displayed state comes from disk.
+3. Create the updated immutable record graph.
+4. Copy the local workspace to a deterministic sibling staging directory without following links.
+5. Write canonical JSON and detached signatures into the staged workspace.
+6. Append the signed, hash-linked audit entry to that same staged workspace.
+7. Move the original directory to a recoverable backup, promote the staging directory, and remove the backup only after promotion succeeds.
+8. Recover the original directory if any checkpoint fails.
+9. Reload the session so displayed state comes from disk.
+
+Opening a workspace first processes any bounded transaction marker. Marker paths must match the deterministic workspace, staging, and backup paths exactly; marker content cannot redirect cleanup.
+
+### Schema compatibility
+
+1. Inspect the bounded `project/project.json` schema field before normal loading.
+2. Open the current schema without rewriting it.
+3. Reject a future schema with an explicit application-upgrade requirement.
+4. For an older supported schema, create a complete pre-migration ZIP backup.
+5. Apply every declared one-version migration inside the workspace transaction.
+6. Require each step to produce its declared schema before promotion.
 
 ### Canvas layout mutation
 
@@ -140,8 +154,9 @@ The VaultSync recovery drill exercises the boundary without invoking VaultSync: 
 - `MainWindowViewModel` combines screen state, workflow commands, mapping, diagnostics, and design data.
 - `MainWindow.axaml` contains all application sections in one file.
 - `ProjectWorkspaceCoordinatorService` combines multiple application use cases.
-- file writes are signed but not yet implemented as a transactional workspace commit;
-- workspace schema migration and formal compatibility rules do not yet exist;
-- automated end-to-end UI and two-user collaboration tests are absent.
+- archive and shared-exchange operations use their own staging/recovery flows rather than the core local transaction boundary;
+- no schema-2 migration exists yet because schema 1 remains current, although the compatibility and migration engine is in place;
+- automated end-to-end desktop UI tests are absent;
+- automated same-user key rotation and time-qualified revocation remain unimplemented.
 
 These are tracked in [the roadmap](../Roadmap.md).

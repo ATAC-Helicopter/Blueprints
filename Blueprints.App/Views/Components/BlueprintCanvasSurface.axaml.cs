@@ -253,21 +253,21 @@ public partial class BlueprintCanvasSurface : UserControl
                 };
             border.Background = Brush.Parse(
                 selected
-                    ? "#12669A"
+                    ? "#6658DA"
                     : tag.Type switch
                     {
-                        "project" => "#0A2035",
-                        "version" => "#0B3D62",
-                        _ => "#0A3656",
+                        "project" => "#202238",
+                        "version" => "#34304F",
+                        _ => "#2B2D48",
                     });
             border.BorderBrush = Brush.Parse(
                 selected
                     ? "#FFFFFF"
                     : tag.Type switch
                     {
-                        "project" => "#65D2EF",
-                        "version" => "#4EA9CC",
-                        _ => "#397F9F",
+                        "project" => "#B8B2F4",
+                        "version" => "#9187E8",
+                        _ => "#6F6A9E",
                     });
         }
     }
@@ -310,7 +310,7 @@ public partial class BlueprintCanvasSurface : UserControl
             Place(versionNode, versionPoint);
             Surface.Children.Add(versionNode);
             RegisterNode(versionNode);
-            AddConnection(projectNode, versionNode, "#52C7E8", 2);
+            AddConnection(projectNode, versionNode, "#9D93EF", 2);
 
             foreach (var item in version.Items)
             {
@@ -321,7 +321,7 @@ public partial class BlueprintCanvasSurface : UserControl
                 Place(itemNode, itemPoint);
                 Surface.Children.Add(itemNode);
                 RegisterNode(itemNode);
-                AddConnection(versionNode, itemNode, item.IsDone ? "#5DD6B2" : "#73AFCF", item.IsDone ? 2 : 1.25);
+                AddConnection(versionNode, itemNode, item.IsDone ? "#55C8B5" : "#79769A", item.IsDone ? 2 : 1.25);
                 globalItemIndex++;
             }
         }
@@ -372,7 +372,7 @@ public partial class BlueprintCanvasSurface : UserControl
                 FontFamily = FontFamily.Parse("Cascadia Mono, SFMono-Regular, Consolas, monospace"),
                 FontSize = 16,
                 FontWeight = FontWeight.Bold,
-                Foreground = Brush.Parse("#76CDE8"),
+                Foreground = Brush.Parse("#A9A2EC"),
             };
             Place(empty, new Point(360, 330));
             Surface.Children.Add(empty);
@@ -422,7 +422,7 @@ public partial class BlueprintCanvasSurface : UserControl
         {
             StartPoint = start,
             EndPoint = end,
-            Stroke = Brush.Parse(major ? "#1A587A" : "#10415F"),
+            Stroke = Brush.Parse(major ? "#454560" : "#34354F"),
             StrokeThickness = major ? 1 : 0.5,
             IsHitTestVisible = false,
             Tag = "grid",
@@ -431,21 +431,21 @@ public partial class BlueprintCanvasSurface : UserControl
     private Control CreateProjectNode()
     {
         var content = new StackPanel { Spacing = 7 };
-        content.Children.Add(CreateLabel("PROJECT ORIGIN", "#65D2EF"));
+        content.Children.Add(CreateLabel("PROJECT", "#B8B2F4"));
         content.Children.Add(CreateTitle(_viewModel?.CurrentProject.Name ?? "Project", 22));
         content.Children.Add(CreateLabel(
             $"{_viewModel?.CurrentProject.Code}  /  {_viewModel?.VersioningScheme}",
-            "#A7CEE0"));
+            "#B9BBCB"));
         content.Children.Add(CreateLabel(
             $"{_viewModel?.VersionCount ?? 0} versions  ·  {_viewModel?.ItemCount ?? 0} items",
-            "#A7CEE0"));
+            "#B9BBCB"));
 
         var node = CreateNodeShell(
             content,
             250,
             140,
-            "#0A2035",
-            "#65D2EF",
+            "#202238",
+            "#B8B2F4",
             "project",
             _viewModel?.CurrentProject.ProjectId);
         if (_viewModel?.CurrentProject.ProjectId is Guid projectId && projectId != Guid.Empty)
@@ -460,18 +460,18 @@ public partial class BlueprintCanvasSurface : UserControl
     {
         var selected = _viewModel?.SelectedVersion?.VersionId == version.VersionId;
         var content = new StackPanel { Spacing = 6 };
-        content.Children.Add(CreateLabel($"VERSION  /  {version.Status}", selected ? "#FFFFFF" : "#65D2EF"));
+        content.Children.Add(CreateLabel($"VERSION  /  {version.Status}", selected ? "#FFFFFF" : "#B8B2F4"));
         content.Children.Add(CreateTitle(version.Name, 20));
         content.Children.Add(CreateLabel(
             $"{version.CompletedItemCount}/{version.ItemCount} complete",
-            version.CompletedItemCount == version.ItemCount && version.ItemCount > 0 ? "#64DBB6" : "#A7CEE0"));
+            version.CompletedItemCount == version.ItemCount && version.ItemCount > 0 ? "#62D3BC" : "#B9BBCB"));
 
         var node = CreateNodeShell(
             content,
             NodeWidth,
             VersionNodeHeight,
-            selected ? "#12669A" : "#0B3D62",
-            selected ? "#FFFFFF" : "#4EA9CC",
+            selected ? "#6658DA" : "#34304F",
+            selected ? "#FFFFFF" : "#9187E8",
             "version",
             version.VersionId);
         node.AddHandler(
@@ -487,20 +487,20 @@ public partial class BlueprintCanvasSurface : UserControl
         var selected = _viewModel?.SelectedItem?.ItemId == item.ItemId;
         var content = new StackPanel { Spacing = 4 };
         var heading = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
-        heading.Children.Add(CreateLabel(item.ItemKey, selected ? "#FFFFFF" : "#6ED1ED"));
-        var state = CreateLabel(item.IsDone ? "DONE" : "OPEN", item.IsDone ? "#64DBB6" : "#F2C66D");
+        heading.Children.Add(CreateLabel(item.ItemKey, selected ? "#FFFFFF" : "#B8B2F4"));
+        var state = CreateLabel(item.IsDone ? "DONE" : "OPEN", item.IsDone ? "#62D3BC" : "#F1C96A");
         Grid.SetColumn(state, 1);
         heading.Children.Add(state);
         content.Children.Add(heading);
         content.Children.Add(CreateTitle(item.Title, 15));
-        content.Children.Add(CreateLabel($"{item.ItemTypeId}  /  {item.CategoryId}", "#9FC5D8"));
+        content.Children.Add(CreateLabel($"{item.ItemTypeId}  /  {item.CategoryId}", "#A9ABBA"));
 
         var node = CreateNodeShell(
             content,
             NodeWidth,
             ItemNodeHeight,
-            selected ? "#12669A" : "#0A3656",
-            selected ? "#FFFFFF" : item.IsDone ? "#4BB99B" : "#397F9F",
+            selected ? "#6658DA" : "#2B2D48",
+            selected ? "#FFFFFF" : item.IsDone ? "#4DB7A5" : "#6F6A9E",
             "item",
             item.ItemId);
         node.AddHandler(
@@ -786,8 +786,8 @@ public partial class BlueprintCanvasSurface : UserControl
         _boxSelectionStart = eventArgs.GetPosition(Surface);
         _boxSelectionVisual = new Rectangle
         {
-            Fill = Brush.Parse("#3365D2EF"),
-            Stroke = Brush.Parse("#8BE6F7"),
+            Fill = Brush.Parse("#336B5CE7"),
+            Stroke = Brush.Parse("#A9A2EC"),
             StrokeThickness = 1.5,
             IsHitTestVisible = false,
         };
@@ -997,7 +997,7 @@ public partial class BlueprintCanvasSurface : UserControl
         {
             StartPoint = start,
             EndPoint = end,
-            Stroke = Brush.Parse("#F2C66D"),
+            Stroke = Brush.Parse("#F1C96A"),
             StrokeThickness = 1,
             StrokeDashArray = [5, 4],
             IsHitTestVisible = false,
@@ -1044,12 +1044,12 @@ public partial class BlueprintCanvasSurface : UserControl
                 Height = Math.Max(2, node.Height * scale),
                 Fill = Brush.Parse(
                     _selectedNodeIds.Contains(id)
-                        ? "#F2C66D"
+                        ? "#F1C96A"
                         : tag?.Type switch
                         {
-                            "project" => "#65D2EF",
-                            "version" => "#4EA9CC",
-                            _ => "#5DD6B2",
+                            "project" => "#B8B2F4",
+                            "version" => "#9187E8",
+                            _ => "#55C8B5",
                         }),
                 IsHitTestVisible = false,
             };

@@ -194,6 +194,13 @@ public sealed class MarkdownSourceDiscoveryParserTests : IDisposable
 
     private sealed class TestHostedSourceProviderReader : IHostedSourceProviderReader
     {
+        public int ContractVersion => HostedSourceProviderContract.CurrentVersion;
+
+        public SourceProviderKind Provider => SourceProviderKind.GitHub;
+
+        public SourceProviderCapabilities Capabilities =>
+            SourceProviderCapabilities.ChangeRequests;
+
         public string RepositoryRoot { get; private set; } = string.Empty;
 
         public HostedRepositoryDescriptor Repository { get; private set; } =

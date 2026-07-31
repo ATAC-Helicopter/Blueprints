@@ -4,6 +4,41 @@ Notable changes to Blueprints are documented here. The project follows semantic 
 
 ## Unreleased
 
+### Added
+
+- A completely rebuilt beginner-first desktop shell with task-based setup, plain-language navigation, modern visual hierarchy, and focused new/open/join project paths.
+- Encrypted signing-identity backup and clean-profile restore using AES-256-GCM, PBKDF2-SHA256 with 600,000 iterations, authenticated identity metadata, private/public-key verification, bounded input, and destination-device key rewrapping.
+- Atomic local workspace transactions that stage complete signed mutations with their audit append, promote the staged directory, and restore the prior workspace when any promotion checkpoint fails.
+- A workspace schema inspector and ordered migration engine with future-schema rejection, pre-migration ZIP backup, transactional application, and failed-migration rollback.
+- A versioned hosted-provider extension contract with declared capabilities, compatibility checks, and bounded result limits for built-in and future readers.
+- An attacker-focused threat model plus a planned stable platform, supported-version, release-qualification, and vulnerability-response policy.
+
+### Changed
+
+- Primary navigation now uses familiar outcomes—Home, Plan releases, Find work, People, Share changes, and Safety check—instead of implementation terminology.
+- The canvas retains the blueprint concept while the surrounding application uses a calmer neutral-and-violet product system, clearer primary actions, larger targets, and simpler guidance.
+- Project creation now commits the project, local trust anchors, and initial audit entry as one recoverable transaction.
+- Canvas and relationship mutations now commit signed data and audit evidence through the same transaction boundary.
+- Source-provider routing now validates contract versions, provider capabilities, duplicate registrations, and bounded response counts before accepting extension output.
+
+### Security
+
+- Transaction recovery accepts only deterministic sibling staging and backup paths and rejects a marker that attempts to redirect recovery or cleanup.
+- Identity recovery rejects wrong passphrases, changed authenticated metadata, malformed encryption parameters, mismatched private keys, oversized files, and duplicate local identities.
+- Workspace transactions refuse symbolic-link entries instead of copying through them.
+
+### Workspace compatibility
+
+- Signed workspace schema remains version 1.
+- Current schema-1 workspaces open without rewriting.
+- Future schemas fail with an explicit upgrade requirement; future migrations must advance one schema at a time, verify their produced version, retain a complete pre-migration backup, and pass through atomic promotion.
+
+### Known limitations
+
+- Distribution and installer work remains intentionally deferred.
+- Automated same-user key rotation, time-qualified revocation, and hardware-backed key support remain future security work.
+- Platform qualification still requires retained manual install, accessibility, upgrade, and recovery results on the final supported operating-system matrix.
+
 ## 0.5.0 — 2026-07-31
 
 VaultSync recovery integration milestone. This release adds passive backup-health awareness, explicit project-specific exchange registration, advisory release-safety evidence, and a tested restore path while preserving Blueprints as the authority for signed release state.

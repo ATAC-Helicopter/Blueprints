@@ -22,6 +22,19 @@
                     Content="Export identity invitation…"
                     Click="ExportIdentityInvitation_Click"
                     HorizontalAlignment="Left" />
+            <Border Height="1" Background="#3A3C55" Margin="0,5" />
+            <TextBlock Text="Recovery backup" Foreground="White" FontWeight="SemiBold" />
+            <TextBlock Text="Encrypt your signing key for disaster recovery. Store the passphrase somewhere else."
+                       Foreground="#B7B9C8"
+                       TextWrapping="Wrap"
+                       FontSize="12" />
+            <TextBox PlaceholderText="Backup passphrase (12+ characters)"
+                     Text="{Binding IdentityBackupPassphrase}"
+                     PasswordChar="●" />
+            <Button Classes="primary"
+                    Content="Create encrypted backup…"
+                    Click="ExportIdentityBackup_Click"
+                    HorizontalAlignment="Left" />
           </StackPanel>
         </Border>
 

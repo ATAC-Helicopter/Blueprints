@@ -100,16 +100,18 @@ Exit criteria:
 - VaultSync owns backup/sync transport and verification;
 - either product remains usable when the other is absent.
 
-## v1.0: dependable small-team release planner
+## In progress — v1.0: dependable small-team release planner
 
 Goal: supported installers and documented recovery for small teams.
 
-- accessible and polished desktop navigation;
-- versioned workspace schema and migrations;
-- signed, reproducible packages and release attestations;
-- tested Windows, macOS, and Linux support policy;
-- documented threat model, limitations, backup, restore, and key recovery;
-- stable extension contracts for providers.
+- [x] Replace the engineering-console shell with beginner-first setup, plain-language task navigation, and a modern visual system.
+- [ ] Complete retained keyboard, focus, scaling, and screen-reader qualification on every supported desktop.
+- [x] Add versioned workspace inspection, ordered migrations, backups, and rollback.
+- [ ] Add signed, reproducible packages and release attestations when distribution work begins.
+- [ ] Retain manual qualification results for Windows, macOS, and Linux under the published support policy.
+- [x] Document the attacker-focused threat model, limitations, backup, restore, identity recovery, and support targets.
+- [x] Stabilize and bound the version-1 extension contract for hosted source providers.
+- [ ] Add automated same-user key rotation, revocation evidence, and stronger platform-keystore integration.
 
 ## Explicit non-goals before v1.0
 
@@ -124,14 +126,14 @@ Goal: supported installers and documented recovery for small teams.
 
 Security work is a release requirement across every milestone, not a one-time feature:
 
-- [ ] maintain an attacker-focused threat model for every trust boundary;
-- [ ] add adversarial tests for malformed, replayed, rolled-back, partially written, and maliciously signed input;
+- [x] maintain an attacker-focused threat model for every trust boundary;
+- [x] add adversarial tests for malformed, replayed, rolled-back, partially written, and maliciously signed input;
 - [ ] define key rotation, revocation, recovery, and platform keystore integration;
-- [ ] make workspace updates atomic and recoverable;
+- [x] make core local signed workspace updates atomic and recoverable;
 - [ ] generate an SBOM for every published package;
 - [ ] generate provenance attestations when downloadable packages are introduced;
 - [ ] commission an independent security review before a stable release;
-- [ ] publish supported-version and vulnerability-response targets;
+- [x] publish supported-version and vulnerability-response targets;
 - [ ] never describe a release as audited unless its exact source and artifacts were reviewed.
 
 No release can guarantee that every user is always safe. Blueprints instead aims to make its trust boundaries explicit, minimize sensitive state, fail closed when integrity cannot be established, and respond transparently when a weakness is found.

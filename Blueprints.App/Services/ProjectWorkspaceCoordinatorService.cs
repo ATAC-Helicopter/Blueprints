@@ -26,6 +26,8 @@ public sealed class ProjectWorkspaceCoordinatorService
     private readonly RecentProjectsStore _recentProjectsStore;
     private readonly FileSystemAuditLogService _auditLogService;
     private readonly SharedFolderSafetyInspector _sharedFolderSafetyInspector;
+    private readonly IWorkspaceTransactionService _workspaceTransactionService;
+    private readonly WorkspaceMigrationService _workspaceMigrationService;
     private readonly FileSystemProjectTrustStore _projectTrustStore = new();
     private readonly IdentityInvitationService _identityInvitationService =
         new(new Ed25519SignatureService());
@@ -40,7 +42,9 @@ public sealed class ProjectWorkspaceCoordinatorService
         FileSystemWorkspaceSyncService workspaceSyncService,
         RecentProjectsStore recentProjectsStore,
         FileSystemAuditLogService auditLogService,
-        SharedFolderSafetyInspector sharedFolderSafetyInspector)
+        SharedFolderSafetyInspector sharedFolderSafetyInspector,
+        IWorkspaceTransactionService? workspaceTransactionService = null,
+        WorkspaceMigrationService? workspaceMigrationService = null)
     {
         _identityService = identityService;
         _workspaceStore = workspaceStore;
@@ -50,6 +54,10 @@ public sealed class ProjectWorkspaceCoordinatorService
         _recentProjectsStore = recentProjectsStore;
         _auditLogService = auditLogService;
         _sharedFolderSafetyInspector = sharedFolderSafetyInspector;
+        _workspaceTransactionService =
+            workspaceTransactionService ?? new FileSystemWorkspaceTransactionService();
+        _workspaceMigrationService =
+            workspaceMigrationService ?? new WorkspaceMigrationService(_workspaceTransactionService);
     }
 
     public IReadOnlyList<RecentProjectReference> GetRecentProjects() =>
@@ -79,6 +87,24 @@ public sealed class ProjectWorkspaceCoordinatorService
         return _identityInvitationService.Write(filePath, identity);
     }
 
+    public string ExportIdentityBackup(string filePath, string passphrase) =>
+        _identityService.ExportBackup(filePath, passphrase);
+
+    public IdentitySummary ImportIdentityBackup(string filePath, string passphrase)
+    {
+        if (HasLocalIdentity)
+        {
+            throw new InvalidOperationException(
+                "A signing identity is already configured on this device.");
+        }
+
+        var identity = _identityService.ImportBackup(filePath, passphrase);
+        return new IdentitySummary(
+            identity.Profile.DisplayName,
+            identity.Profile.UserId.ToString(),
+            identity.Profile.KeyStorageProvider);
+    }
+
     public MemberInviteRequest ReadIdentityInvitation(string filePath)
     {
         var invitation = _identityInvitationService.Read(filePath);
@@ -105,21 +131,29 @@ public sealed class ProjectWorkspaceCoordinatorService
         }
 
         var snapshot = CreateProjectSnapshot(identity, request);
-        _workspaceStore.Save(localRoot, snapshot, identity.SigningKey);
-        _projectTrustStore.Initialize(
-            localRoot,
-            snapshot.Project.ProjectId,
-            [
-                new TrustedProjectKey(
-                    identity.Profile.UserId,
-                    identity.Profile.DisplayName,
-                    identity.Profile.KeyId,
-                    identity.Profile.PublicKeyBase64,
-                    DateTimeOffset.UtcNow,
-                    MemberRole.Admin,
-                    true),
-            ]);
-        AppendAuditEntry(localRoot, identity, snapshot, "project.create", $"Created project {snapshot.Project.Name}.");
+        _workspaceTransactionService.Execute(localRoot, stagedRoot =>
+        {
+            _workspaceStore.Save(stagedRoot, snapshot, identity.SigningKey);
+            _projectTrustStore.Initialize(
+                stagedRoot,
+                snapshot.Project.ProjectId,
+                [
+                    new TrustedProjectKey(
+                        identity.Profile.UserId,
+                        identity.Profile.DisplayName,
+                        identity.Profile.KeyId,
+                        identity.Profile.PublicKeyBase64,
+                        DateTimeOffset.UtcNow,
+                        MemberRole.Admin,
+                        true),
+                ]);
+            AppendAuditEntry(
+                stagedRoot,
+                identity,
+                snapshot,
+                "project.create",
+                $"Created project {snapshot.Project.Name}.");
+        });
         Directory.CreateDirectory(sharedRoot);
 
         var session = OpenProject(localRoot, sharedRoot);
@@ -131,7 +165,11 @@ public sealed class ProjectWorkspaceCoordinatorService
         ArgumentException.ThrowIfNullOrWhiteSpace(localWorkspaceRoot);
         ArgumentException.ThrowIfNullOrWhiteSpace(sharedWorkspaceRoot);
 
+        _workspaceTransactionService.Recover(localWorkspaceRoot);
         var identity = _identityService.GetOrCreateDefaultIdentity("Local Admin");
+        _workspaceMigrationService.MigrateIfNeeded(
+            localWorkspaceRoot,
+            identity.SigningKey);
         var paths = WorkspacePathResolver.Create(localWorkspaceRoot, sharedWorkspaceRoot);
         Directory.CreateDirectory(paths.SharedProjectRoot);
         var safetyReport = _sharedFolderSafetyInspector.Inspect(paths.SharedProjectRoot, paths.LocalWorkspaceRoot);
@@ -483,13 +521,16 @@ public sealed class ProjectWorkspaceCoordinatorService
                 .Select(static item => item.ItemId)
                 .ToHashSet());
 
-        _workspaceStore.SaveCanvasLayout(localWorkspaceRoot, layout, identity.SigningKey);
-        AppendAuditEntry(
-            localWorkspaceRoot,
-            identity,
-            workspace,
-            "canvas.layout.save",
-            $"Saved canvas layout revision {layout.Revision} with {layout.Nodes.Count} nodes.");
+        _workspaceTransactionService.Execute(localWorkspaceRoot, stagedRoot =>
+        {
+            _workspaceStore.SaveCanvasLayout(stagedRoot, layout, identity.SigningKey);
+            AppendAuditEntry(
+                stagedRoot,
+                identity,
+                workspace,
+                "canvas.layout.save",
+                $"Saved canvas layout revision {layout.Revision} with {layout.Nodes.Count} nodes.");
+        });
         return OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
     }
 
@@ -534,11 +575,11 @@ public sealed class ProjectWorkspaceCoordinatorService
             identity,
             types,
             workspace.Relationships?.Relationships ?? []);
-        SaveRelationshipDocument(localWorkspaceRoot, identity, workspace, document);
-        AppendAuditEntry(
+        SaveRelationshipDocument(
             localWorkspaceRoot,
             identity,
-            workspace with { Relationships = document },
+            workspace,
+            document,
             existing is null ? "relationship.type.create" : "relationship.type.update",
             $"{(existing is null ? "Created" : "Updated")} relationship type {document.Types.First(type => type.TypeId == typeId).Name}.");
         return OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
@@ -583,11 +624,11 @@ public sealed class ProjectWorkspaceCoordinatorService
             identity,
             relationships.Types,
             edges);
-        SaveRelationshipDocument(localWorkspaceRoot, identity, workspace, document);
-        AppendAuditEntry(
+        SaveRelationshipDocument(
             localWorkspaceRoot,
             identity,
-            workspace with { Relationships = document },
+            workspace,
+            document,
             request.RelationshipId is null ? "relationship.create" : "relationship.update",
             $"{(request.RelationshipId is null ? "Created" : "Updated")} relationship {relationshipId:N}.");
         return OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
@@ -619,11 +660,11 @@ public sealed class ProjectWorkspaceCoordinatorService
             relationships.Relationships
                 .Where(edge => edge.RelationshipId != relationshipId)
                 .ToArray());
-        SaveRelationshipDocument(localWorkspaceRoot, identity, workspace, document);
-        AppendAuditEntry(
+        SaveRelationshipDocument(
             localWorkspaceRoot,
             identity,
-            workspace with { Relationships = document },
+            workspace,
+            document,
             "relationship.remove",
             $"Removed relationship {relationshipId:N}.");
         return OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
@@ -1370,8 +1411,11 @@ public sealed class ProjectWorkspaceCoordinatorService
         string operation,
         string summary)
     {
-        _workspaceStore.Save(localWorkspaceRoot, workspace, identity.SigningKey);
-        AppendAuditEntry(localWorkspaceRoot, identity, workspace, operation, summary);
+        _workspaceTransactionService.Execute(localWorkspaceRoot, stagedRoot =>
+        {
+            _workspaceStore.Save(stagedRoot, workspace, identity.SigningKey);
+            AppendAuditEntry(stagedRoot, identity, workspace, operation, summary);
+        });
         return OpenProject(localWorkspaceRoot, sharedWorkspaceRoot);
     }
 
@@ -1554,7 +1598,9 @@ public sealed class ProjectWorkspaceCoordinatorService
         string localWorkspaceRoot,
         Security.Models.StoredIdentity identity,
         ProjectWorkspaceSnapshot workspace,
-        RelationshipDocument document)
+        RelationshipDocument document,
+        string operation,
+        string summary)
     {
         RelationshipDocumentValidator.Validate(document, workspace.Project.ProjectId);
         RelationshipDocumentValidator.ValidateEntityReferences(
@@ -1565,7 +1611,16 @@ public sealed class ProjectWorkspaceCoordinatorService
                 .SelectMany(static version => version.Items)
                 .Select(static item => item.ItemId)
                 .ToHashSet());
-        _workspaceStore.SaveRelationships(localWorkspaceRoot, document, identity.SigningKey);
+        _workspaceTransactionService.Execute(localWorkspaceRoot, stagedRoot =>
+        {
+            _workspaceStore.SaveRelationships(stagedRoot, document, identity.SigningKey);
+            AppendAuditEntry(
+                stagedRoot,
+                identity,
+                workspace with { Relationships = document },
+                operation,
+                summary);
+        });
     }
 
     private static RelationshipDocument CreateRelationshipDocument(
