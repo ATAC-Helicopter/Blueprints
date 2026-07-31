@@ -53,7 +53,7 @@ Timestamps and readiness values are evidence reported by the producer. Passive a
 
 ## Exchange-root contract
 
-When explicit registration is implemented, a Blueprints exchange root managed beneath a VaultSync destination will use:
+An explicitly registered Blueprints exchange root managed beneath a VaultSync destination uses:
 
 ```text
 <destination>/.blueprints/projects/<project-id>/
@@ -63,10 +63,13 @@ When explicit registration is implemented, a Blueprints exchange root managed be
 
 The ownership boundary is:
 
-- Blueprints creates and validates content only under its project-specific directory after explicit opt-in.
+- Blueprints creates and validates content only under its project-specific directory after the user selects **Register exchange** twice.
 - VaultSync owns transport, destination reachability, backup, verification, and restore operations for the parent destination.
 - Blueprints never mixes exchange state into the backed-up project payload.
 - VaultSync metadata cannot make unsigned or invalid Blueprints documents trusted.
-- Registration and any future VaultSync command remain explicit and reversible; passive health detection never writes.
+- Registration requires a fresh exact-project, exact-destination approval that expires within ten minutes and is consumed once.
+- Registration writes only an atomic, bounded `.blueprints-exchange.json` marker. It refuses non-canonical metadata layouts, linked internal directories, and existing unregistered content.
+- Registration does not switch the open project's shared root. Reopen the project with the prepared root when ready, so a confirmation can never silently redirect collaboration.
+- Future VaultSync commands remain explicit and reversible; passive health detection never writes.
 
-The registration adapter, release safety gate, and end-to-end restore exercise remain v0.5 work.
+The release safety gate and end-to-end restore exercise remain v0.5 work.

@@ -9,16 +9,20 @@ Notable changes to Blueprints are documented here. The project follows semantic 
 - Passive VaultSync health awareness with a machine-local metadata-root setting, bounded path detection, and clear healthy, warning, unavailable, and invalid states in the Integrations workspace.
 - A versioned `blueprints.status.json` interoperability contract for destination reachability, snapshot, backup, verification, restore-readiness, index-consistency, and metadata-conflict evidence.
 - An injectable VaultSync status-reader boundary and filesystem tests covering supported root forms, absent sidecars, malformed schemas, and oversized input.
+- Explicit two-step registration for project-specific VaultSync exchange roots, backed by a fresh exact-target approval, an atomic bounded marker, canonical path containment, and refusal to adopt unexpected content.
 
 ### Changed
 
 - Alpha 5 development builds identify themselves as `0.5.0-alpha.5-dev`.
 - The VaultSync exchange-root contract now reserves `<destination>/.blueprints/projects/<project-id>/` for an explicitly enabled future adapter while keeping the VaultSync project payload separate.
 - Machine-local integration settings now recover safely from malformed or oversized JSON and use atomic replacement on save.
+- Registered VaultSync exchange roots remain separate from the active shared root until the project is deliberately reopened against the prepared location.
+- Changing or clearing the linked VaultSync metadata root also clears any stale registered exchange-root reference.
 
 ### Security
 
 - Blueprints never parses the VaultSync SQLite database, caps passive health documents at 1 MiB and 32 warnings, and keeps configured paths and all health evidence outside signed project truth.
+- VaultSync exchange registration approvals expire within ten minutes and are single-use; registration rejects mismatched projects, non-canonical layouts, internal directory links, oversized markers, and pre-existing unregistered content.
 
 ## 0.4.0 — 2026-07-30
 

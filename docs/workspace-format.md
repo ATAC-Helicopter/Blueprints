@@ -43,6 +43,8 @@ This document describes the current schema-1 layout. The format is pre-release a
 
 The collaboration layer also writes a signed manifest in the shared project root. Files under `.blueprints/` and `sync/` are local bookkeeping and are not signed project truth or exchange input.
 
+A VaultSync-prepared shared root also contains `.blueprints-exchange.json` at its top level. This bounded machine-local registration marker identifies the intended Blueprints project but is not signed project truth and is excluded from exchange snapshots. Project documents and the signed manifest retain exactly the same format as any other shared root.
+
 `trusted-project-keys.json` is the machine-local trust-anchor set established when a project is created or a signed project invitation is accepted. It lets documents and audit entries signed by different project members validate without placing trust in the shared folder itself. A verified membership revision may extend this set, but unverified shared membership data cannot.
 
 Before applying a whole-document conflict choice, Blueprints creates a conflict recovery directory. Its metadata records the selected path, choice, presence of each source file, and whether the operation was prepared, applied, or failed. Recovery data stays local and is excluded from exchange manifests.

@@ -64,6 +64,7 @@ Blueprints uses signatures and explicit validation to detect unauthorized or inc
 - Hosted-provider reads are allowed directly. Any future write must have a fresh, exact-target, single-use approval with a maximum ten-minute lifetime; credentials alone never authorize a write.
 - VaultSync passive awareness resolves only documented paths, does not parse the metadata SQLite database, and limits the optional health sidecar to 1 MiB, schema depth 16, and 32 distinct warnings.
 - VaultSync paths and health evidence are machine-local integration state. They do not enter signed workspaces, manifests, audit history, or release semantics.
+- VaultSync exchange registration requires a fresh exact-project and exact-destination approval with a maximum ten-minute lifetime. Approval is single-use; registration enforces the canonical contained path, rejects internal directory links and unexpected content, and atomically creates only a bounded marker.
 
 ## Important limitations
 

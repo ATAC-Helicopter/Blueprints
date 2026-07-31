@@ -107,7 +107,9 @@ Open **Source Lens**, then enter a VaultSync destination, `.vaultsync` directory
 
 Blueprints confirms the portable metadata store exists without reading its SQLite schema. If VaultSync also supplies `.vaultsync/meta/blueprints.status.json`, the connection card reports destination reachability, latest snapshot, backup and verification times, restore readiness, backup-index consistency, and metadata conflicts. A missing health document is shown honestly as “metadata detected; detailed backup health unavailable.”
 
-This integration is passive and machine-local. Blueprints does not register projects, start a backup, verify payloads, or make VaultSync evidence authoritative. See [VaultSync integration](vaultsync-integration.md) for the exact contract and limits.
+This integration is passive and machine-local. Blueprints does not register or modify VaultSync projects, start a backup, verify payloads, or make VaultSync evidence authoritative. See [VaultSync integration](vaultsync-integration.md) for the exact contract and limits.
+
+To prepare the current trusted project for VaultSync transport, select **Register exchange** twice. The first selection previews the exact project-specific path; the second consumes a short-lived approval and creates the directory plus registration marker. Registration does not redirect the currently open project. Reopen it with the reported path as the shared root only when you intend to start using that exchange location.
 
 ## Exchange changes
 

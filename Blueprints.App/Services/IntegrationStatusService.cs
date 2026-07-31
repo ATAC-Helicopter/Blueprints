@@ -139,6 +139,20 @@ public sealed class IntegrationStatusService
         var target = string.IsNullOrWhiteSpace(status.DestinationAlias)
             ? status.MetadataStorePath
             : $"{status.DestinationAlias} · {status.MetadataStorePath}";
+        var registeredRoot = settings.RegisteredVaultSyncExchangeRoot;
+        var registeredRootMissing =
+            !string.IsNullOrWhiteSpace(registeredRoot) &&
+            !Directory.Exists(registeredRoot);
+        hasRisk |= registeredRootMissing;
+        var guidance = status.Warnings.Count == 0
+            ? "Backup metadata is healthy. Blueprints used read-only evidence and did not modify VaultSync or signed project truth."
+            : string.Join(" ", status.Warnings);
+        if (!string.IsNullOrWhiteSpace(registeredRoot))
+        {
+            guidance += registeredRootMissing
+                ? $" The registered exchange root is unavailable: {registeredRoot}"
+                : $" Registered exchange root: {registeredRoot}";
+        }
 
         return new IntegrationStatusCard(
             IntegrationProviderType.VaultSync,
@@ -150,9 +164,7 @@ public sealed class IntegrationStatusService
                     : IntegrationConnectionState.Connected,
             target,
             status.Summary,
-            status.Warnings.Count == 0
-                ? "Backup metadata is healthy. Blueprints used read-only evidence and did not modify VaultSync or signed project truth."
-                : string.Join(" ", status.Warnings),
+            guidance,
             BlueprintsTrustBoundary(),
             checkedAtUtc,
             []);
