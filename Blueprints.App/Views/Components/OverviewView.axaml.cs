@@ -10,8 +10,10 @@ public partial class OverviewView : UserControl
         InitializeComponent();
         BlueprintSurface.HistoryStateChanged += (_, _) => UpdateHistoryButtons();
         BlueprintSurface.SelectionStateChanged += (_, _) => UpdateSelectionSummary();
+        BlueprintSurface.ZoomChanged += (_, _) => UpdateZoomSummary();
         UpdateHistoryButtons();
         UpdateSelectionSummary();
+        UpdateZoomSummary();
     }
 
     private void UndoClick(object? sender, RoutedEventArgs eventArgs) =>
@@ -43,4 +45,7 @@ public partial class OverviewView : UserControl
 
     private void UpdateSelectionSummary() =>
         CanvasSelectionSummary.Text = BlueprintSurface.SelectionSummary;
+
+    private void UpdateZoomSummary() =>
+        ZoomLevelText.Text = BlueprintSurface.ZoomSummary;
 }

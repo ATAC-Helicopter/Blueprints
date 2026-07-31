@@ -5,7 +5,8 @@ namespace Blueprints.App.Services;
 
 public sealed partial class MarkdownSourceDiscoveryParser
 {
-    private const int MaximumCandidatesPerFile = 100;
+    public const long MaximumMarkdownBytes = 8 * 1024 * 1024;
+    public const int MaximumCandidatesPerFile = 5_000;
 
     public IReadOnlyList<SourceDiscoveryCandidate> Parse(string filePath, SourceArtifactKind kind)
     {
@@ -16,9 +17,21 @@ public sealed partial class MarkdownSourceDiscoveryParser
             throw new ArgumentOutOfRangeException(nameof(kind), "Only changelog and roadmap Markdown can be parsed.");
         }
 
+        var file = new FileInfo(filePath);
+        if (!file.Exists)
+        {
+            throw new FileNotFoundException("The planning document was not found.", filePath);
+        }
+
+        if (file.Length > MaximumMarkdownBytes)
+        {
+            throw new InvalidOperationException(
+                $"Planning documents larger than {MaximumMarkdownBytes / (1024 * 1024)} MiB are not imported.");
+        }
+
         var candidates = new List<SourceDiscoveryCandidate>();
         var heading = string.Empty;
-        var lines = File.ReadLines(filePath).Take(5_000);
+        var lines = File.ReadLines(filePath);
         var lineNumber = 0;
 
         foreach (var rawLine in lines)

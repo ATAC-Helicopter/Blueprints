@@ -25,7 +25,7 @@ public sealed class GitCommandLocalGitRepositoryInspector : ILocalGitRepositoryI
                 "Configured path does not exist.");
         }
 
-        var root = RunGit(normalizedPath, "rev-parse --show-toplevel", allowFailure: true);
+        var root = RunGit(normalizedPath, ["rev-parse", "--show-toplevel"], allowFailure: true);
         if (!root.Success || string.IsNullOrWhiteSpace(root.Output))
         {
             return new LocalGitRepositoryStatus(
@@ -40,18 +40,35 @@ public sealed class GitCommandLocalGitRepositoryInspector : ILocalGitRepositoryI
         }
 
         var repositoryRoot = root.Output.Trim();
-        var branch = RunGit(repositoryRoot, "branch --show-current", allowFailure: true).Output.Trim();
+        var branch = RunGit(repositoryRoot, ["branch", "--show-current"], allowFailure: true).Output.Trim();
         if (string.IsNullOrWhiteSpace(branch))
         {
-            branch = RunGit(repositoryRoot, "rev-parse --short HEAD", allowFailure: true).Output.Trim();
+            branch = RunGit(repositoryRoot, ["rev-parse", "--short", "HEAD"], allowFailure: true).Output.Trim();
         }
 
-        var remoteUrl = RunGit(repositoryRoot, "config --get remote.origin.url", allowFailure: true).Output.Trim();
-        var latestTagResult = RunGit(repositoryRoot, "describe --tags --abbrev=0", allowFailure: true);
+        var remoteUrl = RunGit(
+            repositoryRoot,
+            ["config", "--get", "remote.origin.url"],
+            allowFailure: true).Output.Trim();
+        var latestTagResult = RunGit(
+            repositoryRoot,
+            ["describe", "--tags", "--abbrev=0"],
+            allowFailure: true);
         var latestTag = latestTagResult.Output.Trim();
-        var status = RunGit(repositoryRoot, "status --porcelain", allowFailure: true).Output;
+        var status = RunGit(
+            repositoryRoot,
+            ["status", "--porcelain"],
+            allowFailure: true).Output;
         var isDirty = !string.IsNullOrWhiteSpace(status);
         var recentChanges = ReadRecentChanges(repositoryRoot, latestTag);
+
+        var upstream = RunGit(
+            repositoryRoot,
+            ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"],
+            allowFailure: true);
+        var (ahead, behind) = upstream.Success
+            ? ReadAheadBehind(repositoryRoot)
+            : (0, 0);
 
         return new LocalGitRepositoryStatus(
             true,
@@ -61,18 +78,49 @@ public sealed class GitCommandLocalGitRepositoryInspector : ILocalGitRepositoryI
             isDirty,
             string.IsNullOrWhiteSpace(latestTag) ? "(no tags)" : latestTag,
             recentChanges,
-            isDirty ? "Repository has uncommitted changes." : "Repository working tree is clean.");
+            isDirty ? "Repository has uncommitted changes." : "Repository working tree is clean.")
+        {
+            HasUpstream = upstream.Success && !string.IsNullOrWhiteSpace(upstream.Output),
+            AheadCount = ahead,
+            BehindCount = behind,
+        };
+    }
+
+    private static (int Ahead, int Behind) ReadAheadBehind(string repositoryRoot)
+    {
+        var result = RunGit(
+            repositoryRoot,
+            ["rev-list", "--left-right", "--count", "@{upstream}...HEAD"],
+            allowFailure: true);
+        var parts = result.Output.Split(
+            (char[]?)null,
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return result.Success
+               && parts.Length == 2
+               && int.TryParse(parts[0], CultureInfo.InvariantCulture, out var behind)
+               && int.TryParse(parts[1], CultureInfo.InvariantCulture, out var ahead)
+            ? (ahead, behind)
+            : (0, 0);
     }
 
     private static IReadOnlyList<SourceChangeSummary> ReadRecentChanges(
         string repositoryRoot,
         string latestTag)
     {
-        var range = string.IsNullOrWhiteSpace(latestTag) ? string.Empty : $"{latestTag}..HEAD ";
-        var log = RunGit(
-            repositoryRoot,
-            $"log {range}--max-count=20 --date=iso-strict --pretty=format:%H%x1f%an%x1f%aI%x1f%s%x1e",
-            allowFailure: true);
+        var arguments = new List<string>
+        {
+            "log",
+            "--max-count=20",
+            "--date=iso-strict",
+            "--pretty=format:%H%x1f%an%x1f%aI%x1f%s%x1e",
+        };
+        if (!string.IsNullOrWhiteSpace(latestTag))
+        {
+            arguments.Add($"{latestTag}..HEAD");
+        }
+
+        arguments.Add("--");
+        var log = RunGit(repositoryRoot, arguments, allowFailure: true);
         if (!log.Success || string.IsNullOrWhiteSpace(log.Output))
         {
             return [];
@@ -120,23 +168,42 @@ public sealed class GitCommandLocalGitRepositoryInspector : ILocalGitRepositoryI
             .Distinct(StringComparer.Ordinal)
             .ToArray();
 
-    private static GitCommandResult RunGit(string workingDirectory, string arguments, bool allowFailure)
+    private static GitCommandResult RunGit(
+        string workingDirectory,
+        IReadOnlyList<string> arguments,
+        bool allowFailure)
     {
         try
         {
-            var startInfo = new ProcessStartInfo("git", $"-C \"{workingDirectory}\" {arguments}")
+            var startInfo = new ProcessStartInfo("git")
             {
+                WorkingDirectory = workingDirectory,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
+            startInfo.Environment["GIT_OPTIONAL_LOCKS"] = "0";
+            startInfo.Environment["GIT_TERMINAL_PROMPT"] = "0";
+            startInfo.ArgumentList.Add("-c");
+            startInfo.ArgumentList.Add("core.fsmonitor=false");
+            foreach (var argument in arguments)
+            {
+                startInfo.ArgumentList.Add(argument);
+            }
 
             using var process = Process.Start(startInfo)
                 ?? throw new InvalidOperationException("Failed to start git.");
-            var output = process.StandardOutput.ReadToEnd();
-            var error = process.StandardError.ReadToEnd();
-            process.WaitForExit();
+            var outputTask = process.StandardOutput.ReadToEndAsync();
+            var errorTask = process.StandardError.ReadToEndAsync();
+            if (!process.WaitForExit((int)TimeSpan.FromSeconds(30).TotalMilliseconds))
+            {
+                process.Kill(entireProcessTree: true);
+                return new GitCommandResult(false, string.Empty, "Git inspection timed out.");
+            }
+
+            var output = outputTask.GetAwaiter().GetResult();
+            var error = errorTask.GetAwaiter().GetResult();
 
             if (process.ExitCode != 0 && !allowFailure)
             {

@@ -47,6 +47,8 @@ public partial class BlueprintCanvasSurface : UserControl
 
     public event EventHandler? SelectionStateChanged;
 
+    public event EventHandler? ZoomChanged;
+
     public bool CanUndo => _viewModel?.CanMutateWorkspace == true && _layoutHistory.CanUndo;
 
     public bool CanRedo => _viewModel?.CanMutateWorkspace == true && _layoutHistory.CanRedo;
@@ -58,6 +60,8 @@ public partial class BlueprintCanvasSurface : UserControl
             1 => "1 canvas node selected",
             _ => $"{_selectedNodeIds.Count} canvas nodes selected",
         };
+
+    public string ZoomSummary => $"{_zoom:P0}";
 
     public BlueprintCanvasSurface()
     {
@@ -83,7 +87,10 @@ public partial class BlueprintCanvasSurface : UserControl
 
     public void FitView()
     {
-        SetZoom(0.8);
+        var availableWidth = Math.Max(320, Viewport.Bounds.Width - 36);
+        var availableHeight = Math.Max(240, Viewport.Bounds.Height - 36);
+        var fit = Math.Min(availableWidth / Surface.Width, availableHeight / Surface.Height);
+        SetZoom(Math.Clamp(fit, 0.25, 1));
         Viewport.Offset = Vector.Zero;
         PersistViewState();
     }
@@ -136,7 +143,7 @@ public partial class BlueprintCanvasSurface : UserControl
 
     private void SetZoom(double value, bool persist = false)
     {
-        _zoom = Math.Clamp(value, 0.6, 1.5);
+        _zoom = Math.Clamp(value, 0.25, 2.5);
         ZoomHost.Width = Surface.Width * _zoom;
         ZoomHost.Height = Surface.Height * _zoom;
         Surface.RenderTransform = new ScaleTransform(_zoom, _zoom);
@@ -147,6 +154,7 @@ public partial class BlueprintCanvasSurface : UserControl
         }
 
         RenderMiniMap();
+        ZoomChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private void HandleDataContextChanged(object? sender, EventArgs eventArgs)
@@ -219,6 +227,10 @@ public partial class BlueprintCanvasSurface : UserControl
         {
             RestoreViewState();
         }
+        else if (eventArgs.PropertyName is nameof(MainWindowViewModel.CanvasGroupingMode))
+        {
+            AutoArrange();
+        }
         else if (eventArgs.PropertyName is nameof(MainWindowViewModel.VersionCount)
             or nameof(MainWindowViewModel.ItemCount))
         {
@@ -279,16 +291,21 @@ public partial class BlueprintCanvasSurface : UserControl
         _typedNodes.Clear();
         _connections.Clear();
         _alignmentGuideVisuals.Clear();
-        DrawGrid();
 
         if (_viewModel is null)
         {
             return;
         }
 
-        var totalItems = _viewModel.Versions.Sum(static version => version.Items.Count);
-        Surface.Height = Math.Max(900, 180 + Math.Max(_viewModel.Versions.Count * 220, totalItems * 108));
-        Surface.Width = 1260;
+        var groupedItems = BuildItemGroups();
+        var largestGroup = groupedItems.Count == 0
+            ? 0
+            : groupedItems.Max(static group => group.Items.Count);
+        Surface.Height = Math.Max(
+            900,
+            Math.Max(220 + _viewModel.Versions.Count * 180, 210 + largestGroup * 112));
+        Surface.Width = Math.Max(1260, 690 + groupedItems.Count * 286);
+        DrawGrid();
         SetZoom(_zoom);
 
         var projectNode = CreateProjectNode();
@@ -299,30 +316,48 @@ public partial class BlueprintCanvasSurface : UserControl
         Surface.Children.Add(projectNode);
         RegisterNode(projectNode);
 
-        var globalItemIndex = 0;
         for (var versionIndex = 0; versionIndex < _viewModel.Versions.Count; versionIndex++)
         {
             var version = _viewModel.Versions[versionIndex];
             var versionPoint = GetPosition(
                 version.VersionId,
-                new Point(360, 90 + versionIndex * 220));
+                new Point(350, 120 + versionIndex * 180));
             var versionNode = CreateVersionNode(version);
             Place(versionNode, versionPoint);
             Surface.Children.Add(versionNode);
             RegisterNode(versionNode);
-            AddConnection(projectNode, versionNode, "#9D93EF", 2);
+            AddConnection(projectNode, versionNode, "#8B7FEB", 2, 0.5);
 
-            foreach (var item in version.Items)
+        }
+
+        for (var groupIndex = 0; groupIndex < groupedItems.Count; groupIndex++)
+        {
+            var group = groupedItems[groupIndex];
+            var groupX = 680 + groupIndex * 286;
+            Surface.Children.Add(CreateGroupHeader(
+                group.Label,
+                group.Items.Count,
+                new Point(groupX, 74)));
+
+            for (var itemIndex = 0; itemIndex < group.Items.Count; itemIndex++)
             {
+                var (version, item) = group.Items[itemIndex];
                 var itemPoint = GetPosition(
                     item.ItemId,
-                    new Point(700, 70 + globalItemIndex * 108));
+                    new Point(groupX, 140 + itemIndex * 112));
                 var itemNode = CreateItemNode(version, item);
                 Place(itemNode, itemPoint);
                 Surface.Children.Add(itemNode);
                 RegisterNode(itemNode);
-                AddConnection(versionNode, itemNode, item.IsDone ? "#55C8B5" : "#79769A", item.IsDone ? 2 : 1.25);
-                globalItemIndex++;
+                if (_typedNodes.TryGetValue(("version", version.VersionId), out var versionNode))
+                {
+                    AddConnection(
+                        versionNode,
+                        itemNode,
+                        item.IsDone ? "#38A890" : "#AAA6BD",
+                        item.IsDone ? 1.25 : 1,
+                        _viewModel.SelectedItem?.ItemId == item.ItemId ? 0.9 : 0.2);
+                }
             }
         }
 
@@ -368,15 +403,83 @@ public partial class BlueprintCanvasSurface : UserControl
         {
             var empty = new TextBlock
             {
-                Text = "CREATE THE FIRST VERSION TO START DRAWING",
+                Text = "Create your first version to start the blueprint",
                 FontFamily = FontFamily.Parse("Cascadia Mono, SFMono-Regular, Consolas, monospace"),
                 FontSize = 16,
                 FontWeight = FontWeight.Bold,
-                Foreground = Brush.Parse("#A9A2EC"),
+                Foreground = Brush.Parse("#6254D9"),
             };
             Place(empty, new Point(360, 330));
             Surface.Children.Add(empty);
         }
+    }
+
+    private IReadOnlyList<CanvasItemGroup> BuildItemGroups()
+    {
+        if (_viewModel is null)
+        {
+            return [];
+        }
+
+        return _viewModel.Versions
+            .SelectMany(version => version.Items.Select(item => (Version: version, Item: item)))
+            .GroupBy(pair => _viewModel.CanvasGroupingMode switch
+            {
+                CanvasGroupingMode.WorkType => pair.Item.ItemTypeId,
+                CanvasGroupingMode.Version => pair.Version.Name,
+                _ => pair.Item.CategoryId,
+            }, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(static group => group.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(group => new CanvasItemGroup(
+                HumanizeGroup(group.Key),
+                group.OrderBy(static pair => pair.Item.IsDone)
+                    .ThenBy(static pair => pair.Item.ItemKey, StringComparer.Ordinal)
+                    .ToArray()))
+            .ToArray();
+    }
+
+    private static string HumanizeGroup(string value) =>
+        string.Join(
+            ' ',
+            value.Replace('-', ' ').Replace('_', ' ')
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Select(static word => char.ToUpperInvariant(word[0]) + word[1..]));
+
+    private static Control CreateGroupHeader(string label, int count, Point point)
+    {
+        var title = new TextBlock
+        {
+            Text = label,
+            Foreground = Brush.Parse("#5045B4"),
+            FontWeight = FontWeight.Bold,
+            FontSize = 12,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        var badge = new TextBlock
+        {
+            Text = count.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            Foreground = Brush.Parse("#77738B"),
+            FontSize = 11,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        Grid.SetColumn(badge, 1);
+        var content = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
+        content.Children.Add(title);
+        content.Children.Add(badge);
+        var header = new Border
+        {
+            Width = NodeWidth,
+            Height = 44,
+            Padding = new Thickness(12, 8),
+            Background = Brush.Parse("#E9E6F8"),
+            BorderBrush = Brush.Parse("#D1CCED"),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(10),
+            IsHitTestVisible = false,
+            Child = content,
+        };
+        Place(header, point);
+        return header;
     }
 
     private void RegisterNode(Control node)
@@ -422,7 +525,7 @@ public partial class BlueprintCanvasSurface : UserControl
         {
             StartPoint = start,
             EndPoint = end,
-            Stroke = Brush.Parse(major ? "#454560" : "#34354F"),
+            Stroke = Brush.Parse(major ? "#DDD9EA" : "#EAE8F1"),
             StrokeThickness = major ? 1 : 0.5,
             IsHitTestVisible = false,
             Tag = "grid",
@@ -444,8 +547,8 @@ public partial class BlueprintCanvasSurface : UserControl
             content,
             250,
             140,
-            "#202238",
-            "#B8B2F4",
+            "#24213F",
+            "#7C6DEA",
             "project",
             _viewModel?.CurrentProject.ProjectId);
         if (_viewModel?.CurrentProject.ProjectId is Guid projectId && projectId != Guid.Empty)
@@ -470,8 +573,8 @@ public partial class BlueprintCanvasSurface : UserControl
             content,
             NodeWidth,
             VersionNodeHeight,
-            selected ? "#6658DA" : "#34304F",
-            selected ? "#FFFFFF" : "#9187E8",
+            selected ? "#6254D9" : "#34304F",
+            selected ? "#FFFFFF" : "#8E84DD",
             "version",
             version.VersionId);
         node.AddHandler(
@@ -499,7 +602,7 @@ public partial class BlueprintCanvasSurface : UserControl
             content,
             NodeWidth,
             ItemNodeHeight,
-            selected ? "#6658DA" : "#2B2D48",
+            selected ? "#6254D9" : "#292A43",
             selected ? "#FFFFFF" : item.IsDone ? "#4DB7A5" : "#6F6A9E",
             "item",
             item.ItemId);
@@ -527,7 +630,7 @@ public partial class BlueprintCanvasSurface : UserControl
             Background = Brush.Parse(background),
             BorderBrush = Brush.Parse(border),
             BorderThickness = new Thickness(1.5),
-            CornerRadius = new CornerRadius(3),
+            CornerRadius = new CornerRadius(12),
             Child = content,
             Cursor = new Cursor(StandardCursorType.Hand),
             Tag = new NodeTag(nodeType, nodeId),
@@ -873,7 +976,14 @@ public partial class BlueprintCanvasSurface : UserControl
             return;
         }
 
-        SetZoom(_zoom + Math.Sign(eventArgs.Delta.Y) * 0.1, persist: true);
+        var pointer = eventArgs.GetPosition(Viewport);
+        var contentX = (Viewport.Offset.X + pointer.X) / _zoom;
+        var contentY = (Viewport.Offset.Y + pointer.Y) / _zoom;
+        SetZoom(_zoom + Math.Sign(eventArgs.Delta.Y) * 0.1);
+        Viewport.Offset = new Vector(
+            Math.Max(0, contentX * _zoom - pointer.X),
+            Math.Max(0, contentY * _zoom - pointer.Y));
+        PersistViewState();
         eventArgs.Handled = true;
     }
 
@@ -1175,7 +1285,12 @@ public partial class BlueprintCanvasSurface : UserControl
         nodes.Add(new CanvasNodeLayoutEdit(nodeType, entityId, point.X, point.Y));
     }
 
-    private void AddConnection(Control source, Control target, string color, double thickness)
+    private void AddConnection(
+        Control source,
+        Control target,
+        string color,
+        double thickness,
+        double opacity = 0.85)
     {
         _connections.Add(
             new ConnectionVisual(
@@ -1185,7 +1300,7 @@ public partial class BlueprintCanvasSurface : UserControl
                 {
                     Stroke = Brush.Parse(color),
                     StrokeThickness = thickness,
-                    Opacity = 0.85,
+                    Opacity = opacity,
                     IsHitTestVisible = false,
                 }));
     }
@@ -1226,6 +1341,10 @@ public partial class BlueprintCanvasSurface : UserControl
     }
 
     private sealed record ConnectionVisual(Control Source, Control Target, Line Line);
+
+    private sealed record CanvasItemGroup(
+        string Label,
+        IReadOnlyList<(WorkspaceVersionCard Version, WorkspaceItemCard Item)> Items);
 
     private sealed record NodeTag(string Type, Guid? Id);
 }

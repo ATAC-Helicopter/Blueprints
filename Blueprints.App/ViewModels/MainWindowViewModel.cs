@@ -17,7 +17,7 @@ namespace Blueprints.App.ViewModels;
 public partial class MainWindowViewModel : ViewModelBase
 {
     private const int MaximumLinkedRepositories = 8;
-    private const int MaximumCombinedSourceCandidates = 500;
+    private const int MaximumCombinedSourceCandidates = 20_000;
     private readonly ProjectWorkspaceCoordinatorService? _coordinatorService;
     private readonly IntegrationStatusService _integrationStatusService;
     private readonly ISourceDiscoveryService _sourceDiscoveryService;
@@ -110,6 +110,14 @@ public partial class MainWindowViewModel : ViewModelBase
     private string _sourceDiscoverySummary = "Connect a repository, then scan its planning sources.";
     private string _sourceDiscoveryWarnings = string.Empty;
     private bool _isDiscoveringSources;
+    private readonly IGitRepositoryService _gitRepositoryService;
+    private string _selectedRepositoryPath = string.Empty;
+    private string _cloneRemote = string.Empty;
+    private string _cloneDestinationParent = string.Empty;
+    private string _cloneFolderName = string.Empty;
+    private string _gitCommitMessage = string.Empty;
+    private bool _isRunningGitOperation;
+    private CanvasGroupingMode _canvasGroupingMode = CanvasGroupingMode.ChangelogCategory;
 
     public MainWindowViewModel()
     {
@@ -132,6 +140,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _sourceDiscoveryService = new RepositorySourceDiscoveryService();
         _canvasViewStateStore = new FileSystemCanvasViewStateStore();
         _vaultSyncExchangeRootAdapter = new FileSystemVaultSyncExchangeRootAdapter();
+        _gitRepositoryService = new GitCommandRepositoryService();
         SourceImportProposals = new ObservableCollection<SourceImportProposal>();
         ApplyDesignSession(CreateDesignSession());
         ApplyDesignSourceProposals();
@@ -142,7 +151,8 @@ public partial class MainWindowViewModel : ViewModelBase
         ProjectWorkspaceCoordinatorService coordinatorService,
         IntegrationStatusService integrationStatusService,
         ISourceDiscoveryService? sourceDiscoveryService = null,
-        IVaultSyncExchangeRootAdapter? vaultSyncExchangeRootAdapter = null)
+        IVaultSyncExchangeRootAdapter? vaultSyncExchangeRootAdapter = null,
+        IGitRepositoryService? gitRepositoryService = null)
     {
         _coordinatorService = coordinatorService;
         _integrationStatusService = integrationStatusService;
@@ -150,6 +160,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _canvasViewStateStore = new FileSystemCanvasViewStateStore();
         _vaultSyncExchangeRootAdapter =
             vaultSyncExchangeRootAdapter ?? new FileSystemVaultSyncExchangeRootAdapter();
+        _gitRepositoryService = gitRepositoryService ?? new GitCommandRepositoryService();
         Versions = new ObservableCollection<WorkspaceVersionCard>();
         AvailableItemTypes = new ObservableCollection<string>();
         AvailableCategories = new ObservableCollection<string>();
@@ -253,7 +264,7 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     public bool CanDiscoverSources =>
-        !IsDiscoveringSources && !string.IsNullOrWhiteSpace(LocalGitRepositoryPath);
+        !IsDiscoveringSources && !IsRunningGitOperation && LinkedRepositoryPaths.Count > 0;
 
     public bool HasSourceProposals => SourceImportProposals.Count > 0;
 
@@ -282,7 +293,136 @@ public partial class MainWindowViewModel : ViewModelBase
             if (SetProperty(ref _localGitRepositoryPath, value))
             {
                 OnPropertyChanged(nameof(CanDiscoverSources));
+                OnPropertyChanged(nameof(LinkedRepositoryPaths));
             }
+        }
+    }
+
+    public IReadOnlyList<string> LinkedRepositoryPaths =>
+        LocalGitRepositoryPath
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+    public string SelectedRepositoryPath
+    {
+        get => _selectedRepositoryPath;
+        set
+        {
+            if (SetProperty(ref _selectedRepositoryPath, value))
+            {
+                OnPropertyChanged(nameof(CanRunSelectedRepositoryOperation));
+                OnPropertyChanged(nameof(SelectedRepositoryName));
+            }
+        }
+    }
+
+    public string SelectedRepositoryName =>
+        string.IsNullOrWhiteSpace(SelectedRepositoryPath)
+            ? "No repository selected"
+            : Path.GetFileName(SelectedRepositoryPath.TrimEnd(
+                Path.DirectorySeparatorChar,
+                Path.AltDirectorySeparatorChar));
+
+    public string CloneRemote
+    {
+        get => _cloneRemote;
+        set
+        {
+            if (SetProperty(ref _cloneRemote, value))
+            {
+                OnPropertyChanged(nameof(CanCloneRepository));
+            }
+        }
+    }
+
+    public string CloneDestinationParent
+    {
+        get => _cloneDestinationParent;
+        set
+        {
+            if (SetProperty(ref _cloneDestinationParent, value))
+            {
+                OnPropertyChanged(nameof(CanCloneRepository));
+            }
+        }
+    }
+
+    public string CloneFolderName
+    {
+        get => _cloneFolderName;
+        set => SetProperty(ref _cloneFolderName, value);
+    }
+
+    public string GitCommitMessage
+    {
+        get => _gitCommitMessage;
+        set
+        {
+            if (SetProperty(ref _gitCommitMessage, value))
+            {
+                OnPropertyChanged(nameof(CanCommitRepository));
+            }
+        }
+    }
+
+    public bool IsRunningGitOperation
+    {
+        get => _isRunningGitOperation;
+        private set
+        {
+            if (SetProperty(ref _isRunningGitOperation, value))
+            {
+                OnPropertyChanged(nameof(CanCloneRepository));
+                OnPropertyChanged(nameof(CanRunSelectedRepositoryOperation));
+                OnPropertyChanged(nameof(CanCommitRepository));
+                OnPropertyChanged(nameof(CanDiscoverSources));
+            }
+        }
+    }
+
+    public bool CanCloneRepository =>
+        !IsRunningGitOperation
+        && !string.IsNullOrWhiteSpace(CloneRemote)
+        && !string.IsNullOrWhiteSpace(CloneDestinationParent);
+
+    public bool CanRunSelectedRepositoryOperation =>
+        !IsRunningGitOperation && !string.IsNullOrWhiteSpace(SelectedRepositoryPath);
+
+    public bool CanCommitRepository =>
+        CanRunSelectedRepositoryOperation && !string.IsNullOrWhiteSpace(GitCommitMessage);
+
+    public CanvasGroupingMode CanvasGroupingMode
+    {
+        get => _canvasGroupingMode;
+        set
+        {
+            if (SetProperty(ref _canvasGroupingMode, value))
+            {
+                OnPropertyChanged(nameof(CanvasGroupingSelection));
+            }
+        }
+    }
+
+    public IReadOnlyList<string> CanvasGroupingOptions { get; } =
+        ["Changelog category", "Work type", "Version"];
+
+    public string CanvasGroupingSelection
+    {
+        get => CanvasGroupingMode switch
+        {
+            CanvasGroupingMode.WorkType => "Work type",
+            CanvasGroupingMode.Version => "Version",
+            _ => "Changelog category",
+        };
+        set
+        {
+            CanvasGroupingMode = value switch
+            {
+                "Work type" => CanvasGroupingMode.WorkType,
+                "Version" => CanvasGroupingMode.Version,
+                _ => CanvasGroupingMode.ChangelogCategory,
+            };
         }
     }
 
@@ -1831,6 +1971,141 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    private void LinkLocalGitRepository(string? repositoryPath)
+    {
+        if (string.IsNullOrWhiteSpace(repositoryPath))
+        {
+            IntegrationMessage = "Choose a repository folder first.";
+            return;
+        }
+
+        try
+        {
+            var inspected = _gitRepositoryService.Inspect(repositoryPath);
+            if (!inspected.IsRepository)
+            {
+                IntegrationMessage =
+                    $"{inspected.Summary} Choose the repository folder or any folder inside its working tree.";
+                return;
+            }
+
+            var normalized = inspected.RepositoryRoot;
+            var paths = LinkedRepositoryPaths
+                .Append(normalized)
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+            LocalGitRepositoryPath = string.Join(Environment.NewLine, paths);
+            SaveLocalGitRepositoryPath();
+            SelectedRepositoryPath = normalized;
+            IntegrationMessage = $"Linked {normalized}. Blueprints now treats it as a working repository.";
+        }
+        catch (Exception exception)
+        {
+            IntegrationMessage = exception.Message;
+        }
+    }
+
+    [RelayCommand]
+    private async Task CloneRepository()
+    {
+        if (!CanCloneRepository)
+        {
+            IntegrationMessage = "Enter a repository address and choose a destination folder.";
+            return;
+        }
+
+        await RunGitOperationAsync(
+            () => _gitRepositoryService.CloneAsync(
+                CloneRemote,
+                CloneDestinationParent,
+                CloneFolderName),
+            linkResult: true);
+    }
+
+    [RelayCommand]
+    private async Task PullRepository()
+    {
+        if (!CanRunSelectedRepositoryOperation)
+        {
+            IntegrationMessage = "Select a linked repository before pulling.";
+            return;
+        }
+
+        await RunGitOperationAsync(
+            () => _gitRepositoryService.PullAsync(SelectedRepositoryPath),
+            linkResult: false);
+    }
+
+    [RelayCommand]
+    private async Task CommitRepository()
+    {
+        if (!CanCommitRepository)
+        {
+            IntegrationMessage = "Select a repository and enter a commit message.";
+            return;
+        }
+
+        var message = GitCommitMessage;
+        await RunGitOperationAsync(
+            () => _gitRepositoryService.CommitAllAsync(SelectedRepositoryPath, message),
+            linkResult: false);
+        if (!IntegrationMessage.StartsWith("Git operation failed", StringComparison.Ordinal))
+        {
+            GitCommitMessage = string.Empty;
+        }
+    }
+
+    [RelayCommand]
+    private async Task PushRepository()
+    {
+        if (!CanRunSelectedRepositoryOperation)
+        {
+            IntegrationMessage = "Select a linked repository before pushing.";
+            return;
+        }
+
+        await RunGitOperationAsync(
+            () => _gitRepositoryService.PushAsync(SelectedRepositoryPath),
+            linkResult: false);
+    }
+
+    private async Task RunGitOperationAsync(
+        Func<Task<GitRepositoryOperationResult>> operation,
+        bool linkResult)
+    {
+        IsRunningGitOperation = true;
+        IntegrationMessage = "Git is working…";
+        try
+        {
+            var result = await operation();
+            if (linkResult)
+            {
+                var paths = LinkedRepositoryPaths
+                    .Append(result.RepositoryRoot)
+                    .Distinct(StringComparer.Ordinal)
+                    .ToArray();
+                LocalGitRepositoryPath = string.Join(Environment.NewLine, paths);
+                SaveLocalGitRepositoryPath();
+                SelectedRepositoryPath = result.RepositoryRoot;
+            }
+            else
+            {
+                RefreshIntegrations();
+            }
+
+            IntegrationMessage = result.Summary;
+        }
+        catch (Exception exception)
+        {
+            IntegrationMessage = $"Git operation failed: {exception.Message}";
+        }
+        finally
+        {
+            IsRunningGitOperation = false;
+        }
+    }
+
+    [RelayCommand]
     private void SaveVaultSyncMetadataRoot()
     {
         try
@@ -2735,6 +3010,13 @@ public partial class MainWindowViewModel : ViewModelBase
         LocalGitRepositoryPath = string.Join(
             Environment.NewLine,
             settings.EffectiveLocalGitRepositoryPaths);
+        if (!settings.EffectiveLocalGitRepositoryPaths.Contains(
+                SelectedRepositoryPath,
+                StringComparer.Ordinal))
+        {
+            SelectedRepositoryPath = settings.EffectiveLocalGitRepositoryPaths.FirstOrDefault()
+                ?? string.Empty;
+        }
         VaultSyncMetadataRoot = settings.VaultSyncMetadataRoot;
         OnPropertyChanged(nameof(CanRegisterVaultSyncExchangeRoot));
 

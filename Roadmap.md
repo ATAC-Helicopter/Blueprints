@@ -121,6 +121,25 @@ Exit criteria:
 - a signing identity can be encrypted, restored on a clean profile, and verified before use;
 - extension and security boundaries are versioned, bounded, tested, and documented.
 
+## Completed — v0.7: repository workflow and blueprint clarity
+
+Goal: make large plans understandable and let ordinary users work with real repositories without leaving the application.
+
+- [x] Organize related work automatically by changelog category, work type, or version.
+- [x] Expose visible wide-range zoom, accurate fit, pointer-centered scaling, and clearer canvas navigation.
+- [x] Replace manual-only repository paths with native local-folder selection.
+- [x] Add explicit clone, fast-forward pull, commit-all, and push workflows.
+- [x] Remove the former 100-proposal Markdown/import ceiling while retaining resource-safety bounds.
+- [x] Suppress repository hooks, reject executable repository-local Git configuration, and retain provider-write separation.
+
+Exit criteria:
+
+- a first-time user can browse to or clone a repository without typing a filesystem path;
+- pull cannot silently merge or overwrite dirty local work;
+- repository-controlled hooks and executable local Git configuration do not run through Blueprints;
+- large planning documents are no longer truncated at 100 proposals;
+- related work is visibly grouped and the complete plan can be navigated from 25% through 250% zoom.
+
 ## In progress — v1.0: dependable small-team release planner
 
 Goal: supported installers and documented recovery for small teams.

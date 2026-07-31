@@ -102,6 +102,14 @@ Discovery never mutates the repository, provider, or Blueprints workspace. Provi
 
 The hosted-provider operation policy allows discovery reads without a write approval. Future provider mutations must present a fresh approval matching one exact provider, repository, operation, and target; approval expires within ten minutes and is consumed once.
 
+### Local repository operations
+
+Local repository selection and Git state remain machine-local integration data. Clone, pull, commit, and push run only after their corresponding user action; no discovery, project save, release, or application startup triggers them.
+
+The command adapter passes each argument directly to `git`, disables terminal prompting, applies a five-minute timeout and bounded output capture, and gives every operation a fresh empty hooks directory. Clone uses no checkout until executable repository-local configuration has been checked, then checks out without submodules. Pull requires a clean worktree and uses `--ff-only --no-recurse-submodules`. Commit stages the complete repository and disables signing for that operation. Push is ordinary non-force push and configures `origin` upstream only for a safe named branch.
+
+Before write operations, Blueprints rejects repository-local clean/smudge/process filters, merge drivers, and filesystem monitors. This does not sandbox Git or replace operating-system protection; user-global configuration, credential helpers, SSH agents, network transports, and the Git executable remain external trust dependencies.
+
 ### Passive VaultSync health
 
 1. Load the machine-local configured VaultSync destination or metadata path.

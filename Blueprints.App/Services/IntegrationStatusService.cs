@@ -219,15 +219,19 @@ public sealed class IntegrationStatusService
                 []);
         }
 
+        var upstreamSummary = gitStatus.HasUpstream
+            ? $" Upstream: {gitStatus.AheadCount} ahead, {gitStatus.BehindCount} behind."
+            : " No upstream branch is configured.";
         return new IntegrationStatusCard(
             IntegrationProviderType.LocalGit,
             "Local Git",
             gitStatus.IsDirty ? IntegrationConnectionState.Warning : IntegrationConnectionState.Connected,
             gitStatus.RepositoryRoot,
-            $"Branch: {gitStatus.Branch}. Latest tag: {gitStatus.LatestTag}. Origin: {gitStatus.RemoteUrl}. Recent changes: {gitStatus.RecentChanges.Count}.",
+            $"Branch: {gitStatus.Branch}. Latest tag: {gitStatus.LatestTag}. Origin: {gitStatus.RemoteUrl}. " +
+            $"Recent changes: {gitStatus.RecentChanges.Count}.{upstreamSummary}",
             gitStatus.IsDirty
-                ? "Review uncommitted changes before releasing. Blueprints will not commit, tag, or publish automatically."
-                : "Repository is clean. Recent commits can now be matched to Blueprints item keys for release planning.",
+                ? "Review the uncommitted changes, then use the explicit Commit all action if they belong together."
+                : "Repository is clean. Pull and push remain explicit actions and never modify Blueprints signed project truth.",
             BlueprintsTrustBoundary(),
             checkedAtUtc,
             gitStatus.RecentChanges);

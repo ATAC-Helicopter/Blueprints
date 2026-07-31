@@ -34,6 +34,19 @@ public sealed class FileSystemCanvasViewStateStoreTests : IDisposable
         Assert.True(File.Exists(Path.Combine(_workspaceRoot, ".blueprints", "canvas-view.json")));
     }
 
+    [Theory]
+    [InlineData(0.25)]
+    [InlineData(2.5)]
+    public void SaveAndLoad_AcceptsTheVisibleZoomRange(double zoom)
+    {
+        var store = new FileSystemCanvasViewStateStore();
+        var expected = new CanvasViewState(zoom, 0, 0);
+
+        store.Save(_workspaceRoot, expected);
+
+        Assert.Equal(expected, store.Load(_workspaceRoot));
+    }
+
     [Fact]
     public void Load_FallsBackToDefault_WhenLocalStateIsMalformed()
     {

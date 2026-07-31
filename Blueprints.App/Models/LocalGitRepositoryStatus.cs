@@ -8,4 +8,11 @@ public sealed record LocalGitRepositoryStatus(
     bool IsDirty,
     string LatestTag,
     IReadOnlyList<SourceChangeSummary> RecentChanges,
-    string Summary);
+    string Summary)
+{
+    public bool HasUpstream { get; init; }
+
+    public int AheadCount { get; init; }
+
+    public int BehindCount { get; init; }
+}
