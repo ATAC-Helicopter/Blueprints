@@ -28,4 +28,16 @@ Blueprints does not silently rewrite historical signatures. Deactivation prevent
 
 Keep identity backups separate from project backups. Project workspaces contain public keys, not private signing keys. Conflict recovery copies preserve documents, not identities.
 
-Automated same-user key rotation, platform-keystore migration, revocation timestamps, and hardware-backed keys remain future security work.
+Blueprints can export the current identity as an encrypted recovery file:
+
+1. open **People** and enter a passphrase of at least 12 characters;
+2. create the encrypted backup;
+3. store the backup separately from project backups;
+4. store the passphrase in a different trusted location;
+5. test restoration on a clean operating-system user profile before relying on it.
+
+The recovery file uses AES-256-GCM and authenticates the public identity metadata. Its key is derived with PBKDF2-SHA256 using a random salt and 600,000 iterations. Restore verifies that the decrypted private key matches the recorded public key, then protects it again using the destination device's configured local key protector.
+
+Anyone with both the backup and passphrase can sign as that identity. Do not store them together. Restoring does not reactivate a member that an administrator already deactivated.
+
+Automated same-user key rotation, platform-keystore migration beyond the current platform protectors, revocation timestamps, and hardware-backed keys remain future security work.

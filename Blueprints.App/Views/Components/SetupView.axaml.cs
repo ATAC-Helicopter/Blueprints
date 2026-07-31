@@ -106,6 +106,74 @@ public partial class SetupView : UserControl
         }
     }
 
+    private async void ExportIdentityBackup_Click(
+        object? sender,
+        Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel viewModel)
+        {
+            return;
+        }
+
+        var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
+        if (storageProvider is null)
+        {
+            return;
+        }
+
+        var file = await storageProvider.SaveFilePickerAsync(
+            new FilePickerSaveOptions
+            {
+                Title = "Create encrypted identity backup",
+                SuggestedFileName = "identity.blueprints-backup.json",
+                FileTypeChoices =
+                [
+                    new FilePickerFileType("Blueprints encrypted identity backup")
+                    {
+                        Patterns = ["*.blueprints-backup.json"],
+                    },
+                ],
+            });
+        if (file?.TryGetLocalPath() is { } path)
+        {
+            viewModel.ExportIdentityBackupCommand.Execute(path);
+        }
+    }
+
+    private async void ImportIdentityBackup_Click(
+        object? sender,
+        Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel viewModel)
+        {
+            return;
+        }
+
+        var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
+        if (storageProvider is null)
+        {
+            return;
+        }
+
+        var files = await storageProvider.OpenFilePickerAsync(
+            new FilePickerOpenOptions
+            {
+                Title = "Restore encrypted identity backup",
+                AllowMultiple = false,
+                FileTypeFilter =
+                [
+                    new FilePickerFileType("Blueprints encrypted identity backup")
+                    {
+                        Patterns = ["*.blueprints-backup.json"],
+                    },
+                ],
+            });
+        if (files.FirstOrDefault()?.TryGetLocalPath() is { } path)
+        {
+            viewModel.ImportIdentityBackupCommand.Execute(path);
+        }
+    }
+
     private async Task<string?> PickInvitationAsync()
     {
         var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;

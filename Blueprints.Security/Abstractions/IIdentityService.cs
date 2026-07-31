@@ -9,4 +9,8 @@ public interface IIdentityService
     StoredIdentity GetOrCreateDefaultIdentity(string displayName);
 
     IReadOnlyList<IdentityProfile> ListProfiles();
+
+    string ExportBackup(string filePath, string passphrase);
+
+    StoredIdentity ImportBackup(string filePath, string passphrase);
 }

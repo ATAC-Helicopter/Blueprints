@@ -70,11 +70,11 @@ Blueprints uses signatures and explicit validation to detect unauthorized or inc
 ## Important limitations
 
 - A valid member key can sign malicious or incorrect content; signatures establish key possession, not intent.
-- The current model does not provide key revocation, rotation, hardware-backed storage, or recovery.
+- The current model does not provide automated key revocation, same-user rotation, or hardware-backed storage. Encrypted identity backup and clean-profile recovery are available.
 - Linux/macOS key protection ultimately depends on file permissions protecting the local AES key.
 - The audit chain detects many edits and deletions, but is not anchored to an external transparency service.
 - Shared-folder availability, confidentiality, and rollback resistance depend on the underlying storage.
-- Current workspace saves are not a single atomic transaction across all changed files.
+- Core local mutations, including recoverable archives, stage signed documents and their audit append together, promote the staged workspace as one directory transaction, and restore the prior directory when promotion is interrupted. Shared-exchange operations retain their separately documented staging and rollback-pair behavior.
 - Canvas layout is a whole signed document; concurrent arrangements conflict as a unit and are not field-merged.
 - Conflict resolution provides semantic summaries for known document types but still operates on whole documents rather than merging individual fields.
 - Conflict recovery copies are local, unsigned operational records; protect and back them up according to the sensitivity of project content.
@@ -94,4 +94,4 @@ Security-sensitive pull requests should include:
 
 Report vulnerabilities using [SECURITY.md](../SECURITY.md).
 
-Operational behavior for planned rotation, compromise, and lost keys is defined in [member key lifecycle](key-lifecycle.md). Automated same-user rotation and revocation remain unimplemented.
+Operational behavior for planned rotation, compromise, lost keys, and encrypted identity recovery is defined in [member key lifecycle](key-lifecycle.md). Automated same-user rotation and revocation remain unimplemented. Attacker capabilities and abuse cases are maintained in the [threat model](threat-model.md).

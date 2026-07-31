@@ -8,13 +8,13 @@
     <StackPanel Spacing="16">
       <Border Classes="dark-card">
         <StackPanel Spacing="10">
-          <TextBlock Classes="eyebrow" Text="TRUST GATE" Foreground="#62D3F0" />
-          <Border Width="72" Height="72" CornerRadius="36" Background="#0F5E76" BorderBrush="#62D3F0" BorderThickness="2" HorizontalAlignment="Left">
+          <TextBlock Classes="eyebrow" Text="PROJECT SAFETY" Foreground="#B8B2F4" />
+          <Border Width="72" Height="72" CornerRadius="36" Background="#2D6F66" BorderBrush="#62D3BC" BorderThickness="2" HorizontalAlignment="Left">
             <TextBlock Text="✓" FontSize="32" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
           </Border>
           <TextBlock Text="{Binding TrustBadge}" FontSize="25" FontWeight="Black" Foreground="White" />
-          <TextBlock Text="{Binding TrustSummary}" Foreground="#A9C8DC" TextWrapping="Wrap" />
-          <TextBlock Text="{Binding WorkspaceModeSummary}" Foreground="#A9C8DC" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding TrustSummary}" Foreground="#B9BBCB" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding WorkspaceModeSummary}" Foreground="#B9BBCB" TextWrapping="Wrap" />
           <Button Classes="primary" Content="Run validation again" Command="{Binding RefreshWorkspaceCommand}" HorizontalAlignment="Left" />
         </StackPanel>
       </Border>
@@ -26,7 +26,7 @@
             <TextBlock Text="Editable local workspace" FontWeight="Bold" />
             <TextBlock Text="{Binding WorkspacePath}" Classes="mono muted" FontSize="11" TextWrapping="Wrap" />
           </StackPanel>
-          <Border Height="1" Background="#D5E6F0" />
+          <Border Height="1" Background="#E2E4EC" />
           <StackPanel Spacing="3">
             <TextBlock Text="Untrusted shared exchange" FontWeight="Bold" />
             <TextBlock Text="{Binding SharedSyncPath}" Classes="mono muted" FontSize="11" TextWrapping="Wrap" />
@@ -49,11 +49,11 @@
             <DataTemplate x:DataType="models:TrustDiagnosticCard">
               <Border Classes="blueprint-card" Margin="0,0,0,9">
                 <Grid ColumnDefinitions="48,130,*" ColumnSpacing="12">
-                  <Border Width="34" Height="34" CornerRadius="17" Background="#DDEFF8" VerticalAlignment="Top">
-                    <TextBlock Text="◆" Foreground="#168AD0" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                  <Border Width="34" Height="34" CornerRadius="17" Background="#EAE7FF" VerticalAlignment="Top">
+                    <TextBlock Text="✓" Foreground="#5A4ECC" HorizontalAlignment="Center" VerticalAlignment="Center" />
                   </Border>
                   <StackPanel Grid.Column="1" Spacing="3">
-                    <TextBlock Text="{Binding Severity}" FontWeight="Bold" Foreground="#0B4F8A" />
+                    <TextBlock Text="{Binding Severity}" FontWeight="Bold" Foreground="#5A4ECC" />
                     <TextBlock Text="{Binding Area}" Classes="mono muted" FontSize="11" TextWrapping="Wrap" />
                   </StackPanel>
                   <StackPanel Grid.Column="2" Spacing="5">

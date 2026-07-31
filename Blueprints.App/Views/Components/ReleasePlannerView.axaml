@@ -22,8 +22,8 @@
                 <StackPanel Spacing="6">
                   <Grid ColumnDefinitions="*,Auto">
                     <TextBlock Classes="mono" Text="{Binding Name}" FontSize="17" FontWeight="Bold" />
-                    <Border Grid.Column="1" Background="#DDEFF8" CornerRadius="10" Padding="8,3">
-                      <TextBlock Text="{Binding Status}" FontSize="11" Foreground="#0B4F8A" />
+                    <Border Grid.Column="1" Background="#EAE7FF" CornerRadius="10" Padding="8,3">
+                      <TextBlock Text="{Binding Status}" FontSize="11" Foreground="#5A4ECC" />
                     </Border>
                   </Grid>
                   <TextBlock Text="{Binding Notes}" Classes="muted" TextWrapping="Wrap" MaxHeight="44" />
@@ -112,7 +112,7 @@
               </Border>
             </Grid>
 
-            <Border Grid.Row="2" Background="#F3F9FC" BorderBrush="#BED8E8" BorderThickness="1" CornerRadius="4" Padding="12">
+            <Border Grid.Row="2" Background="#FAFAFD" BorderBrush="#E2E4EC" BorderThickness="1" CornerRadius="10" Padding="12">
               <StackPanel Spacing="6">
                 <TextBlock Classes="eyebrow" Text="SOURCE TRACE" />
                 <TextBlock Text="{Binding VersionSourceChangeSummary}" Classes="muted" TextWrapping="Wrap" />
@@ -147,17 +147,17 @@
             <ItemsControl ItemsSource="{Binding ReleaseReadinessDiagnostics}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="models:ReleaseReadinessDiagnostic">
-                  <Border Background="#F3F9FC"
-                          BorderBrush="#BED8E8"
+                  <Border Background="#FAFAFD"
+                          BorderBrush="#E2E4EC"
                           BorderThickness="1"
-                          CornerRadius="4"
+                          CornerRadius="10"
                           Padding="11"
                           Margin="0,0,0,6">
                     <Grid ColumnDefinitions="90,220,*,*" ColumnSpacing="10">
                       <TextBlock Text="{Binding Level}" Classes="eyebrow" VerticalAlignment="Top" />
                       <TextBlock Grid.Column="1" Text="{Binding Title}" FontWeight="Bold" TextWrapping="Wrap" />
                       <TextBlock Grid.Column="2" Text="{Binding Detail}" Classes="muted" TextWrapping="Wrap" />
-                      <TextBlock Grid.Column="3" Text="{Binding Guidance}" Foreground="#0B5D8B" TextWrapping="Wrap" />
+                      <TextBlock Grid.Column="3" Text="{Binding Guidance}" Foreground="#5A4ECC" TextWrapping="Wrap" />
                     </Grid>
                   </Border>
                 </DataTemplate>
@@ -225,7 +225,7 @@
                                       HorizontalContentAlignment="Stretch"
                                       Margin="0,0,0,6">
                                 <Grid ColumnDefinitions="92,*,Auto" ColumnSpacing="10">
-                                  <TextBlock Classes="mono" Text="{Binding ItemKey}" FontWeight="Bold" Foreground="#0B4F8A" />
+                                  <TextBlock Classes="mono" Text="{Binding ItemKey}" FontWeight="Bold" Foreground="#5A4ECC" />
                                   <StackPanel Grid.Column="1" Spacing="2">
                                     <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                                     <TextBlock Text="{Binding Description}" Classes="muted" FontSize="11" TextTrimming="CharacterEllipsis" />

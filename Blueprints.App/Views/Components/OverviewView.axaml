@@ -4,10 +4,11 @@
              xmlns:models="using:Blueprints.App.Models"
              xmlns:core="using:Blueprints.Core.Models"
              xmlns:views="using:Blueprints.App.Views.Components"
+             xmlns:automation="using:Avalonia.Automation"
              x:Class="Blueprints.App.Views.Components.OverviewView"
              x:DataType="vm:MainWindowViewModel">
-  <Grid RowDefinitions="58,*">
-    <Border Background="#071F34" BorderBrush="#285E7D" BorderThickness="0,0,0,1" Padding="14,9">
+  <Grid RowDefinitions="64,*">
+    <Border Background="#FFFFFF" BorderBrush="#E2E4EC" BorderThickness="0,0,0,1" Padding="16,11">
       <Grid ColumnDefinitions="Auto,18,Auto,*,Auto" ColumnSpacing="8">
         <StackPanel Orientation="Horizontal" Spacing="7">
           <Button Classes="tool active" Content="↖ Select" />
@@ -22,13 +23,13 @@
           <Button Classes="tool" Content="⌁ Work item" Command="{Binding BeginNewItemCommand}" IsEnabled="{Binding CanEditItems}" />
         </StackPanel>
 
-        <Border Grid.Column="1" Width="1" Background="#285E7D" Margin="8,0" />
+        <Border Grid.Column="1" Width="1" Background="#E2E4EC" Margin="8,0" />
 
         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="7">
-          <Button x:Name="UndoButton" Classes="tool square" Content="↶" Click="UndoClick" ToolTip.Tip="Undo layout change (Ctrl+Z)" />
-          <Button x:Name="RedoButton" Classes="tool square" Content="↷" Click="RedoClick" ToolTip.Tip="Redo layout change (Ctrl+Shift+Z or Ctrl+Y)" />
-          <Button Classes="tool square" Content="−" Click="ZoomOutClick" ToolTip.Tip="Zoom out" />
-          <Button Classes="tool square" Content="＋" Click="ZoomInClick" ToolTip.Tip="Zoom in" />
+          <Button x:Name="UndoButton" Classes="tool square" Content="↶" Click="UndoClick" ToolTip.Tip="Undo layout change (Ctrl+Z)" automation:AutomationProperties.Name="Undo layout change" />
+          <Button x:Name="RedoButton" Classes="tool square" Content="↷" Click="RedoClick" ToolTip.Tip="Redo layout change (Ctrl+Shift+Z or Ctrl+Y)" automation:AutomationProperties.Name="Redo layout change" />
+          <Button Classes="tool square" Content="−" Click="ZoomOutClick" ToolTip.Tip="Zoom out" automation:AutomationProperties.Name="Zoom out" />
+          <Button Classes="tool square" Content="＋" Click="ZoomInClick" ToolTip.Tip="Zoom in" automation:AutomationProperties.Name="Zoom in" />
           <Button Classes="tool" Content="Fit view" Click="FitViewClick" />
           <Button Classes="tool" Content="Auto arrange" Click="AutoArrangeClick" IsEnabled="{Binding CanMutateWorkspace}" />
           <Button Classes="tool" Content="Save layout" Click="SaveLayoutClick" IsEnabled="{Binding CanMutateWorkspace}" />
@@ -36,11 +37,11 @@
         </StackPanel>
 
         <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-          <Border Background="#0C3859" BorderBrush="#2E6A8D" BorderThickness="1" CornerRadius="6" Padding="10,4"
+          <Border Background="#F0EEFF" BorderBrush="#D5D0F6" BorderThickness="1" CornerRadius="9" Padding="10,5"
                   ToolTip.Tip="{Binding AdaptiveGuidanceDetail}">
             <StackPanel MaxWidth="300">
-              <TextBlock Text="NEXT BEST ACTION" Foreground="#60D1ED" FontSize="8" FontWeight="Bold" LetterSpacing="1" />
-              <TextBlock Text="{Binding AdaptiveGuidanceTitle}" Foreground="#E4F3F8" FontSize="11" FontWeight="Bold" TextTrimming="CharacterEllipsis" />
+              <TextBlock Text="NEXT STEP" Foreground="#6B5CE7" FontSize="8" FontWeight="Bold" LetterSpacing="1" />
+              <TextBlock Text="{Binding AdaptiveGuidanceTitle}" Foreground="#37324E" FontSize="11" FontWeight="Bold" TextTrimming="CharacterEllipsis" />
             </StackPanel>
           </Border>
           <Button Classes="tool" Content="↻ Refresh" Command="{Binding RefreshWorkspaceCommand}" />
@@ -52,11 +53,11 @@
       <views:BlueprintCanvasSurface x:Name="BlueprintSurface" />
 
       <Border Grid.Column="1"
-              Background="#F7FBFD"
-              BorderBrush="#9FC5D8"
+              Background="#FFFFFF"
+              BorderBrush="#E2E4EC"
               BorderThickness="1,0,0,0">
         <Grid RowDefinitions="Auto,*,Auto">
-          <Border Background="#E8F3F8" BorderBrush="#B8D5E3" BorderThickness="0,0,0,1" Padding="16,12">
+          <Border Background="#FAFAFD" BorderBrush="#E2E4EC" BorderThickness="0,0,0,1" Padding="16,12">
             <StackPanel Spacing="3">
               <TextBlock Classes="eyebrow" Text="NODE INSPECTOR" />
               <TextBlock Text="{Binding InspectorSelectionSummary}" Classes="mono" FontWeight="Bold" FontSize="12" />
@@ -239,16 +240,16 @@
             </StackPanel>
           </ScrollViewer>
 
-          <Border Grid.Row="2" Background="#0A2C47" Padding="14,11">
+          <Border Grid.Row="2" Background="#202238" Padding="14,11">
             <StackPanel Spacing="4">
               <TextBlock Text="{Binding WorkspaceMessage}" Foreground="White" FontSize="12" TextWrapping="Wrap" />
-              <TextBlock Text="{Binding CanvasLayoutRevisionSummary}" Foreground="#6DD6EF" FontSize="10" />
+              <TextBlock Text="{Binding CanvasLayoutRevisionSummary}" Foreground="#B8B2F4" FontSize="10" />
               <TextBlock x:Name="CanvasSelectionSummary"
-                         Foreground="#D7EEF7"
+                         Foreground="#F1F0FF"
                          FontSize="10"
                          FontWeight="Bold" />
               <TextBlock Text="Drag empty space to box-select · Ctrl/Shift-click adds nodes · arrows move · Shift+arrows move 10px · Ctrl+A selects all · Esc clears"
-                         Foreground="#8FBAD0"
+                         Foreground="#A6A8BA"
                          FontSize="10"
                          TextWrapping="Wrap" />
             </StackPanel>
