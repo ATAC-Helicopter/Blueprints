@@ -22,6 +22,8 @@ v0.3 milestone -> v0.3.0
 v0.4 milestone -> v0.4.0
 v0.5 milestone -> v0.5.0
 v0.6 milestone -> v0.6.0
+v0.7 milestone -> v0.7.0
+v0.8 milestone -> v0.8.0
 ```
 
 Use SemVer prerelease identifiers for honest intermediate checkpoints, for example `v0.2.0-alpha.2`. Use the clean `v0.x.0` form only when that roadmap milestone's exit criteria are complete. GitHub records remain marked as prereleases until v1.0.

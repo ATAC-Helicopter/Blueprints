@@ -109,6 +109,10 @@ public sealed class FileSystemProjectWorkspaceStore : IProjectWorkspaceStore
                         foreach (var itemPath in Directory.EnumerateFiles(itemsRoot, "*.json").OrderBy(static path => path, StringComparer.Ordinal))
                         {
                             var itemResult = _signedDocumentStore.Read<ItemDocument>(itemPath, publicKeys);
+                            ItemDocumentValidator.Validate(
+                                itemResult.Document,
+                                projectResult.Document.ProjectId,
+                                versionResult.Document.VersionId);
                             totalDocuments++;
                             if (!itemResult.IsSignatureValid)
                             {

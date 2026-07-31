@@ -24,8 +24,9 @@
 Release notes often live in scattered issues, commit messages, and private documents. Blueprints keeps release intent in a portable workspace that remains readable without a server:
 
 - plan versions and categorized release items;
-- arrange versions and work items on a persistent signed blueprint canvas;
-- automatically organize related work by changelog category, work type, or version;
+- plan inside movable version frames with Planned, In Progress, Review, and Complete lifecycle columns;
+- switch between an interactive planning board, dependency graph, and release-note projection;
+- create, select, label, and edit signed typed relationships directly from the canvas;
 - generate stable human-readable item keys;
 - freeze and release versions with immutable released content;
 - export Markdown changelogs, optionally enriched by local Git history;
@@ -42,6 +43,7 @@ Release notes often live in scattered issues, commit messages, and private docum
 | --- | --- |
 | Local project, version, and item workflow | Working |
 | Persistent signed canvas layout | Working |
+| Interactive Plan and Dependencies views | Working |
 | Signed persistence and trust validation | Working |
 | Markdown changelog export | Working |
 | Shared-folder push/pull | Working with distinct signed identities and staged validation |

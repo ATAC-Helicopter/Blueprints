@@ -1,139 +1,131 @@
 # Canvas engine
 
-The canvas is the primary Blueprints workspace. It visualizes signed project entities without replacing them with a second source of truth.
+The canvas is Blueprints' primary workspace. It is a projection of canonical signed project documents, never a parallel graph store.
 
-## Graph projection
-
-The current graph is derived from existing domain relationships:
+## Authoritative data
 
 ```text
-project
-└── version
-    └── work item
+signed project
+├── versions
+│   └── work items
+├── canvas layout (shared coordinates)
+└── typed relationships
+
+machine-local view
+└── mode, viewport, zoom, search, filters, minimap and collapsed frames
 ```
 
-- The project node uses `ProjectConfigurationDocument.ProjectId`.
-- A version node uses `VersionDocument.VersionId`.
-- A work-item node uses `ItemDocument.ItemId`.
-- Ownership connector lines are derived from version ownership; they are not persisted separately.
-- User-created typed connectors are projected from the optional signed relationship graph.
+Version-to-item ownership remains authoritative in each item and version document. In Plan, the version frame visually contains its items, so ownership connector lines are deliberately omitted. Typed user-created relationships remain visible.
 
-Changing a node title, state, category, or completion value uses the existing version and item workflows. Moving a node changes only the layout document.
+## Lifecycle semantics
 
-## Typed relationships
+Plan uses four item states:
 
-The inspector can define a relationship type with a stable lowercase ID, display name, optional description, `#RRGGBB` canvas color, and directional flag. A relationship then connects any two different existing project, version, or item nodes and may carry a short label. Its color is projected on the canvas alongside the built-in ownership lines.
+| Lifecycle | Meaning |
+| --- | --- |
+| Planned | Accepted into the release plan but not started |
+| In Progress | Actively being implemented |
+| Review | Awaiting review, validation, or release acceptance |
+| Complete | Finished and eligible for normal completed-item release-note behavior |
 
-Relationship types and edges are stored together in `project/relationships.json`. Every edit increments the document revision, writes canonical signed JSON, and adds a specific audit action. A type cannot change between directional and undirected while an edge uses it. Archiving a version or item removes dangling edges in the same signed archive operation.
+`ItemDocument.WorkflowState` is optional in schema 1. For compatibility, an older incomplete item maps to Planned and an older completed item maps to Complete. Opening a legacy workspace does not rewrite it. Saving or dragging a card writes the explicit lifecycle through the normal item command; Complete and the established `IsDone` field stay consistent.
 
-The validator permits at most 100 types and 5,000 edges, rejects unknown types and entities, empty or duplicate IDs, self-links, malformed colors, and duplicate logical edges. For an undirected type, reversing endpoints does not create a distinct edge.
+The version's `ReleaseStatus` is a separate release-level lifecycle (Planned, In Progress, Frozen, Released). It is not silently reused as item workflow.
 
-## Interaction model
+## View modes
+
+- **Plan** renders movable/resizable version frames with lifecycle columns and neutral metadata-rich cards.
+- **Dependencies** uses a readable automatic graph arrangement, deemphasizes ownership, and emphasizes typed relationships.
+- **Release Notes** groups work by the authoritative changelog category.
+- **Timeline** is disabled until a target-date contract exists. Blueprints does not invent dates.
+
+Changing a view never changes ownership, changelog category, item type, or relationships.
+
+## Version frames and cards
+
+A frame header shows the version, release state, completed count/percentage, readiness summary, and blocker/open count. The header selects and moves the frame; the lower-right handle resizes it for the session; Collapse is a machine-local preference.
+
+Cards show key, a multi-line title, lifecycle, item type, changelog category, source indicator, and blocker state. Click selects; Ctrl/Shift-click adds/removes selection. Horizontal drag or Left/Right changes lifecycle. Details remain editable in the inspector when trust, conflict, and immutability rules allow it.
+
+Shared coordinates remain in signed `project/canvas-layout.json`. Frame size is currently session-local and intentionally does not expand the signed layout schema. This preserves schema-1 compatibility while the team evaluates whether size is shared structural intent.
+
+## Relationships
+
+Plan and Dependencies render only relationships from signed `project/relationships.json`. Colors come from their type; directional types draw arrowheads. Hovering or selecting an edge reveals its label/type. Selecting an entity emphasizes its incoming/outgoing edges and dims unrelated links.
+
+Connect mode:
+
+1. requires a trusted, conflict-free mutable workspace and an existing type;
+2. captures two existing entity endpoints from visible handles;
+3. opens/populates the existing relationship editor without committing;
+4. requires the user to review type and label;
+5. saves through `ProjectWorkspaceCoordinatorService.SaveRelationship`;
+6. reuses self-link, duplicate logical edge, type, endpoint, count, signing, transaction, and audit validation.
+
+Edge selection populates the same editor for type/label/source/target changes or removal. There is no second relationship store.
+
+## Inspector and toolbar
+
+The compact toolbar exposes view switching, version/item creation, Connect, search, undo/redo, arrange, fit, zoom-to-selection, zoom controls, filters, minimap, trust, sync, and readiness.
+
+The inspector has:
+
+- **Details:** version and item fields, including lifecycle and changelog category;
+- **Relationships:** type and edge editing;
+- **Evidence:** readiness and source provenance;
+- **History:** signed audit status and layout/relationship revisions.
+
+Instructions live in tooltips, accessible help, and shortcut documentation rather than permanently covering the canvas.
+
+## Navigation and keyboard
 
 | Action | Result |
 | --- | --- |
-| Click a version | Select it and open version fields in the inspector |
-| Click a work item | Select it, its owning version, and its item fields |
-| Drag empty canvas | Draw a box that selects every intersecting node |
-| Ctrl/Shift-click a node | Add or remove it from the canvas selection |
-| Drag a selected node | Move the complete selection and save a new signed layout revision on release |
-| Arrow keys | Move selected nodes by one pixel and save the layout |
-| Shift+arrow keys | Move selected nodes by ten pixels and save the layout |
-| Ctrl+A / Escape | Select every node / clear the canvas selection |
-| Middle-drag empty canvas | Pan without changing shared node positions |
-| Scroll the canvas | Save machine-local viewport offsets after a short debounce |
-| Ctrl+mouse wheel or zoom buttons | Change and save machine-local zoom |
-| Fit view | Calculate a zoom that fits the complete blueprint and return to the origin |
-| Group selector | Choose category, work type, or version lanes for related work |
-| Organize | Rebuild deterministic positions in the selected lanes and save them |
-| Undo / redo | Restore the previous or next arrangement and save it as a new signed revision |
-| Save layout | Explicitly write the current shared node positions |
-| Ctrl+S | Save shared node positions |
-| Ctrl+Z | Undo the latest node drag or auto-arrangement |
-| Ctrl+Shift+Z or Ctrl+Y | Redo the latest undone layout change |
-| Ctrl+0 | Fit the local view |
-| Ctrl+plus/minus | Zoom the local view |
+| Ctrl/Command+7, 8, 9 | Plan, Dependencies, Release Notes |
+| Ctrl/Command+F | Focus search |
+| Ctrl/Command+L | Enter/exit Connect |
+| Ctrl/Command+J | Zoom to selection |
+| Ctrl/Command+0 | Fit complete board |
+| Ctrl/Command+plus/minus | Zoom |
+| Ctrl/Command+S | Save shared coordinates |
+| Ctrl/Command+Z / Shift+Z / Y | Undo/redo layout |
+| Ctrl/Command+Shift+V | Create the named version |
+| Ctrl/Command+Shift+I | Start a work item for the selected version |
+| Left/Right in Plan | Move selected editable items through lifecycle |
+| Arrows in graph views | Move selected nodes one pixel |
+| Shift+arrows | Use a ten-pixel graph movement step |
+| Enter | Open the selected work item in the inspector |
+| Escape | Clear selection and leave Connect |
 
-Category grouping is the default because it matches changelog output. Switching grouping mode automatically organizes the canvas when mutation is allowed; the resulting node positions use the normal signed layout workflow. The grouping choice itself is a local presentation preference and does not change item categories, types, version ownership, or relationship semantics.
+The minimap is collapsible and click-to-navigate. Search and filters are view-only. Focus temporarily narrows the board to the selected item or version.
 
-Live guides appear when the edge or center of a moving node approaches another node's edge or center. The minimap shows the full graph, selected nodes, and the current viewport. Selection, guides, lane headers, and minimap visuals are session-local UI state; only resulting node coordinates are persisted.
+## Persistence and trust
 
-Editing and layout controls are disabled when the workspace is untrusted or has unresolved sync conflicts.
+Shared:
 
-## Persistence
+- entity coordinates in signed `project/canvas-layout.json`;
+- relationship types and edges in signed `project/relationships.json`;
+- lifecycle/category/type/title/content in signed item documents.
 
-Shared node positions are stored in:
+Machine-local:
 
-```text
-project/canvas-layout.json
-project/canvas-layout.sig
-```
+- persisted locally: mode, viewport, zoom, search, filters, minimap visibility, and collapsed version IDs;
+- session-local: selected inspector tab, temporary focus, and frame size.
 
-The signed layout document contains:
+Local view state is bounded and atomically replaced in `.blueprints/canvas-view.json`; it is unsigned, unaudited, unsynchronized, and cannot establish trust.
 
-- schema and project identity;
-- monotonically increasing layout revision;
-- node type, entity ID, and coordinates;
-- update time and last-modifier identity.
+Every shared mutation reopens and validates the workspace, requires trusted/conflict-free mutable state, writes canonical JSON and Ed25519 signatures, appends signed audit evidence inside the transaction, and reloads display state from disk. Frozen/released versions reject item lifecycle changes. Untrusted, corrupt, or conflict-blocked workspaces remain read-only.
 
-The document is optional for schema-1 compatibility. An older workspace without it opens normally and receives deterministic default positions. The first layout save creates revision 1.
+## Limits and performance
 
-Each successful save:
+Layout remains bounded to 10,000 entity positions and coordinates from 0 through 100,000. Relationships remain bounded to 100 types and 5,000 edges. Local zoom remains 25%–250%.
 
-1. reopens and validates the workspace;
-2. requires trusted, conflict-free mutable state;
-3. verifies every layout node refers to an existing project entity;
-4. validates coordinate, uniqueness, and size limits;
-5. writes canonical JSON and an Ed25519 detached signature;
-6. appends a signed `canvas.layout.save` audit entry;
-7. reloads displayed state from disk.
+Projection and minimap calculations are isolated in testable services. Pointer movement updates the dragged visual rather than rebuilding the graph on every event; persistence and full rerender happen on release. Filtering and mode changes rebuild projections deliberately.
 
-Layout writes do not rewrite version or item documents.
+Current limitations:
 
-Undo and redo history is held only for the current application session, is capped at 50 layout changes, and is cleared when the workspace or graph structure changes. History snapshots are not a hidden source of truth. Applying one creates a normal signed layout revision and audit entry, preserving the same validation and collaboration guarantees as a direct drag.
-
-Zoom and viewport offsets are machine-local preferences stored in:
-
-```text
-.blueprints/canvas-view.json
-```
-
-This file is not signed, audited, synchronized, or authoritative. Invalid local values fall back to the default view. Keeping viewport preferences local prevents ordinary scrolling from creating audit noise or collaboration conflicts.
-
-## Validation limits
-
-The schema-1 validator enforces:
-
-- supported node types: `project`, `version`, and `item`;
-- non-empty and unique `(nodeType, entityId)` pairs;
-- entity membership in the current workspace;
-- finite coordinates from `0` through `100000`;
-- no more than `10000` nodes;
-- matching non-empty project identity;
-- schema version `1` and revision of at least `1`.
-
-These limits prevent malformed, non-finite, or unbounded layout input from reaching Avalonia rendering.
-
-The local view-state store separately accepts zoom from `0.25` through `2.5` and non-negative offsets through `100000`.
-
-## Sync and conflicts
-
-The layout lives under `project/`, so the exchange snapshot, manifest, signature validator, push, pull, and conflict analyzer include it automatically.
-
-Two collaborators moving the same canvas from a common baseline may produce a conflict in `project/canvas-layout.json`. Blueprints deliberately treats the complete layout as one document in schema 1. Conflict resolution therefore chooses the local or shared arrangement as a whole.
-
-Version and work-item content remain separate documents. A layout conflict does not imply that their content has conflicted.
-
-The relationship graph follows the same whole-document rule. A conflict in `project/relationships.json` compares revision, types, edges, update time, and author for diagnosis, then requires choosing the complete local or shared graph. Schema 1 deliberately does not attempt an unsafe automatic edge merge.
-
-## Current limits
-
-- There is one shared release-planning canvas per project.
-- Node positions are shared project state, not per-user preferences.
-- Directional typed relationships use distinct type semantics and color, but the canvas does not yet draw arrowheads or edit labels directly on an edge.
-- Multi-selection groups nodes for movement only; lane headers are projections and do not create persistent group entities.
-- Automatic organization is deterministic but not a graph-optimization engine.
-- Layout conflict resolution is whole-document.
-- Relationship conflict resolution is whole-document.
-
-These are product limitations, not hidden behavior. Planned work belongs in the canonical [roadmap](../Roadmap.md).
+- frame size is session-local;
+- Timeline has no target-date model and is disabled;
+- relationship and layout conflicts remain whole-document;
+- automatic dependency placement is deterministic, not a general graph optimizer;
+- no automated desktop pixel suite replaces platform accessibility qualification.

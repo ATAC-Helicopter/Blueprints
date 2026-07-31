@@ -87,6 +87,16 @@ Opening a workspace first processes any bounded transaction marker. Marker paths
 
 Zoom and scroll offsets follow a separate local-preference flow: validate bounded values, atomically replace `.blueprints/canvas-view.json`, and never include it in signatures, audit entries, manifests, or exchange analysis.
 
+### Canvas projection and lifecycle
+
+1. Map signed versions, items, layout positions, and typed relationships into a transient board projection.
+2. In Plan, project each version as a frame and place its items in lifecycle columns; do not project ownership edges because containment already communicates ownership.
+3. In Dependencies, project the same entities as graph nodes and emphasize only signed typed relationships.
+4. Treat changelog category as item metadata and keep Markdown export based on the existing category/completion contracts.
+5. When an item moves between lifecycle columns, call the normal item save workflow. The coordinator validates mutability, updates the signed item, appends audit evidence transactionally, and reloads from disk.
+
+The optional schema-1 item lifecycle field is backward compatible. Legacy incomplete items project as Planned and legacy completed items as Complete. Mode, search, filters, focus, collapse, minimap, zoom, and viewport are presentation state, not a competing graph store.
+
 ### Source discovery and approval
 
 1. Resolve the linked local Git worktree.

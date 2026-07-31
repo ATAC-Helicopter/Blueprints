@@ -1,3 +1,5 @@
+using Blueprints.Core.Enums;
+
 namespace Blueprints.App.Models;
 
 public sealed record WorkspaceItemCard(
@@ -7,4 +9,14 @@ public sealed record WorkspaceItemCard(
     string CategoryId,
     string Title,
     string? Description,
-    bool IsDone);
+    bool IsDone,
+    WorkItemLifecycle WorkflowState = WorkItemLifecycle.Planned,
+    IReadOnlyList<string>? Tags = null)
+{
+    public string? SourceReference =>
+        Tags?.FirstOrDefault(static tag =>
+            tag.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            tag.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        ?? Tags?.FirstOrDefault(static tag =>
+            tag.StartsWith("source:", StringComparison.OrdinalIgnoreCase));
+}

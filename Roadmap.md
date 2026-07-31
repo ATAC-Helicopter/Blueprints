@@ -140,6 +140,28 @@ Exit criteria:
 - large planning documents are no longer truncated at 100 proposals;
 - related work is visibly grouped and the complete plan can be navigated from 25% through 250% zoom.
 
+## Completed — v0.8: interactive blueprint board
+
+Goal: make the primary canvas readable as a release plan and expose its direct-manipulation capabilities without weakening signed project truth.
+
+- [x] Replace version ownership fans with movable, resizable version frames.
+- [x] Organize work by Planned, In Progress, Review, and Complete lifecycle columns while retaining changelog categories.
+- [x] Add a backward-compatible signed item lifecycle field with legacy Planned/Complete mapping and validation.
+- [x] Add Plan, Dependencies, and Release Notes projections; keep Timeline visibly deferred until target dates exist.
+- [x] Render only meaningful typed relationships in Plan, including direction arrowheads, labels, selection, and related-edge focus.
+- [x] Add direct two-endpoint connection mode backed by the existing relationship editor, validator, signing, and audit flow.
+- [x] Replace permanent instruction strips with a compact toolbar, shortcut help, search, filters, focus, zoom-to-selection, and a clickable minimap.
+- [x] Reorganize the inspector into Details, Relationships, Evidence, and History.
+- [x] Persist view mode, filters, search, minimap visibility, viewport, zoom, and collapsed frames as bounded machine-local preferences.
+- [x] Add light/dark canvas resources and projection, lifecycle, minimap, compatibility, and large-board tests.
+
+Exit criteria:
+
+- containment, rather than ownership lines, communicates version ownership in Plan;
+- Plan and Dependencies are usable projections of the same signed documents;
+- lifecycle movement uses the normal signed item command and remains blocked for immutable or unsafe workspaces;
+- existing schema-1 workspaces open without rewriting and old incomplete/completed items map predictably.
+
 ## In progress — v1.0: dependable small-team release planner
 
 Goal: supported installers and documented recovery for small teams.

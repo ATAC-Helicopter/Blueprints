@@ -77,6 +77,9 @@ public sealed class ProjectWorkspaceCoordinatorServiceTests : IDisposable
         var auditEntries = Directory.EnumerateFiles(Path.Combine(localRoot, "log"), "*.json").ToArray();
         Assert.Single(auditEntries);
         Assert.True(File.Exists(Path.ChangeExtension(auditEntries.Single(), ".sig")));
+        var history = service.GetAuditHistory(localRoot);
+        Assert.Single(history);
+        Assert.Equal("project.create", history[0].Operation);
     }
 
     [Fact]
@@ -238,6 +241,48 @@ public sealed class ProjectWorkspaceCoordinatorServiceTests : IDisposable
         var item = updated.LoadResult.Workspace.Versions[0].Items.Single();
         Assert.Equal("BP-151", item.ItemKey);
         Assert.Equal("Ship create and open workflow", item.Title);
+    }
+
+    [Fact]
+    public void SaveItem_PersistsLifecycleThroughSignedItemWorkflow()
+    {
+        var localRoot = Path.Combine(_rootDirectory, "item-lifecycle-local", "BP");
+        var sharedRoot = Path.Combine(_rootDirectory, "item-lifecycle-shared", "BP");
+        var service = CreateService();
+        service.CreateProject(
+            new ProjectCreateRequest("Blueprints", "BP", "SemVer", localRoot, sharedRoot));
+        var versionSession = service.SaveVersion(
+            localRoot,
+            sharedRoot,
+            new VersionEditRequest(null, "1.0.0", ReleaseStatus.InProgress, null));
+        var versionId = versionSession.LoadResult.Workspace.Versions.Single().Version.VersionId;
+
+        var updated = service.SaveItem(
+            localRoot,
+            sharedRoot,
+            new ItemEditRequest(
+                versionId,
+                null,
+                "feature",
+                "added",
+                "Review signed lifecycle",
+                null,
+                false,
+                WorkItemLifecycle.Review));
+
+        var item = updated.LoadResult.Workspace.Versions.Single().Items.Single();
+        Assert.Equal(WorkItemLifecycle.Review, item.WorkflowState);
+        Assert.Equal(WorkItemLifecycle.Review, item.EffectiveWorkflowState);
+        Assert.False(item.IsDone);
+        Assert.True(File.Exists(Path.Combine(
+            localRoot,
+            "versions",
+            versionId.ToString("N"),
+            "items",
+            $"{item.ItemId:N}.sig")));
+        Assert.Contains(
+            Directory.EnumerateFiles(Path.Combine(localRoot, "log"), "*.json"),
+            path => File.ReadAllText(path).Contains("item.save", StringComparison.Ordinal));
     }
 
     [Fact]

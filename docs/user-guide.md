@@ -1,6 +1,6 @@
 # User guide
 
-Blueprints is a desktop application for planning releases in signed local files. The main workspace is a hands-on blueprint canvas: versions and work items are visible as connected nodes, while a compact tool rail opens evidence, trust, and exchange tools.
+Blueprints is a desktop application for planning releases in signed local files. The main workspace is a hands-on blueprint board: versions contain work moving through a lifecycle, while dependency and release-note views project the same trusted documents for different tasks.
 
 ## Concepts
 
@@ -9,7 +9,7 @@ Blueprints is a desktop application for planning releases in signed local files.
 - **Identity:** a local Ed25519 key pair and display name used to sign project data.
 - **Trust:** whether required files and signatures validate.
 - **Version:** a planned release in one of four states: Planned, In Progress, Frozen, or Released.
-- **Item:** one release-note entry with an item key, type, changelog category, title, and completion state.
+- **Item:** one release-plan entry with an item key, lifecycle state, type, changelog category, title, and completion state.
 
 ## Create a project
 
@@ -25,25 +25,35 @@ A new teammate can export a signed identity invitation directly from the setup s
 
 ## Plan a release
 
-1. Enter a version name in the canvas toolbar and select **Version**.
-2. Select the version node to edit its name, state, and accomplishment notes in the inspector.
-3. Select **Work item**, enter its type, changelog group, title, and context, then select **Connect new**.
-4. Select any work-item node to edit it directly in the inspector.
-5. Drag nodes to arrange the working view, and use zoom or **Fit view** to navigate larger plans.
-6. Mark completed items as ready for release notes.
+1. Enter a version name in the compact toolbar and select **+ Version**.
+2. Select the version frame to edit its name, release state, and accomplishment notes in **Details**.
+3. Select **+ Work item**, choose Planned, In Progress, Review, or Complete, then enter type, changelog category, title, and context.
+4. Drag a work card horizontally into another lifecycle column, or use Left/Right while the card is selected.
+5. Move a version by its header, resize it from the lower-right handle, or collapse it when concentrating elsewhere.
+6. Use search, version/lifecycle filters, **Focus**, **Selection**, **Fit view**, and the clickable minimap on larger plans.
 
-The standard lines on the canvas represent ownership: a work item belongs to its version. Item keys are generated from project rules. Released versions are immutable.
+Containment is the ownership cue in Plan, so Blueprints does not draw a line from every version to every item. Changelog category stays visible as a badge and remains authoritative for release-note export. Released and Frozen versions remain immutable.
+
+## Canvas views
+
+- **Plan:** the default interactive version-frame and lifecycle-column board.
+- **Dependencies:** a graph layout that emphasizes typed relationships, direction, and labels.
+- **Release Notes:** a cleaned category projection for reviewing changelog structure.
+- **Timeline:** visibly unavailable until Blueprints has a signed target-date contract; no dates are inferred.
+
+View mode, search, filters, focus, collapsed frames, minimap visibility, zoom, and viewport are local presentation preferences. They do not modify project documents or create collaboration conflicts.
 
 ## Connect typed relationships
 
-Use **Typed relationships** in the canvas inspector when the ownership hierarchy is not enough:
+Use **Connect** in the toolbar when containment is not enough:
 
-1. Select **+**, enter a lowercase type ID such as `blocks`, a name, color, and optional meaning.
-2. Choose whether the type is directional, then save it.
-3. Choose a source and target node, add an optional label, and select **Save**.
-4. Select an existing relationship to edit or remove it.
+1. Define at least one relationship type in the **Relationships** inspector tab, including whether it is directional.
+2. Select **Connect**, then choose the visible handle on two entities.
+3. Review the populated source, target, type, and optional label in the compact relationship editor.
+4. Select **Save** to commit, or change the fields before saving.
+5. Select an edge to edit or remove it. Hover or select an edge to reveal its type/label.
 
-Typed connectors appear in their configured color. Their definitions and endpoints are signed shared project state, so changes participate in audit, push, pull, trust checks, and whole-document conflict resolution. An endpoint must exist in the current project and cannot point to itself. Archiving a node also removes relationships that would otherwise dangle.
+Directional types draw arrowheads and every type uses its configured color. Selecting a node highlights incoming/outgoing links and dims unrelated edges. Definitions and endpoints are signed shared project state, so changes participate in audit, push, pull, trust checks, duplicate/self-link validation, and whole-document conflict resolution. Connection mode is disabled when the workspace cannot mutate.
 
 ## Arrange and share the canvas
 

@@ -7,259 +7,356 @@
              xmlns:automation="using:Avalonia.Automation"
              x:Class="Blueprints.App.Views.Components.OverviewView"
              x:DataType="vm:MainWindowViewModel">
-  <Grid RowDefinitions="72,*">
-    <Border Background="#FFFFFF" BorderBrush="#E2E4EC" BorderThickness="0,0,0,1" Padding="16,12">
-      <Grid ColumnDefinitions="Auto,18,Auto,*,Auto" ColumnSpacing="8">
-        <StackPanel Orientation="Horizontal" Spacing="7">
-          <Button Classes="tool active" Content="Select" ToolTip.Tip="Select and move blueprint cards" />
-          <TextBox Text="{Binding NewVersionName}"
-                   PlaceholderText="0.2.0"
-                   Width="86"
+  <Grid RowDefinitions="82,*">
+    <Border Background="{DynamicResource CanvasToolbarBrush}"
+            BorderBrush="{DynamicResource LineBrush}"
+            BorderThickness="0,0,0,1"
+            Padding="14,10">
+      <Grid RowDefinitions="Auto,Auto" RowSpacing="7">
+        <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto" ColumnSpacing="10">
+          <StackPanel Orientation="Horizontal" Spacing="2">
+            <Button x:Name="PlanModeButton"
+                    Classes="tool active"
+                    Content="Plan"
+                    Click="PlanModeClick"
+                    ToolTip.Tip="Plan view: version frames and lifecycle columns (Ctrl/Command+7)" />
+            <Button x:Name="DependenciesModeButton"
+                    Classes="tool"
+                    Content="Dependencies"
+                    Click="DependenciesModeClick"
+                    ToolTip.Tip="Dependency graph (Ctrl/Command+8)" />
+            <Button x:Name="ReleaseNotesModeButton"
+                    Classes="tool"
+                    Content="Release Notes"
+                    Click="ReleaseNotesModeClick"
+                    ToolTip.Tip="Changelog-category projection (Ctrl/Command+9)" />
+            <Button Classes="tool"
+                    Content="Timeline"
+                    IsEnabled="False"
+                    ToolTip.Tip="Timeline requires a future target-date contract." />
+          </StackPanel>
+
+          <Border Grid.Column="1" Width="1" Background="{DynamicResource LineBrush}" Margin="2,2" />
+
+          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="5">
+            <TextBox Text="{Binding NewVersionName}"
+                     PlaceholderText="Version"
+                     Width="86"
+                     MinHeight="32"
+                     Padding="8,4"
+                     IsEnabled="{Binding CanMutateWorkspace}"
+                     automation:AutomationProperties.Name="New version name" />
+            <Button Classes="tool" Content="+ Version" Command="{Binding CreateVersionCommand}" IsEnabled="{Binding CanMutateWorkspace}" />
+            <Button Classes="tool" Content="+ Work item" Command="{Binding BeginNewItemCommand}" IsEnabled="{Binding CanEditItems}" />
+            <Button x:Name="ConnectButton"
+                    Classes="tool"
+                    Content="Connect"
+                    Click="ConnectClick"
+                    IsEnabled="{Binding CanMutateWorkspace}"
+                    ToolTip.Tip="Connect two entities with a signed typed relationship (Ctrl/Command+L)" />
+          </StackPanel>
+
+          <TextBox x:Name="SearchBox"
+                   Grid.Column="3"
+                   HorizontalAlignment="Right"
+                   Width="230"
                    MinHeight="32"
-                   Padding="8,4"
-                   VerticalContentAlignment="Center"
-                   IsEnabled="{Binding CanMutateWorkspace}" />
-          <Button Classes="tool" Content="＋ Version" Command="{Binding CreateVersionCommand}" IsEnabled="{Binding CanMutateWorkspace}" />
-          <Button Classes="tool" Content="＋ Work" Command="{Binding BeginNewItemCommand}" IsEnabled="{Binding CanEditItems}" />
-        </StackPanel>
+                   Padding="10,4"
+                   PlaceholderText="Search key, title, type…"
+                   TextChanged="SearchTextChanged"
+                   automation:AutomationProperties.Name="Search blueprint" />
 
-        <Border Grid.Column="1" Width="1" Background="#E2E4EC" Margin="8,0" />
+          <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="6">
+            <Border Classes="status-pill">
+              <TextBlock Text="{Binding TrustBadge}" FontSize="10" FontWeight="Bold" />
+            </Border>
+            <Border Classes="status-pill">
+              <TextBlock Text="{Binding SyncStatus}" FontSize="10" TextTrimming="CharacterEllipsis" MaxWidth="150" />
+            </Border>
+            <Border Classes="status-pill">
+              <TextBlock Text="{Binding ReleaseReadinessSummary}" FontSize="10" TextTrimming="CharacterEllipsis" MaxWidth="190" />
+            </Border>
+          </StackPanel>
+        </Grid>
 
-        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="7">
-          <Button x:Name="UndoButton" Classes="tool square" Content="↶" Click="UndoClick" ToolTip.Tip="Undo layout change (Ctrl+Z)" automation:AutomationProperties.Name="Undo layout change" />
-          <Button x:Name="RedoButton" Classes="tool square" Content="↷" Click="RedoClick" ToolTip.Tip="Redo layout change (Ctrl+Shift+Z or Ctrl+Y)" automation:AutomationProperties.Name="Redo layout change" />
-          <Button Classes="tool square" Content="−" Click="ZoomOutClick" ToolTip.Tip="Zoom out" automation:AutomationProperties.Name="Zoom out" />
-          <Border Background="#F3F2F8" CornerRadius="8" Padding="8,5" MinWidth="52">
-            <TextBlock x:Name="ZoomLevelText"
-                       Text="100%"
-                       HorizontalAlignment="Center"
-                       VerticalAlignment="Center"
-                       FontSize="11"
-                       FontWeight="Bold" />
-          </Border>
-          <Button Classes="tool square" Content="＋" Click="ZoomInClick" ToolTip.Tip="Zoom in" automation:AutomationProperties.Name="Zoom in" />
-          <Button Classes="tool" Content="Fit" Click="FitViewClick" ToolTip.Tip="Fit the whole blueprint in view (Ctrl+0)" />
-          <ComboBox ItemsSource="{Binding CanvasGroupingOptions}"
-                    SelectedItem="{Binding CanvasGroupingSelection}"
-                    MinWidth="145"
-                    MinHeight="34"
-                    ToolTip.Tip="Choose how related work is grouped" />
-          <Button Classes="tool" Content="Organize" Click="AutoArrangeClick" IsEnabled="{Binding CanMutateWorkspace}" />
-          <Button Classes="tool" Content="Find work" Command="{Binding NavigateToIntegrationsCommand}" />
-        </StackPanel>
+        <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="10">
+          <StackPanel Orientation="Horizontal" Spacing="5">
+            <Button x:Name="UndoButton" Classes="tool square" Content="↶" Click="UndoClick" ToolTip.Tip="Undo layout change (Ctrl/Command+Z)" automation:AutomationProperties.Name="Undo layout change" />
+            <Button x:Name="RedoButton" Classes="tool square" Content="↷" Click="RedoClick" ToolTip.Tip="Redo layout change (Ctrl/Command+Shift+Z)" automation:AutomationProperties.Name="Redo layout change" />
+            <Button Classes="tool" Content="Auto arrange" Click="AutoArrangeClick" IsEnabled="{Binding CanMutateWorkspace}" />
+            <Button Classes="tool" Content="Fit view" Click="FitViewClick" ToolTip.Tip="Fit the complete board (Ctrl/Command+0)" />
+            <Button Classes="tool" Content="Selection" Click="ZoomSelectionClick" ToolTip.Tip="Zoom to selected entities" />
+            <Button x:Name="FocusButton" Classes="tool" Content="Focus" Click="FocusClick" ToolTip.Tip="Show only the selected item or version" />
+          </StackPanel>
 
-        <Button Grid.Column="4"
-                Classes="tool square"
-                Content="↻"
-                Command="{Binding RefreshWorkspaceCommand}"
-                ToolTip.Tip="Refresh workspace"
-                automation:AutomationProperties.Name="Refresh workspace" />
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+            <Button Classes="tool square" Content="−" Click="ZoomOutClick" ToolTip.Tip="Zoom out" automation:AutomationProperties.Name="Zoom out" />
+            <Border Background="{DynamicResource CanvasControlBackgroundBrush}" CornerRadius="6" Padding="8,5" MinWidth="54">
+              <TextBlock x:Name="ZoomLevelText" Text="100%" HorizontalAlignment="Center" FontSize="11" FontWeight="Bold" />
+            </Border>
+            <Button Classes="tool square" Content="＋" Click="ZoomInClick" ToolTip.Tip="Zoom in" automation:AutomationProperties.Name="Zoom in" />
+          </StackPanel>
+
+          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="5">
+            <ComboBox x:Name="VersionFilter"
+                      Width="150"
+                      MinHeight="32"
+                      SelectionChanged="VersionFilterChanged"
+                      ToolTip.Tip="Filter by version">
+              <ComboBoxItem Content="All versions" Tag="All" IsSelected="True" />
+            </ComboBox>
+            <ComboBox x:Name="LifecycleFilter"
+                      Width="140"
+                      MinHeight="32"
+                      SelectionChanged="LifecycleFilterChanged"
+                      ToolTip.Tip="Filter by lifecycle state">
+              <ComboBoxItem Content="All states" Tag="All" IsSelected="True" />
+              <ComboBoxItem Content="Planned" Tag="Planned" />
+              <ComboBoxItem Content="In Progress" Tag="In Progress" />
+              <ComboBoxItem Content="Review" Tag="Review" />
+              <ComboBoxItem Content="Complete" Tag="Complete" />
+            </ComboBox>
+            <Button Classes="tool" Content="More filters">
+              <Button.Flyout>
+                <Flyout>
+                  <StackPanel Width="240" Spacing="9">
+                    <TextBlock Classes="eyebrow" Text="FILTER BOARD" />
+                    <TextBlock Text="Work type" FontWeight="SemiBold" FontSize="11" />
+                    <ComboBox x:Name="ItemTypeFilter"
+                              SelectionChanged="ItemTypeFilterChanged">
+                      <ComboBoxItem Content="All work types" Tag="All" IsSelected="True" />
+                    </ComboBox>
+                    <TextBlock Text="Changelog category" FontWeight="SemiBold" FontSize="11" />
+                    <ComboBox x:Name="CategoryFilter"
+                              SelectionChanged="CategoryFilterChanged">
+                      <ComboBoxItem Content="All categories" Tag="All" IsSelected="True" />
+                    </ComboBox>
+                    <CheckBox x:Name="WarningsOnlyFilter"
+                              Content="Only work needing attention"
+                              Click="WarningsOnlyChanged" />
+                    <TextBlock Text="Filters change only this computer's view. They never edit signed project documents."
+                               Classes="muted"
+                               FontSize="10"
+                               TextWrapping="Wrap" />
+                  </StackPanel>
+                </Flyout>
+              </Button.Flyout>
+            </Button>
+            <Button Classes="tool" Content="Minimap" Click="ToggleMiniMapClick" />
+          </StackPanel>
+
+          <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <TextBlock x:Name="CanvasSelectionSummary" Classes="muted" FontSize="10" />
+            <TextBlock Text="{Binding CanvasLayoutRevisionSummary}" Classes="muted" FontSize="10" />
+          </StackPanel>
+        </Grid>
       </Grid>
     </Border>
 
-    <Grid Grid.Row="1" ColumnDefinitions="*,342">
+    <Grid Grid.Row="1" ColumnDefinitions="*,360">
       <views:BlueprintCanvasSurface x:Name="BlueprintSurface" />
 
       <Border Grid.Column="1"
-              Background="#FFFFFF"
-              BorderBrush="#E2E4EC"
+              Background="{DynamicResource CanvasInspectorBrush}"
+              BorderBrush="{DynamicResource LineBrush}"
               BorderThickness="1,0,0,0">
         <Grid RowDefinitions="Auto,*,Auto">
-          <Border Background="#FAFAFD" BorderBrush="#E2E4EC" BorderThickness="0,0,0,1" Padding="16,12">
-            <StackPanel Spacing="3">
-              <TextBlock Classes="eyebrow" Text="DETAILS" />
-              <TextBlock Text="{Binding InspectorSelectionSummary}" Classes="mono" FontWeight="Bold" FontSize="12" />
-            </StackPanel>
+          <Border Background="{DynamicResource CanvasInspectorHeaderBrush}"
+                  BorderBrush="{DynamicResource LineBrush}"
+                  BorderThickness="0,0,0,1"
+                  Padding="16,11">
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Spacing="2">
+                <TextBlock Classes="eyebrow" Text="INSPECTOR" />
+                <TextBlock Text="{Binding InspectorSelectionSummary}" Classes="mono" FontWeight="Bold" FontSize="12" />
+              </StackPanel>
+              <Border Grid.Column="1" Classes="status-pill">
+                <TextBlock Text="{Binding SelectedVersion.Status}" FontSize="10" FontWeight="Bold" />
+              </Border>
+            </Grid>
           </Border>
 
-          <ScrollViewer Grid.Row="1">
-            <StackPanel Margin="16" Spacing="18">
-              <StackPanel Spacing="10">
-                <Grid ColumnDefinitions="*,Auto">
-                  <StackPanel Spacing="2">
-                    <TextBlock Classes="eyebrow" Text="RELEASE VERSION" />
-                    <TextBlock Text="{Binding SelectedVersion.Name}" FontSize="21" FontWeight="Bold" />
+          <TabControl Grid.Row="1" SelectedIndex="{Binding InspectorTabIndex}">
+            <TabItem Header="Details">
+              <ScrollViewer>
+                <StackPanel Margin="16" Spacing="18">
+                  <StackPanel Spacing="9">
+                    <TextBlock Classes="eyebrow" Text="VERSION" />
+                    <Grid ColumnDefinitions="*,130" ColumnSpacing="8">
+                      <TextBox Text="{Binding VersionEditorName}"
+                               PlaceholderText="Version name"
+                               IsEnabled="{Binding CanEditSelectedVersion}" />
+                      <ComboBox Grid.Column="1"
+                                ItemsSource="{Binding AvailableStatuses}"
+                                SelectedItem="{Binding VersionEditorStatus}"
+                                IsEnabled="{Binding CanEditSelectedVersion}" />
+                    </Grid>
+                    <TextBox Text="{Binding VersionEditorNotes}"
+                             PlaceholderText="What does this release accomplish?"
+                             AcceptsReturn="True"
+                             Height="70"
+                             IsEnabled="{Binding CanEditSelectedVersion}" />
+                    <Button Classes="secondary"
+                            Content="Save version"
+                            Command="{Binding SaveVersionDetailsCommand}"
+                            IsEnabled="{Binding CanEditSelectedVersion}" />
                   </StackPanel>
-                  <Border Grid.Column="1" Background="#DCEEF7" CornerRadius="10" Padding="8,3" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding SelectedVersion.Status}" Foreground="#0B4F8A" FontSize="11" FontWeight="Bold" />
-                  </Border>
-                </Grid>
 
-                <TextBox PlaceholderText="Version label"
-                         Text="{Binding VersionEditorName}"
-                         IsEnabled="{Binding CanEditSelectedVersion}" />
-                <ComboBox ItemsSource="{Binding AvailableStatuses}"
-                          SelectedItem="{Binding VersionEditorStatus}"
-                          IsEnabled="{Binding CanEditSelectedVersion}" />
-                <TextBox PlaceholderText="Milestone accomplishment"
-                         Text="{Binding VersionEditorNotes}"
-                         AcceptsReturn="True"
-                         Height="74"
-                         IsEnabled="{Binding CanEditSelectedVersion}" />
-                <Button Classes="secondary"
-                        Content="Apply version changes"
-                        Command="{Binding SaveVersionDetailsCommand}"
-                        IsEnabled="{Binding CanEditSelectedVersion}" />
-              </StackPanel>
+                  <Border Height="1" Background="{DynamicResource LineBrush}" />
 
-              <Border Height="1" Background="#C7DDE8" />
-
-              <StackPanel Spacing="10">
-                <Grid ColumnDefinitions="*,Auto">
-                  <StackPanel Spacing="2">
-                    <TextBlock Classes="eyebrow" Text="WORK ITEM" />
-                    <TextBlock Text="{Binding ItemEditorTitle}" FontSize="17" FontWeight="Bold" TextTrimming="CharacterEllipsis" />
+                  <StackPanel Spacing="9">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Classes="eyebrow" Text="WORK ITEM" />
+                      <TextBlock Grid.Column="1" Text="{Binding SelectedItem.ItemKey}" Classes="mono" FontWeight="Bold" Foreground="{DynamicResource CanvasAccentBrush}" />
+                    </Grid>
+                    <ComboBox ItemsSource="{Binding AvailableWorkflowStates}"
+                              SelectedItem="{Binding ItemEditorWorkflowState}"
+                              IsEnabled="{Binding CanEditItems}"
+                              automation:AutomationProperties.Name="Work item lifecycle state" />
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                      <ComboBox ItemsSource="{Binding AvailableItemTypes}"
+                                SelectedItem="{Binding SelectedItemTypeId}"
+                                IsEnabled="{Binding CanEditItems}" />
+                      <ComboBox Grid.Column="1"
+                                ItemsSource="{Binding AvailableCategories}"
+                                SelectedItem="{Binding SelectedCategoryId}"
+                                IsEnabled="{Binding CanEditItems}" />
+                    </Grid>
+                    <TextBox Text="{Binding ItemEditorTitle}"
+                             PlaceholderText="Clear outcome"
+                             IsEnabled="{Binding CanEditItems}" />
+                    <TextBox Text="{Binding ItemEditorDescription}"
+                             PlaceholderText="Useful context and evidence"
+                             AcceptsReturn="True"
+                             Height="86"
+                             IsEnabled="{Binding CanEditItems}" />
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                      <Button Classes="primary" Content="Add item" Command="{Binding AddItemCommand}" IsEnabled="{Binding CanEditItems}" />
+                      <Button Grid.Column="1" Classes="secondary" Content="Save selected" Command="{Binding SaveItemDetailsCommand}" IsEnabled="{Binding HasSelectedItem}" />
+                    </Grid>
                   </StackPanel>
-                  <Border Grid.Column="1" Background="#E6F5EF" CornerRadius="10" Padding="8,3" VerticalAlignment="Center" IsVisible="{Binding HasSelectedItem}">
-                    <TextBlock Text="{Binding SelectedItem.ItemKey}" Classes="mono" Foreground="#277A67" FontSize="10" FontWeight="Bold" />
-                  </Border>
-                </Grid>
+                </StackPanel>
+              </ScrollViewer>
+            </TabItem>
 
-                <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                  <ComboBox ItemsSource="{Binding AvailableItemTypes}"
-                            SelectedItem="{Binding SelectedItemTypeId}"
-                            IsEnabled="{Binding CanEditItems}" />
-                  <ComboBox Grid.Column="1"
-                            ItemsSource="{Binding AvailableCategories}"
-                            SelectedItem="{Binding SelectedCategoryId}"
-                            IsEnabled="{Binding CanEditItems}" />
-                </Grid>
-                <TextBox PlaceholderText="What changed?"
-                         Text="{Binding ItemEditorTitle}"
-                         IsEnabled="{Binding CanEditItems}" />
-                <TextBox PlaceholderText="Context visible in release notes"
-                         Text="{Binding ItemEditorDescription}"
-                         AcceptsReturn="True"
-                         Height="84"
-                         IsEnabled="{Binding CanEditItems}" />
-                <CheckBox Content="Completed"
-                          IsChecked="{Binding ItemEditorIsDone}"
-                          IsEnabled="{Binding CanEditItems}" />
-                <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                  <Button Classes="primary"
-                          Content="Connect new"
-                          Command="{Binding AddItemCommand}"
-                          IsEnabled="{Binding CanEditItems}" />
-                  <Button Grid.Column="1"
-                          Classes="secondary"
-                          Content="Apply selected"
-                          Command="{Binding SaveItemDetailsCommand}"
-                          IsEnabled="{Binding HasSelectedItem}" />
-                </Grid>
-              </StackPanel>
-
-              <Border Height="1" Background="#C7DDE8" />
-
-              <StackPanel Spacing="10">
-                <Grid ColumnDefinitions="*,Auto">
-                  <StackPanel Spacing="2">
-                    <TextBlock Classes="eyebrow" Text="TYPED RELATIONSHIPS" />
-                    <TextBlock Text="{Binding RelationshipRevisionSummary}" FontSize="11" Foreground="#4E7184" />
-                  </StackPanel>
-                  <Button Grid.Column="1"
-                          Classes="tool square"
-                          Content="＋"
-                          Command="{Binding BeginNewRelationshipTypeCommand}"
-                          ToolTip.Tip="Create a relationship type" />
-                </Grid>
-
-                <ComboBox ItemsSource="{Binding RelationshipTypes}"
-                          SelectedItem="{Binding SelectedRelationshipType}">
-                  <ComboBox.ItemTemplate>
-                    <DataTemplate x:DataType="core:RelationshipTypeDefinition">
-                      <TextBlock Text="{Binding Name}" />
-                    </DataTemplate>
-                  </ComboBox.ItemTemplate>
-                </ComboBox>
-                <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                  <TextBox PlaceholderText="type-id"
-                           Text="{Binding RelationshipTypeId}"
-                           IsEnabled="{Binding CanMutateWorkspace}" />
-                  <TextBox Grid.Column="1"
-                           PlaceholderText="#52C7E8"
-                           Text="{Binding RelationshipTypeColor}"
-                           IsEnabled="{Binding CanMutateWorkspace}" />
-                </Grid>
-                <TextBox PlaceholderText="Relationship name"
-                         Text="{Binding RelationshipTypeName}"
-                         IsEnabled="{Binding CanMutateWorkspace}" />
-                <TextBox PlaceholderText="Meaning and usage"
-                         Text="{Binding RelationshipTypeDescription}"
-                         IsEnabled="{Binding CanMutateWorkspace}" />
-                <CheckBox Content="Directional"
-                          IsChecked="{Binding RelationshipTypeIsDirectional}"
-                          IsEnabled="{Binding CanMutateWorkspace}" />
-                <Button Classes="secondary"
-                        Content="Save relationship type"
-                        Command="{Binding SaveRelationshipTypeCommand}"
-                        IsEnabled="{Binding CanMutateWorkspace}" />
-
-                <ListBox ItemsSource="{Binding Relationships}"
-                         SelectedItem="{Binding SelectedRelationship}"
-                         MaxHeight="112">
-                  <ListBox.ItemTemplate>
-                    <DataTemplate x:DataType="core:RelationshipEdge">
-                      <StackPanel Margin="2,4">
-                        <TextBlock Text="{Binding TypeId}" Classes="mono" FontWeight="Bold" />
-                        <TextBlock Text="{Binding Label}" FontSize="10" Foreground="#537487" TextTrimming="CharacterEllipsis" />
-                      </StackPanel>
-                    </DataTemplate>
-                  </ListBox.ItemTemplate>
-                </ListBox>
-                <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                  <ComboBox ItemsSource="{Binding RelationshipEndpoints}"
-                            SelectedItem="{Binding SelectedRelationshipSource}">
+            <TabItem Header="Relationships">
+              <ScrollViewer>
+                <StackPanel Margin="16" Spacing="10">
+                  <TextBlock Text="{Binding RelationshipRevisionSummary}" Classes="muted" TextWrapping="Wrap" />
+                  <ListBox ItemsSource="{Binding Relationships}"
+                           SelectedItem="{Binding SelectedRelationship}"
+                           MaxHeight="170">
+                    <ListBox.ItemTemplate>
+                      <DataTemplate x:DataType="core:RelationshipEdge">
+                        <StackPanel Margin="4" Spacing="2">
+                          <TextBlock Text="{Binding TypeId}" Classes="mono" FontWeight="Bold" />
+                          <TextBlock Text="{Binding Label}" Classes="muted" FontSize="10" TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                      </DataTemplate>
+                    </ListBox.ItemTemplate>
+                  </ListBox>
+                  <ComboBox ItemsSource="{Binding RelationshipTypes}" SelectedItem="{Binding SelectedRelationshipType}">
                     <ComboBox.ItemTemplate>
-                      <DataTemplate x:DataType="models:RelationshipEndpointOption">
-                        <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
+                      <DataTemplate x:DataType="core:RelationshipTypeDefinition">
+                        <TextBlock Text="{Binding Name}" />
                       </DataTemplate>
                     </ComboBox.ItemTemplate>
                   </ComboBox>
-                  <ComboBox Grid.Column="1"
-                            ItemsSource="{Binding RelationshipEndpoints}"
-                            SelectedItem="{Binding SelectedRelationshipTarget}">
-                    <ComboBox.ItemTemplate>
-                      <DataTemplate x:DataType="models:RelationshipEndpointOption">
-                        <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
-                      </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                  </ComboBox>
-                </Grid>
-                <TextBox PlaceholderText="Optional relationship label"
-                         Text="{Binding RelationshipLabel}"
-                         IsEnabled="{Binding CanMutateWorkspace}" />
-                <Grid ColumnDefinitions="*,*,*" ColumnSpacing="6">
-                  <Button Classes="secondary"
-                          Content="New"
-                          Command="{Binding BeginNewRelationshipCommand}"
-                          IsEnabled="{Binding CanMutateWorkspace}" />
-                  <Button Grid.Column="1"
-                          Classes="primary"
-                          Content="Save"
-                          Command="{Binding SaveRelationshipCommand}"
-                          IsEnabled="{Binding CanSaveRelationship}" />
-                  <Button Grid.Column="2"
-                          Classes="secondary"
-                          Content="Remove"
-                          Command="{Binding RemoveSelectedRelationshipCommand}"
-                          IsEnabled="{Binding CanRemoveRelationship}" />
-                </Grid>
-              </StackPanel>
-            </StackPanel>
-          </ScrollViewer>
+                  <Grid ColumnDefinitions="*,*" ColumnSpacing="7">
+                    <ComboBox ItemsSource="{Binding RelationshipEndpoints}" SelectedItem="{Binding SelectedRelationshipSource}">
+                      <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="models:RelationshipEndpointOption">
+                          <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
+                        </DataTemplate>
+                      </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding RelationshipEndpoints}" SelectedItem="{Binding SelectedRelationshipTarget}">
+                      <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="models:RelationshipEndpointOption">
+                          <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
+                        </DataTemplate>
+                      </ComboBox.ItemTemplate>
+                    </ComboBox>
+                  </Grid>
+                  <TextBox Text="{Binding RelationshipLabel}" PlaceholderText="Optional edge label" IsEnabled="{Binding CanMutateWorkspace}" />
+                  <Grid ColumnDefinitions="*,*,*" ColumnSpacing="6">
+                    <Button Classes="secondary" Content="New" Command="{Binding BeginNewRelationshipCommand}" IsEnabled="{Binding CanMutateWorkspace}" />
+                    <Button Grid.Column="1" Classes="primary" Content="Save" Command="{Binding SaveRelationshipCommand}" IsEnabled="{Binding CanSaveRelationship}" />
+                    <Button Grid.Column="2" Classes="danger" Content="Remove" Command="{Binding RemoveSelectedRelationshipCommand}" IsEnabled="{Binding CanRemoveRelationship}" />
+                  </Grid>
 
-          <Border Grid.Row="2" Background="#202238" Padding="14,11">
-            <StackPanel Spacing="4">
-              <TextBlock Text="{Binding WorkspaceMessage}" Foreground="White" FontSize="12" TextWrapping="Wrap" />
-              <TextBlock Text="{Binding CanvasLayoutRevisionSummary}" Foreground="#B8B2F4" FontSize="10" />
-              <TextBlock x:Name="CanvasSelectionSummary"
-                         Foreground="#F1F0FF"
-                         FontSize="10"
-                         FontWeight="Bold" />
-              <TextBlock Text="Drag empty space to box-select · Ctrl/Shift-click adds nodes · arrows move · Shift+arrows move 10px · Ctrl+A selects all · Esc clears"
-                         Foreground="#A6A8BA"
-                         FontSize="10"
-                         TextWrapping="Wrap" />
+                  <Border Height="1" Background="{DynamicResource LineBrush}" Margin="0,6" />
+                  <TextBlock Classes="eyebrow" Text="RELATIONSHIP TYPE" />
+                  <Grid ColumnDefinitions="*,110" ColumnSpacing="7">
+                    <TextBox Text="{Binding RelationshipTypeName}" PlaceholderText="Name" IsEnabled="{Binding CanMutateWorkspace}" />
+                    <TextBox Grid.Column="1" Text="{Binding RelationshipTypeColor}" PlaceholderText="#6254D9" IsEnabled="{Binding CanMutateWorkspace}" />
+                  </Grid>
+                  <TextBox Text="{Binding RelationshipTypeId}" PlaceholderText="lowercase-id" IsEnabled="{Binding CanMutateWorkspace}" />
+                  <TextBox Text="{Binding RelationshipTypeDescription}" PlaceholderText="Meaning" IsEnabled="{Binding CanMutateWorkspace}" />
+                  <CheckBox Content="Directional (draw arrowhead)" IsChecked="{Binding RelationshipTypeIsDirectional}" IsEnabled="{Binding CanMutateWorkspace}" />
+                  <Button Classes="secondary" Content="Save relationship type" Command="{Binding SaveRelationshipTypeCommand}" IsEnabled="{Binding CanMutateWorkspace}" />
+                </StackPanel>
+              </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Evidence">
+              <ScrollViewer>
+                <StackPanel Margin="16" Spacing="10">
+                  <TextBlock Classes="eyebrow" Text="READINESS" />
+                  <TextBlock Text="{Binding ReleaseReadinessSummary}" FontSize="16" FontWeight="Bold" TextWrapping="Wrap" />
+                  <ItemsControl ItemsSource="{Binding ReleaseReadinessDiagnostics}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="models:ReleaseReadinessDiagnostic">
+                        <Border Classes="blueprint-card" Margin="0,0,0,7">
+                          <StackPanel Spacing="4">
+                            <TextBlock Text="{Binding Title}" FontWeight="Bold" />
+                            <TextBlock Text="{Binding Detail}" Classes="muted" FontSize="11" TextWrapping="Wrap" />
+                            <TextBlock Text="{Binding Guidance}" Foreground="{DynamicResource CanvasAccentBrush}" FontSize="11" TextWrapping="Wrap" />
+                          </StackPanel>
+                        </Border>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <TextBlock Classes="eyebrow" Text="SOURCE / PROVENANCE" Margin="0,8,0,0" />
+                  <TextBlock Text="{Binding VersionSourceChangeSummary}" Classes="muted" TextWrapping="Wrap" />
+                  <TextBlock Text="{Binding SelectedItem.SourceReference}" Classes="mono muted" FontSize="10" TextWrapping="Wrap" />
+                </StackPanel>
+              </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="History">
+              <StackPanel Margin="16" Spacing="10">
+                <TextBlock Classes="eyebrow" Text="SIGNED HISTORY" />
+                <TextBlock Text="{Binding SyncAuditSummary}" FontWeight="Bold" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding CanvasLayoutRevisionSummary}" Classes="muted" />
+                <TextBlock Text="{Binding RelationshipRevisionSummary}" Classes="muted" />
+                <TextBlock Text="Every content, lifecycle, layout, and relationship change is saved through the signed workspace workflow and appended to the audit chain."
+                           Classes="muted"
+                           TextWrapping="Wrap" />
+                <ScrollViewer MaxHeight="420">
+                  <ItemsControl ItemsSource="{Binding AuditHistory}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <Border Classes="blueprint-card" Margin="0,0,0,7">
+                          <StackPanel Spacing="3">
+                            <TextBlock Text="{Binding Operation}" Classes="mono" FontWeight="Bold" />
+                            <TextBlock Text="{Binding Summary}" TextWrapping="Wrap" />
+                            <TextBlock Text="{Binding AuthorDisplayName}" Classes="muted" FontSize="10" />
+                            <TextBlock Text="{Binding TimestampUtc}" Classes="muted" FontSize="10" />
+                          </StackPanel>
+                        </Border>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </ScrollViewer>
+              </StackPanel>
+            </TabItem>
+          </TabControl>
+
+          <Border Grid.Row="2" Background="{DynamicResource CanvasStatusBarBrush}" Padding="14,10">
+            <StackPanel Spacing="3">
+              <TextBlock Text="{Binding WorkspaceMessage}" Foreground="White" FontSize="11" TextWrapping="Wrap" />
+              <TextBlock Text="{Binding WorkspaceModeSummary}" Foreground="#C9C8D8" FontSize="10" TextWrapping="Wrap" />
             </StackPanel>
           </Border>
         </Grid>
