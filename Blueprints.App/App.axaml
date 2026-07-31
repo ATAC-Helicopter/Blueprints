@@ -2,7 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="using:Blueprints.App"
              x:Class="Blueprints.App.App"
-             RequestedThemeVariant="Light">
+             RequestedThemeVariant="Default">
   <Application.DataTemplates>
     <local:ViewLocator />
   </Application.DataTemplates>
@@ -14,6 +14,7 @@
     every form and navigation label.
   -->
   <Application.Resources>
+    <ResourceDictionary>
     <Color x:Key="BlueprintInk">#191A2C</Color>
     <Color x:Key="BlueprintBlue">#6254D9</Color>
     <Color x:Key="BlueprintBright">#7767EA</Color>
@@ -28,6 +29,63 @@
     <SolidColorBrush x:Key="PaperBrush" Color="{StaticResource BlueprintPaper}" />
     <SolidColorBrush x:Key="LineBrush" Color="{StaticResource BlueprintLine}" />
     <SolidColorBrush x:Key="MutedBrush" Color="{StaticResource BlueprintMuted}" />
+    <ResourceDictionary.ThemeDictionaries>
+      <ResourceDictionary x:Key="Light">
+        <SolidColorBrush x:Key="CanvasBackgroundBrush" Color="#F7F7FA" />
+        <SolidColorBrush x:Key="CanvasToolbarBrush" Color="#FFFFFF" />
+        <SolidColorBrush x:Key="CanvasInspectorBrush" Color="#FFFFFF" />
+        <SolidColorBrush x:Key="CanvasInspectorHeaderBrush" Color="#FAFAFD" />
+        <SolidColorBrush x:Key="CanvasOverlayBrush" Color="#F5FFFFFF" />
+        <SolidColorBrush x:Key="CanvasControlBackgroundBrush" Color="#F2F2F7" />
+        <SolidColorBrush x:Key="CanvasFrameBackgroundBrush" Color="#F9F9FC" />
+        <SolidColorBrush x:Key="CanvasFrameHeaderBrush" Color="#F1F0F8" />
+        <SolidColorBrush x:Key="CanvasFrameBorderBrush" Color="#D6D8E2" />
+        <SolidColorBrush x:Key="CanvasColumnBackgroundBrush" Color="#F2F3F7" />
+        <SolidColorBrush x:Key="CanvasColumnBorderBrush" Color="#E1E2E9" />
+        <SolidColorBrush x:Key="CanvasCardBackgroundBrush" Color="#FFFFFF" />
+        <SolidColorBrush x:Key="CanvasCardBorderBrush" Color="#D8DAE4" />
+        <SolidColorBrush x:Key="CanvasAccentBrush" Color="#6254D9" />
+        <SolidColorBrush x:Key="CanvasSelectionBrush" Color="#6254D9" />
+        <SolidColorBrush x:Key="CanvasSelectionFillBrush" Color="#226254D9" />
+        <SolidColorBrush x:Key="CanvasWarningBrush" Color="#C64D42" />
+        <SolidColorBrush x:Key="CanvasMutedBrush" Color="#66697A" />
+        <SolidColorBrush x:Key="CanvasResizeBrush" Color="#CBC7E8" />
+        <SolidColorBrush x:Key="CanvasStatusBarBrush" Color="#202238" />
+        <SolidColorBrush x:Key="CanvasMinimapBackgroundBrush" Color="#E9E9EF" />
+        <SolidColorBrush x:Key="CanvasMinimapSelectionBrush" Color="#F1C96A" />
+        <SolidColorBrush x:Key="CanvasMinimapFrameBrush" Color="#8D83DF" />
+        <SolidColorBrush x:Key="CanvasMinimapNodeBrush" Color="#56AFA2" />
+        <SolidColorBrush x:Key="CanvasViewportFillBrush" Color="#166254D9" />
+      </ResourceDictionary>
+      <ResourceDictionary x:Key="Dark">
+        <SolidColorBrush x:Key="CanvasBackgroundBrush" Color="#161722" />
+        <SolidColorBrush x:Key="CanvasToolbarBrush" Color="#20212E" />
+        <SolidColorBrush x:Key="CanvasInspectorBrush" Color="#1D1E2A" />
+        <SolidColorBrush x:Key="CanvasInspectorHeaderBrush" Color="#242532" />
+        <SolidColorBrush x:Key="CanvasOverlayBrush" Color="#F5222330" />
+        <SolidColorBrush x:Key="CanvasControlBackgroundBrush" Color="#30313E" />
+        <SolidColorBrush x:Key="CanvasFrameBackgroundBrush" Color="#20212C" />
+        <SolidColorBrush x:Key="CanvasFrameHeaderBrush" Color="#292A38" />
+        <SolidColorBrush x:Key="CanvasFrameBorderBrush" Color="#414353" />
+        <SolidColorBrush x:Key="CanvasColumnBackgroundBrush" Color="#1B1C27" />
+        <SolidColorBrush x:Key="CanvasColumnBorderBrush" Color="#353746" />
+        <SolidColorBrush x:Key="CanvasCardBackgroundBrush" Color="#292A36" />
+        <SolidColorBrush x:Key="CanvasCardBorderBrush" Color="#454756" />
+        <SolidColorBrush x:Key="CanvasAccentBrush" Color="#A79CF7" />
+        <SolidColorBrush x:Key="CanvasSelectionBrush" Color="#A79CF7" />
+        <SolidColorBrush x:Key="CanvasSelectionFillBrush" Color="#22A79CF7" />
+        <SolidColorBrush x:Key="CanvasWarningBrush" Color="#E67B70" />
+        <SolidColorBrush x:Key="CanvasMutedBrush" Color="#AFB1C0" />
+        <SolidColorBrush x:Key="CanvasResizeBrush" Color="#6D6896" />
+        <SolidColorBrush x:Key="CanvasStatusBarBrush" Color="#12131C" />
+        <SolidColorBrush x:Key="CanvasMinimapBackgroundBrush" Color="#11121B" />
+        <SolidColorBrush x:Key="CanvasMinimapSelectionBrush" Color="#F1C96A" />
+        <SolidColorBrush x:Key="CanvasMinimapFrameBrush" Color="#8D83DF" />
+        <SolidColorBrush x:Key="CanvasMinimapNodeBrush" Color="#56AFA2" />
+        <SolidColorBrush x:Key="CanvasViewportFillBrush" Color="#22A79CF7" />
+      </ResourceDictionary>
+    </ResourceDictionary.ThemeDictionaries>
+    </ResourceDictionary>
   </Application.Resources>
 
   <Application.Styles>
@@ -213,6 +271,13 @@
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="CornerRadius" Value="10" />
       <Setter Property="Padding" Value="13" />
+    </Style>
+    <Style Selector="Border.status-pill">
+      <Setter Property="Background" Value="{DynamicResource CanvasControlBackgroundBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="8,4" />
     </Style>
     <Style Selector="Border.success">
       <Setter Property="Background" Value="#EAF8F4" />

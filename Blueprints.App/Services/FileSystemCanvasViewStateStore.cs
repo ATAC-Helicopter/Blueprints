@@ -61,7 +61,50 @@ public sealed class FileSystemCanvasViewStateStore
         ValidateRange(state.Zoom, MinimumZoom, MaximumZoom, "Canvas zoom");
         ValidateRange(state.HorizontalOffset, 0, MaximumOffset, "Canvas horizontal offset");
         ValidateRange(state.VerticalOffset, 0, MaximumOffset, "Canvas vertical offset");
-        return state;
+        if (state.SearchText is null ||
+            state.LifecycleFilter is null ||
+            state.VersionFilter is null ||
+            state.ItemTypeFilter is null ||
+            state.CategoryFilter is null ||
+            state.CollapsedVersionIds is null)
+        {
+            throw new InvalidOperationException("Canvas view preferences contain invalid null values.");
+        }
+        if (!Enum.IsDefined(state.ViewMode))
+        {
+            throw new InvalidOperationException("Canvas view mode is not supported.");
+        }
+
+        if (state.SearchText.Length > 200 ||
+            state.LifecycleFilter.Length > 200 ||
+            state.VersionFilter.Length > 200 ||
+            state.ItemTypeFilter.Length > 200 ||
+            state.CategoryFilter.Length > 200)
+        {
+            throw new InvalidOperationException("Canvas search and filter values cannot exceed 200 characters.");
+        }
+
+        if (state.CollapsedVersionIds.Length > 370_000)
+        {
+            throw new InvalidOperationException("Canvas collapse preferences exceed the supported limit.");
+        }
+        var collapsedVersionIds = state.ParseCollapsedVersionIds();
+        if (collapsedVersionIds.Count > 10_000)
+        {
+            throw new InvalidOperationException("Canvas collapse preferences exceed the supported limit.");
+        }
+
+        return state with
+        {
+            SearchText = state.SearchText.Trim(),
+            LifecycleFilter = string.IsNullOrWhiteSpace(state.LifecycleFilter) ? "All" : state.LifecycleFilter,
+            VersionFilter = string.IsNullOrWhiteSpace(state.VersionFilter) ? "All" : state.VersionFilter,
+            ItemTypeFilter = string.IsNullOrWhiteSpace(state.ItemTypeFilter) ? "All" : state.ItemTypeFilter,
+            CategoryFilter = string.IsNullOrWhiteSpace(state.CategoryFilter) ? "All" : state.CategoryFilter,
+            CollapsedVersionIds = string.Join(
+                ',',
+                collapsedVersionIds.Order()),
+        };
     }
 
     private static void ValidateRange(double value, double minimum, double maximum, string name)

@@ -128,6 +128,49 @@ public sealed class FileSystemAuditLogService
                 : $"Audit log validation failed for {distinctInvalidPaths.Length} entries.");
     }
 
+    public IReadOnlyList<AuditLogEntry> ReadVerifiedEntries(
+        string workspaceRoot,
+        IReadOnlyDictionary<string, SignaturePublicKey> publicKeys,
+        int maximumCount = 200)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(workspaceRoot);
+        ArgumentNullException.ThrowIfNull(publicKeys);
+        ArgumentOutOfRangeException.ThrowIfLessThan(maximumCount, 1);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(maximumCount, 1_000);
+
+        var validation = Validate(workspaceRoot, publicKeys);
+        if (!validation.IsValid)
+        {
+            throw new InvalidOperationException(
+                "Audit history cannot be displayed because its signature or hash chain is invalid.");
+        }
+
+        var logRoot = GetLogRoot(workspaceRoot);
+        if (!Directory.Exists(logRoot))
+        {
+            return [];
+        }
+
+        var entries = new List<AuditLogEntry>();
+        foreach (var path in Directory.EnumerateFiles(logRoot, "*.json")
+                     .OrderByDescending(static path => path, StringComparer.Ordinal)
+                     .Take(maximumCount))
+        {
+            var read = _signedDocumentStore.Read<AuditLogEntry>(path, publicKeys);
+            if (!read.IsSignatureValid)
+            {
+                throw new InvalidOperationException(
+                    "Audit history changed while it was being read.");
+            }
+            entries.Add(read.Document);
+        }
+
+        return entries
+            .OrderByDescending(static entry => entry.TimestampUtc)
+            .ThenByDescending(static entry => entry.ChangeId, StringComparer.Ordinal)
+            .ToArray();
+    }
+
     private static string? GetLatestEntryHash(string workspaceRoot)
     {
         var logRoot = GetLogRoot(workspaceRoot);

@@ -63,6 +63,19 @@ public sealed class ProjectWorkspaceCoordinatorService
     public IReadOnlyList<RecentProjectReference> GetRecentProjects() =>
         _recentProjectsStore.Load();
 
+    public IReadOnlyList<AuditLogEntry> GetAuditHistory(
+        string localWorkspaceRoot,
+        int maximumCount = 100)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(localWorkspaceRoot);
+        var identity = _identityService.GetOrCreateDefaultIdentity("Local Admin");
+        var keys = _projectTrustStore.LoadKeys(localWorkspaceRoot, identity);
+        return _auditLogService.ReadVerifiedEntries(
+            localWorkspaceRoot,
+            keys,
+            maximumCount);
+    }
+
     public bool HasLocalIdentity => _identityService.ListProfiles().Count > 0;
 
     public IdentitySummary CreateInitialIdentity(string displayName)
@@ -324,6 +337,11 @@ public sealed class ProjectWorkspaceCoordinatorService
         var items = targetVersion.Items.ToList();
         var normalizedTitle = request.Title.Trim();
         var normalizedDescription = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
+        var workflowState = request.IsDone
+            ? WorkItemLifecycle.Complete
+            : request.WorkflowState is null or WorkItemLifecycle.Complete
+                ? WorkItemLifecycle.Planned
+                : request.WorkflowState.Value;
 
         if (string.IsNullOrWhiteSpace(normalizedTitle))
         {
@@ -345,7 +363,8 @@ public sealed class ProjectWorkspaceCoordinatorService
                 CategoryId = request.CategoryId,
                 Title = normalizedTitle,
                 Description = normalizedDescription,
-                IsDone = request.IsDone,
+                IsDone = workflowState == WorkItemLifecycle.Complete,
+                WorkflowState = workflowState,
                 UpdatedUtc = DateTimeOffset.UtcNow,
                 LastModifiedByUserId = identity.Profile.UserId,
                 LastModifiedByName = identity.Profile.DisplayName,
@@ -365,12 +384,13 @@ public sealed class ProjectWorkspaceCoordinatorService
                     request.CategoryId,
                     normalizedTitle,
                     normalizedDescription,
-                    request.IsDone,
+                    workflowState == WorkItemLifecycle.Complete,
                     [],
                     createdUtc,
                     createdUtc,
                     identity.Profile.UserId,
-                    identity.Profile.DisplayName));
+                    identity.Profile.DisplayName,
+                    workflowState));
         }
 
         versions[versionIndex] = targetVersion with
@@ -461,7 +481,10 @@ public sealed class ProjectWorkspaceCoordinatorService
                         createdUtc,
                         createdUtc,
                         identity.Profile.UserId,
-                        identity.Profile.DisplayName))
+                        identity.Profile.DisplayName,
+                        import.IsDone
+                            ? WorkItemLifecycle.Complete
+                            : WorkItemLifecycle.Planned))
                 .ToArray();
             versions[versionIndex] = targetVersion with
             {

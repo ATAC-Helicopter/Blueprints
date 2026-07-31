@@ -25,7 +25,17 @@ public sealed class FileSystemCanvasViewStateStoreTests : IDisposable
     public void SaveAndLoad_RoundTripsMachineLocalViewport()
     {
         var store = new FileSystemCanvasViewStateStore();
-        var expected = new CanvasViewState(0.8, 125, 240);
+        var collapsed = Guid.NewGuid();
+        var expected = new CanvasViewState(
+            0.8,
+            125,
+            240,
+            CanvasViewMode.Dependencies,
+            "security",
+            "Review",
+            "1.0.0",
+            false,
+            collapsed.ToString("D"));
 
         store.Save(_workspaceRoot, expected);
         var actual = store.Load(_workspaceRoot);

@@ -1,3 +1,5 @@
+using Blueprints.Core.Enums;
+
 namespace Blueprints.App.Models;
 
 public sealed record ItemEditRequest(
@@ -7,4 +9,5 @@ public sealed record ItemEditRequest(
     string CategoryId,
     string Title,
     string? Description,
-    bool IsDone);
+    bool IsDone,
+    WorkItemLifecycle? WorkflowState = null);

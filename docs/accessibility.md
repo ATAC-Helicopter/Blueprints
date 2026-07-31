@@ -9,6 +9,11 @@ Blueprints is designed so the release-planning workflow does not depend on recog
 - Standard `Tab` and `Shift+Tab` navigation reaches form fields and actions.
 - All icon-only canvas controls expose text tooltips and accessible names.
 - Canvas nodes support keyboard selection and movement; the on-screen footer lists the available keys.
+- Version frames and work-item cards expose descriptive accessible names and help text; relationship edges identify their type and label.
+- `Ctrl`/Command+`7`, `8`, and `9` switch Plan, Dependencies, and Release Notes views.
+- `Ctrl`/Command+`F` focuses search, `Ctrl`/Command+`L` enters connection mode, and `Ctrl`/Command+`J` zooms to selection.
+- `Ctrl`/Command+Shift+`V` creates the named version and `Ctrl`/Command+Shift+`I` opens a new work item for the selected version.
+- In Plan, Left/Right moves selected editable work between lifecycle columns through the signed workflow. In graph views, arrow keys move selected nodes; Shift changes the step to ten pixels.
 - Destructive and irreversible actions use text labels and explain their consequences.
 - Color is supplemented by labels, counts, status text, and guidance.
 - Default Fluent focus presentation is retained rather than hidden by custom styling.
