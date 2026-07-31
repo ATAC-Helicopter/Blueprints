@@ -18,6 +18,16 @@ public sealed class GitHubRestSourceProviderReader : IHostedSourceProviderReader
     private readonly HttpClient _httpClient;
     private readonly IProviderCredentialSource _credentialSource;
 
+    public int ContractVersion => HostedSourceProviderContract.CurrentVersion;
+
+    public SourceProviderKind Provider => SourceProviderKind.GitHub;
+
+    public SourceProviderCapabilities Capabilities =>
+        SourceProviderCapabilities.Issues
+        | SourceProviderCapabilities.ChangeRequests
+        | SourceProviderCapabilities.Releases
+        | SourceProviderCapabilities.PlanningBoards;
+
     public GitHubRestSourceProviderReader()
         : this(
             new HttpClient

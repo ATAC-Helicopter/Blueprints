@@ -7,6 +7,7 @@ public sealed class IdentityService : IIdentityService
 {
     private readonly string _rootDirectory;
     private readonly IIdentityStore _identityStore;
+    private readonly IdentityBackupService _backupService;
 
     public IdentityService(string rootDirectory, IIdentityStore identityStore)
     {
@@ -14,6 +15,9 @@ public sealed class IdentityService : IIdentityService
 
         _rootDirectory = rootDirectory;
         _identityStore = identityStore;
+        _backupService = new IdentityBackupService(
+            identityStore,
+            new Ed25519SignatureService());
     }
 
     public StoredIdentity GetOrCreateDefaultIdentity(string displayName)
@@ -29,6 +33,15 @@ public sealed class IdentityService : IIdentityService
 
     public StoredIdentity CreateIdentity(string displayName) =>
         _identityStore.Create(displayName);
+
+    public string ExportBackup(string filePath, string passphrase) =>
+        _backupService.Export(
+            filePath,
+            GetOrCreateDefaultIdentity("Local Admin"),
+            passphrase);
+
+    public StoredIdentity ImportBackup(string filePath, string passphrase) =>
+        _backupService.Import(filePath, passphrase);
 
     public IReadOnlyList<IdentityProfile> ListProfiles()
     {

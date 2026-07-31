@@ -39,6 +39,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private bool _hasActiveSession;
     private bool _hasLocalIdentity;
     private string _identitySetupName = string.Empty;
+    private string _identityBackupPassphrase = string.Empty;
     private string _setupMessage = string.Empty;
     private string _workspaceMessage = string.Empty;
     private string _createProjectName = "Blueprints";
@@ -589,6 +590,12 @@ public partial class MainWindowViewModel : ViewModelBase
         set => SetProperty(ref _identitySetupName, value);
     }
 
+    public string IdentityBackupPassphrase
+    {
+        get => _identityBackupPassphrase;
+        set => SetProperty(ref _identityBackupPassphrase, value);
+    }
+
     public string LocalIdentitySetupSummary =>
         HasLocalIdentity
             ? "A protected local signing identity is ready."
@@ -597,8 +604,16 @@ public partial class MainWindowViewModel : ViewModelBase
     public string SetupMessage
     {
         get => _setupMessage;
-        private set => SetProperty(ref _setupMessage, value);
+        private set
+        {
+            if (SetProperty(ref _setupMessage, value))
+            {
+                OnPropertyChanged(nameof(HasSetupMessage));
+            }
+        }
     }
+
+    public bool HasSetupMessage => !string.IsNullOrWhiteSpace(SetupMessage);
 
     public string WorkspaceMessage
     {
@@ -643,24 +658,24 @@ public partial class MainWindowViewModel : ViewModelBase
     public string SelectedWorkspaceSectionTitle =>
         SelectedWorkspaceSection switch
         {
-            WorkspaceSection.Overview => "Project overview",
-            WorkspaceSection.Releases => "Release drafting board",
-            WorkspaceSection.Team => "Team and signing identities",
-            WorkspaceSection.Sync => "Workspace exchange",
-            WorkspaceSection.Trust => "Trust and audit",
-            WorkspaceSection.Integrations => "Source Lens",
-            _ => "Project overview",
+            WorkspaceSection.Overview => "Home",
+            WorkspaceSection.Releases => "Plan releases",
+            WorkspaceSection.Team => "People",
+            WorkspaceSection.Sync => "Share changes",
+            WorkspaceSection.Trust => "Safety check",
+            WorkspaceSection.Integrations => "Find work",
+            _ => "Home",
         };
 
     public string SelectedWorkspaceSectionDescription =>
         SelectedWorkspaceSection switch
         {
-            WorkspaceSection.Overview => "Read the project map, spot blockers, and choose the next action.",
-            WorkspaceSection.Releases => "Plan versions, connect work items, preview notes, and mark milestones complete.",
-            WorkspaceSection.Team => "Review signed membership and manage the people allowed to contribute.",
-            WorkspaceSection.Sync => "Compare local and shared state before moving signed changes.",
-            WorkspaceSection.Trust => "Inspect validation results, conflicts, and the audit boundary.",
-            WorkspaceSection.Integrations => "Discover project signals, shape editable proposals, and approve exactly what enters the signed blueprint.",
+            WorkspaceSection.Overview => "See the plan, spot what needs attention, and choose your next step.",
+            WorkspaceSection.Releases => "Organize versions and accomplishments, then turn them into clear release notes.",
+            WorkspaceSection.Team => "Invite teammates and manage who can view or change this project.",
+            WorkspaceSection.Sync => "Review incoming and outgoing work before sharing it with your team.",
+            WorkspaceSection.Trust => "Confirm that project files and history are valid, with guidance when something needs attention.",
+            WorkspaceSection.Integrations => "Bring in useful work from Git, GitHub, and GitLab only after you review it.",
             _ => string.Empty,
         };
 
@@ -1470,6 +1485,71 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             var exportedPath = _coordinatorService.ExportIdentityInvitation(filePath);
             SetupMessage = $"Exported signed identity invitation to {exportedPath}.";
+        }
+        catch (Exception exception)
+        {
+            SetupMessage = exception.Message;
+        }
+    }
+
+    [RelayCommand]
+    private void ExportIdentityBackup(string? filePath)
+    {
+        if (_coordinatorService is null
+            || !HasLocalIdentity
+            || string.IsNullOrWhiteSpace(filePath))
+        {
+            return;
+        }
+
+        try
+        {
+            var exportedPath = _coordinatorService.ExportIdentityBackup(
+                filePath,
+                IdentityBackupPassphrase);
+            IdentityBackupPassphrase = string.Empty;
+            var message = $"Created encrypted identity backup at {exportedPath}. Keep its passphrase separately.";
+            if (HasActiveSession)
+            {
+                WorkspaceMessage = message;
+            }
+            else
+            {
+                SetupMessage = message;
+            }
+        }
+        catch (Exception exception)
+        {
+            if (HasActiveSession)
+            {
+                WorkspaceMessage = exception.Message;
+            }
+            else
+            {
+                SetupMessage = exception.Message;
+            }
+        }
+    }
+
+    [RelayCommand]
+    private void ImportIdentityBackup(string? filePath)
+    {
+        if (_coordinatorService is null
+            || HasLocalIdentity
+            || string.IsNullOrWhiteSpace(filePath))
+        {
+            return;
+        }
+
+        try
+        {
+            var identity = _coordinatorService.ImportIdentityBackup(
+                filePath,
+                IdentityBackupPassphrase);
+            HasLocalIdentity = true;
+            IdentityBackupPassphrase = string.Empty;
+            SetupMessage =
+                $"Restored {identity.DisplayName}'s signing identity under this device's local key protection.";
         }
         catch (Exception exception)
         {

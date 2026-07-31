@@ -40,6 +40,21 @@ public partial class TeamView : UserControl
         }
     }
 
+    private async void ExportIdentityBackup_Click(
+        object? sender,
+        Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (DataContext is MainWindowViewModel viewModel &&
+            await PickSavePathAsync(
+                "Create encrypted identity backup",
+                "identity.blueprints-backup.json",
+                "Blueprints encrypted identity backup",
+                "*.blueprints-backup.json") is { } path)
+        {
+            viewModel.ExportIdentityBackupCommand.Execute(path);
+        }
+    }
+
     private async void ExportProjectInvitation_Click(
         object? sender,
         Avalonia.Interactivity.RoutedEventArgs e)

@@ -8,27 +8,27 @@
     <StackPanel Spacing="16">
       <Border Classes="dark-card">
         <StackPanel Spacing="12">
-          <TextBlock Classes="eyebrow" Text="EXCHANGE CIRCUIT" Foreground="#62D3F0" />
+          <TextBlock Classes="eyebrow" Text="SHARED CHANGES" Foreground="#B8B2F4" />
           <TextBlock Text="{Binding SyncStatus}" FontSize="21" FontWeight="Bold" Foreground="White" TextWrapping="Wrap" />
-          <TextBlock Text="{Binding WorkspaceModeSummary}" Foreground="#A9C8DC" TextWrapping="Wrap" />
-          <TextBlock Text="{Binding SyncEvidenceSummary}" Foreground="#A9C8DC" FontSize="11" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding WorkspaceModeSummary}" Foreground="#B9BBCB" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding SyncEvidenceSummary}" Foreground="#B9BBCB" FontSize="11" TextWrapping="Wrap" />
 
           <Grid ColumnDefinitions="*,48,*" VerticalAlignment="Center" Margin="0,8">
-            <Border Background="#0F4F7A" BorderBrush="#3C88B5" BorderThickness="1" CornerRadius="4" Padding="10">
+            <Border Background="#2B2D48" BorderBrush="#464864" BorderThickness="1" CornerRadius="9" Padding="10">
               <StackPanel Spacing="3">
-                <TextBlock Text="LOCAL" Classes="eyebrow" Foreground="#62D3F0" />
+                <TextBlock Text="ON THIS DEVICE" Classes="eyebrow" Foreground="#B8B2F4" />
                 <TextBlock Text="{Binding Sync.PendingOutgoingChanges}" FontSize="28" FontWeight="Black" Foreground="White" />
-                <TextBlock Text="outgoing" Foreground="#A9C8DC" FontSize="11" />
+                <TextBlock Text="changes to share" Foreground="#B9BBCB" FontSize="11" />
               </StackPanel>
             </Border>
             <StackPanel Grid.Column="1" VerticalAlignment="Center">
-              <TextBlock Text="⇄" Foreground="#62D3F0" FontSize="26" HorizontalAlignment="Center" />
+              <TextBlock Text="⇄" Foreground="#B8B2F4" FontSize="26" HorizontalAlignment="Center" />
             </StackPanel>
-            <Border Grid.Column="2" Background="#0F4F7A" BorderBrush="#3C88B5" BorderThickness="1" CornerRadius="4" Padding="10">
+            <Border Grid.Column="2" Background="#2B2D48" BorderBrush="#464864" BorderThickness="1" CornerRadius="9" Padding="10">
               <StackPanel Spacing="3">
-                <TextBlock Text="SHARED" Classes="eyebrow" Foreground="#62D3F0" />
+                <TextBlock Text="FROM THE TEAM" Classes="eyebrow" Foreground="#B8B2F4" />
                 <TextBlock Text="{Binding Sync.PendingIncomingChanges}" FontSize="28" FontWeight="Black" Foreground="White" />
-                <TextBlock Text="incoming" Foreground="#A9C8DC" FontSize="11" />
+                <TextBlock Text="changes to review" Foreground="#B9BBCB" FontSize="11" />
               </StackPanel>
             </Border>
           </Grid>
@@ -94,7 +94,7 @@
           </ListBox.ItemTemplate>
         </ListBox>
 
-        <Border Grid.Row="2" Background="#E7F3F9" BorderBrush="#9AC7DE" BorderThickness="1" CornerRadius="4" Padding="12">
+        <Border Grid.Row="2" Background="#F0EEFF" BorderBrush="#D5D0F6" BorderThickness="1" CornerRadius="10" Padding="12">
           <StackPanel Spacing="8">
             <TextBlock Text="{Binding SelectedConflictSemanticSummary}" TextWrapping="Wrap" FontWeight="Bold" Foreground="#214A64" />
             <ItemsControl ItemsSource="{Binding ConflictFieldComparisons}">
@@ -116,7 +116,7 @@
           <StackPanel Spacing="6">
             <Grid ColumnDefinitions="Auto,*">
               <TextBlock Classes="eyebrow" Text="LOCAL COPY" />
-              <Border Grid.Column="1" Height="1" Background="#BED8E8" Margin="10,0,0,0" VerticalAlignment="Center" />
+              <Border Grid.Column="1" Height="1" Background="#E2E4EC" Margin="10,0,0,0" VerticalAlignment="Center" />
             </Grid>
             <TextBox Text="{Binding SelectedConflictLocalPreview}"
                      AcceptsReturn="True"
@@ -128,7 +128,7 @@
           <StackPanel Grid.Column="1" Spacing="6">
             <Grid ColumnDefinitions="Auto,*">
               <TextBlock Classes="eyebrow" Text="SHARED COPY" />
-              <Border Grid.Column="1" Height="1" Background="#BED8E8" Margin="10,0,0,0" VerticalAlignment="Center" />
+              <Border Grid.Column="1" Height="1" Background="#E2E4EC" Margin="10,0,0,0" VerticalAlignment="Center" />
             </Grid>
             <TextBox Text="{Binding SelectedConflictSharedPreview}"
                      AcceptsReturn="True"

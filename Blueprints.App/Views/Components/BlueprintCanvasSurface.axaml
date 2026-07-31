@@ -2,10 +2,10 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="Blueprints.App.Views.Components.BlueprintCanvasSurface"
              Focusable="True">
-  <Border Background="#072A46"
-          BorderBrush="#2C6E96"
+  <Border Background="#24243A"
+          BorderBrush="#383A55"
           BorderThickness="1"
-          CornerRadius="4"
+          CornerRadius="12"
           ClipToBounds="True">
     <Grid>
       <ScrollViewer x:Name="Viewport"
@@ -19,7 +19,7 @@
           <Canvas x:Name="Surface"
                   Width="1500"
                   Height="960"
-                  Background="#082F50" />
+                  Background="#25263D" />
         </Viewbox>
       </ScrollViewer>
 
@@ -29,18 +29,18 @@
               Height="132"
               Margin="0,0,18,18"
               Padding="7"
-              Background="#E6071F34"
-              BorderBrush="#659FC0"
+              Background="#E6222337"
+              BorderBrush="#64627F"
               BorderThickness="1"
-              CornerRadius="5"
+              CornerRadius="9"
               IsHitTestVisible="False">
         <Grid RowDefinitions="Auto,*" RowSpacing="4">
-          <TextBlock Text="MINIMAP" Foreground="#8BDCF0" FontSize="8" FontWeight="Bold" LetterSpacing="1" />
+          <TextBlock Text="OVERVIEW" Foreground="#B8B2F4" FontSize="8" FontWeight="Bold" LetterSpacing="1" />
           <Canvas x:Name="MiniMapSurface"
                   Grid.Row="1"
                   Width="174"
                   Height="106"
-                  Background="#B9082F50" />
+                  Background="#B925263D" />
         </Grid>
       </Border>
     </Grid>
