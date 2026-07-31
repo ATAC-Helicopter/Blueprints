@@ -1,3 +1,4 @@
+using Blueprints.App.Models;
 using Blueprints.App.Services;
 using Blueprints.App.ViewModels;
 using Blueprints.Collaboration.Services;
@@ -61,6 +62,65 @@ public sealed class MainWindowWorkflowTests : IDisposable
         Assert.Contains("Exported changelog", viewModel.WorkspaceMessage, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Commands_RegisterVaultSyncExchangeRootOnlyAfterSecondExplicitAction()
+    {
+        var destinationRoot = Path.Combine(_rootDirectory, "vaultsync-destination");
+        var metadataDirectory = Path.Combine(destinationRoot, ".vaultsync", "meta");
+        Directory.CreateDirectory(metadataDirectory);
+        File.WriteAllBytes(
+            Path.Combine(
+                metadataDirectory,
+                FileSystemVaultSyncStatusReader.MetadataFileName),
+            []);
+        var settingsStore = new FileSystemIntegrationSettingsStore(
+            Path.Combine(_rootDirectory, "integrations.json"));
+        var integrationService = new IntegrationStatusService(
+            settingsStore,
+            new TestLocalGitRepositoryInspector());
+        var adapter = new FileSystemVaultSyncExchangeRootAdapter();
+        var viewModel = new MainWindowViewModel(
+            CreateCoordinator(),
+            integrationService,
+            vaultSyncExchangeRootAdapter: adapter);
+        viewModel.IdentitySetupName = "Exchange Admin";
+        viewModel.CreateLocalIdentityCommand.Execute(null);
+        viewModel.CreateProjectName = "Blueprints";
+        viewModel.CreateProjectCode = "BP";
+        viewModel.CreateLocalWorkspaceRoot = Path.Combine(_rootDirectory, "local", "BP");
+        viewModel.CreateSharedWorkspaceRoot = Path.Combine(_rootDirectory, "shared", "BP");
+        viewModel.CreateProjectCommand.Execute(null);
+        viewModel.VaultSyncMetadataRoot = destinationRoot;
+        viewModel.SaveVaultSyncMetadataRootCommand.Execute(null);
+        var expectedRoot = adapter.PrepareIntent(
+            destinationRoot,
+            viewModel.CurrentProject.ProjectId).ExchangeRoot;
+
+        Assert.True(viewModel.CanRegisterVaultSyncExchangeRoot);
+        viewModel.RegisterVaultSyncExchangeRootCommand.Execute(null);
+
+        Assert.False(Directory.Exists(expectedRoot));
+        Assert.Contains("again", viewModel.IntegrationMessage, StringComparison.OrdinalIgnoreCase);
+
+        viewModel.RegisterVaultSyncExchangeRootCommand.Execute(null);
+
+        Assert.True(Directory.Exists(expectedRoot));
+        Assert.True(
+            File.Exists(
+                Path.Combine(
+                    expectedRoot,
+                    FileSystemVaultSyncExchangeRootAdapter.RegistrationMarkerFileName)));
+        Assert.Equal(
+            expectedRoot,
+            settingsStore.Load().RegisteredVaultSyncExchangeRoot);
+        Assert.NotEqual(expectedRoot, viewModel.SharedSyncPath);
+
+        viewModel.VaultSyncMetadataRoot = string.Empty;
+        viewModel.SaveVaultSyncMetadataRootCommand.Execute(null);
+
+        Assert.Empty(settingsStore.Load().RegisteredVaultSyncExchangeRoot);
+    }
+
     private ProjectWorkspaceCoordinatorService CreateCoordinator()
     {
         var identityRoot = Path.Combine(_rootDirectory, "identities");
@@ -113,5 +173,19 @@ public sealed class MainWindowWorkflowTests : IDisposable
 
         public byte[] Unprotect(ReadOnlySpan<byte> protectedBytes) =>
             protectedBytes.ToArray();
+    }
+
+    private sealed class TestLocalGitRepositoryInspector : ILocalGitRepositoryInspector
+    {
+        public LocalGitRepositoryStatus Inspect(string repositoryPath) =>
+            new(
+                false,
+                repositoryPath,
+                string.Empty,
+                string.Empty,
+                false,
+                string.Empty,
+                [],
+                "Not configured.");
     }
 }

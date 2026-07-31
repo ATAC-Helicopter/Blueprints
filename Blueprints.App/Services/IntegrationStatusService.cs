@@ -7,12 +7,14 @@ public sealed class IntegrationStatusService
     private readonly IIntegrationSettingsStore _settingsStore;
     private readonly ILocalGitRepositoryInspector _localGitRepositoryInspector;
     private readonly IProviderCredentialSource _providerCredentialSource;
+    private readonly IVaultSyncStatusReader _vaultSyncStatusReader;
 
     public IntegrationStatusService()
         : this(
             new FileSystemIntegrationSettingsStore(AppEnvironment.GetIntegrationSettingsPath()),
             new GitCommandLocalGitRepositoryInspector(),
-            new EnvironmentProviderCredentialSource())
+            new EnvironmentProviderCredentialSource(),
+            new FileSystemVaultSyncStatusReader())
     {
     }
 
@@ -22,18 +24,21 @@ public sealed class IntegrationStatusService
         : this(
             settingsStore,
             localGitRepositoryInspector,
-            new EnvironmentProviderCredentialSource())
+            new EnvironmentProviderCredentialSource(),
+            new FileSystemVaultSyncStatusReader())
     {
     }
 
     public IntegrationStatusService(
         IIntegrationSettingsStore settingsStore,
         ILocalGitRepositoryInspector localGitRepositoryInspector,
-        IProviderCredentialSource providerCredentialSource)
+        IProviderCredentialSource providerCredentialSource,
+        IVaultSyncStatusReader? vaultSyncStatusReader = null)
     {
         _settingsStore = settingsStore;
         _localGitRepositoryInspector = localGitRepositoryInspector;
         _providerCredentialSource = providerCredentialSource;
+        _vaultSyncStatusReader = vaultSyncStatusReader ?? new FileSystemVaultSyncStatusReader();
     }
 
     public IReadOnlyList<IntegrationStatusCard> GetIntegrationStatuses()
@@ -46,16 +51,7 @@ public sealed class IntegrationStatusService
             .. GetLocalGitStatuses(settings, checkedAtUtc),
             GetGitHubStatus(checkedAtUtc),
             GetGitLabStatus(checkedAtUtc),
-            new IntegrationStatusCard(
-                IntegrationProviderType.VaultSync,
-                "VaultSync",
-                IntegrationConnectionState.NotConfigured,
-                "No VaultSync metadata root configured",
-                "VaultSync passive awareness should detect .vaultsync/meta/vaultsync.meta.db and surface destination, snapshot, backup, verify, and restore-readiness health.",
-                "Treat VaultSync as transport and backup health. Do not modify the production VaultSync app from Blueprints work; read metadata first and keep Blueprints signatures authoritative.",
-                BlueprintsTrustBoundary(),
-                checkedAtUtc,
-                []),
+            GetVaultSyncStatus(settings, checkedAtUtc),
         ];
     }
 
@@ -109,6 +105,72 @@ public sealed class IntegrationStatusService
             BlueprintsTrustBoundary(),
             checkedAtUtc,
             []);
+    }
+
+    private IntegrationStatusCard GetVaultSyncStatus(
+        IntegrationSettings settings,
+        DateTimeOffset checkedAtUtc)
+    {
+        if (string.IsNullOrWhiteSpace(settings.VaultSyncMetadataRoot))
+        {
+            return new IntegrationStatusCard(
+                IntegrationProviderType.VaultSync,
+                "VaultSync",
+                IntegrationConnectionState.NotConfigured,
+                "No VaultSync metadata root configured",
+                $"Link a destination or metadata root containing .vaultsync/meta/{FileSystemVaultSyncStatusReader.MetadataFileName}.",
+                "Blueprints reads passive backup health only. VaultSync remains responsible for transport and recovery; Blueprints signatures remain authoritative.",
+                BlueprintsTrustBoundary(),
+                checkedAtUtc,
+                []);
+        }
+
+        var status = _vaultSyncStatusReader.Inspect(settings.VaultSyncMetadataRoot);
+        var hasRisk = !status.MetadataStoreFound ||
+            status.DestinationReachable is not true ||
+            status.BackupIndexConsistent is not true ||
+            status.LatestSnapshotUtc is null ||
+            status.LatestBackupUtc is null ||
+            status.LatestVerificationUtc is null ||
+            status.MetadataConflictCount > 0 ||
+            status.Warnings.Count > 0 ||
+            !(status.RestoreReadiness.Equals("Ready", StringComparison.OrdinalIgnoreCase) ||
+              status.RestoreReadiness.Equals("Healthy", StringComparison.OrdinalIgnoreCase));
+        var target = string.IsNullOrWhiteSpace(status.DestinationAlias)
+            ? status.MetadataStorePath
+            : $"{status.DestinationAlias} · {status.MetadataStorePath}";
+        var registeredRoot = settings.RegisteredVaultSyncExchangeRoot;
+        var registeredRootMissing =
+            !string.IsNullOrWhiteSpace(registeredRoot) &&
+            !Directory.Exists(registeredRoot);
+        hasRisk |= registeredRootMissing;
+        var guidance = status.Warnings.Count == 0
+            ? "Backup metadata is healthy. Blueprints used read-only evidence and did not modify VaultSync or signed project truth."
+            : string.Join(" ", status.Warnings);
+        if (!string.IsNullOrWhiteSpace(registeredRoot))
+        {
+            guidance += registeredRootMissing
+                ? $" The registered exchange root is unavailable: {registeredRoot}"
+                : $" Registered exchange root: {registeredRoot}";
+        }
+
+        return new IntegrationStatusCard(
+            IntegrationProviderType.VaultSync,
+            "VaultSync",
+            !status.MetadataStoreFound
+                ? IntegrationConnectionState.Error
+                : hasRisk
+                    ? IntegrationConnectionState.Warning
+                    : IntegrationConnectionState.Connected,
+            target,
+            status.Summary,
+            guidance,
+            BlueprintsTrustBoundary(),
+            checkedAtUtc,
+            [])
+        {
+            VaultSyncStatus = status,
+        };
     }
 
     private IReadOnlyList<IntegrationStatusCard> GetLocalGitStatuses(

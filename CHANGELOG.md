@@ -4,6 +4,47 @@ Notable changes to Blueprints are documented here. The project follows semantic 
 
 ## Unreleased
 
+## 0.5.0 — 2026-07-31
+
+VaultSync recovery integration milestone. This release adds passive backup-health awareness, explicit project-specific exchange registration, advisory release-safety evidence, and a tested restore path while preserving Blueprints as the authority for signed release state.
+
+### Added
+
+- Passive VaultSync health awareness with a machine-local metadata-root setting, bounded path detection, and clear healthy, warning, unavailable, and invalid states in the Integrations workspace.
+- A versioned `blueprints.status.json` interoperability contract for destination reachability, snapshot, backup, verification, restore-readiness, index-consistency, and metadata-conflict evidence.
+- An injectable VaultSync status-reader boundary and filesystem tests covering supported root forms, absent sidecars, malformed schemas, and oversized input.
+- Explicit two-step registration for project-specific VaultSync exchange roots, backed by a fresh exact-target approval, an atomic bounded marker, canonical path containment, and refusal to adopt unexpected content.
+- Advisory release-readiness diagnostics for missing, risky, incomplete, stale, future-dated, or recent healthy VaultSync recovery evidence.
+- An end-to-end VaultSync recovery drill that independently relocates local and exchange backups, revalidates signed project trust and manifest continuity, and publishes a new signed change after restore.
+
+### Changed
+
+- Completed release builds identify themselves as `0.5.0`.
+- The VaultSync exchange-root contract now reserves `<destination>/.blueprints/projects/<project-id>/` for an explicitly enabled future adapter while keeping the VaultSync project payload separate.
+- Machine-local integration settings now recover safely from malformed or oversized JSON and use atomic replacement on save.
+- Registered VaultSync exchange roots remain separate from the active shared root until the project is deliberately reopened against the prepared location.
+- Changing or clearing the linked VaultSync metadata root also clears any stale registered exchange-root reference.
+- VaultSync release evidence is considered recent within seven days and allows five minutes of producer clock skew; it informs release review without silently blocking the release action.
+
+### Security
+
+- Blueprints never parses the VaultSync SQLite database, caps passive health documents at 1 MiB and 32 warnings, and keeps configured paths and all health evidence outside signed project truth.
+- VaultSync exchange registration approvals expire within ten minutes and are single-use; registration rejects mismatched projects, non-canonical layouts, internal directory links, oversized markers, and pre-existing unregistered content.
+
+### Workspace compatibility
+
+- Signed workspace schema remains version 1.
+- VaultSync paths, structured health evidence, and the registered exchange-root link are machine-local integration settings and never enter signed project documents.
+- A VaultSync-prepared shared root adds only the bounded `.blueprints-exchange.json` registration marker, which is excluded from signed exchange snapshots.
+- Projects remain fully usable without VaultSync and can continue using any supported plain shared-folder target.
+
+### Known limitations
+
+- This release contains no installers or application binaries.
+- Detailed health requires an external producer to write the documented schema-1 `blueprints.status.json` sidecar; Blueprints does not parse VaultSync SQLite or invoke a VaultSync CLI.
+- Exchange registration prepares and remembers the canonical root but deliberately requires the project to be reopened before that location becomes active.
+- Release-safety evidence is advisory and reports producer claims; Blueprints does not independently verify backup payloads or perform VaultSync restore operations.
+
 ## 0.4.0 — 2026-07-30
 
 Provider-neutral source-control awareness milestone. This release connects the signed release plan to local Git, GitHub, and GitLab evidence while keeping discovery read-only, credentials local, and every imported proposal subject to explicit review.

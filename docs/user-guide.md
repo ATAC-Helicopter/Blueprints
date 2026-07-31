@@ -78,8 +78,11 @@ Before freezing or releasing, review **Release readiness** in the release planne
 - incomplete items in the selected version;
 - missing post-tag history;
 - recent commits that do not reference a completed item key in the selected version.
+- missing, risky, incomplete, stale, future-dated, or recent healthy VaultSync recovery evidence.
 
 Repository errors and dirty state are blockers. Unmatched commits and incomplete items require attention because they may be intentionally out of scope; Blueprints explains them but does not silently change source history or the release plan.
+
+VaultSync recovery evidence is advisory by default. Snapshot, backup, and verification reports are considered recent for seven days, with five minutes allowed for producer clock skew. Blueprints does not disable release merely because VaultSync is absent or needs attention.
 
 ## Archive draft work
 
@@ -100,6 +103,16 @@ Discovery is read-only. It does not commit, push, edit issues, change Projects, 
 Public GitHub issues, pull requests, and releases are read directly without requiring the GitHub CLI. For private repositories, draft releases, and GitHub Projects, start Blueprints with a read-only token in `BLUEPRINTS_GITHUB_TOKEN`. Blueprints reads that variable for the current process and does not store it in project or integration settings. Local changelog and roadmap discovery remains available when GitHub cannot be reached. See [Source Lens](source-lens.md) for limits, duplicate behavior, and security details.
 
 GitLab.com worktrees use the same flow for issues, merge requests, releases, and milestones. Public projects need no credential; private projects use a read-only `BLUEPRINTS_GITLAB_TOKEN` in the application environment. Nested GitLab group paths are supported.
+
+## Inspect VaultSync backup health
+
+Open **Source Lens**, then enter a VaultSync destination, `.vaultsync` directory, `meta` directory, or exact `vaultsync.meta.db` path in the VaultSync field and select **Save health link**.
+
+Blueprints confirms the portable metadata store exists without reading its SQLite schema. If VaultSync also supplies `.vaultsync/meta/blueprints.status.json`, the connection card reports destination reachability, latest snapshot, backup and verification times, restore readiness, backup-index consistency, and metadata conflicts. A missing health document is shown honestly as “metadata detected; detailed backup health unavailable.”
+
+This integration is passive and machine-local. Blueprints does not register or modify VaultSync projects, start a backup, verify payloads, or make VaultSync evidence authoritative. See [VaultSync integration](vaultsync-integration.md) for the exact contract and limits.
+
+To prepare the current trusted project for VaultSync transport, select **Register exchange** twice. The first selection previews the exact project-specific path; the second consumes a short-lived approval and creates the directory plus registration marker. Registration does not redirect the currently open project. Reopen it with the reported path as the shared root only when you intend to start using that exchange location.
 
 ## Exchange changes
 

@@ -22,6 +22,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly IntegrationStatusService _integrationStatusService;
     private readonly ISourceDiscoveryService _sourceDiscoveryService;
     private readonly FileSystemCanvasViewStateStore _canvasViewStateStore;
+    private readonly IVaultSyncExchangeRootAdapter _vaultSyncExchangeRootAdapter;
     private LocalWorkspaceSession? _currentSession;
     private string _title = "Blueprints Setup";
     private ProjectSummary _currentProject = new(string.Empty, string.Empty, TrustState.Corrupt, string.Empty);
@@ -55,6 +56,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private WorkspaceItemCard? _selectedItem;
     private Guid? _pendingArchiveVersionId;
     private Guid? _pendingArchiveItemId;
+    private VaultSyncExchangeRootApproval? _pendingVaultSyncExchangeRootApproval;
     private string _newVersionName = "1.0.0";
     private string _versionEditorName = string.Empty;
     private string _versionEditorNotes = string.Empty;
@@ -87,6 +89,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private string _selectedConflictLocalPreview = string.Empty;
     private string _selectedConflictSharedPreview = string.Empty;
     private string _localGitRepositoryPath = string.Empty;
+    private string _vaultSyncMetadataRoot = string.Empty;
     private string _integrationMessage = string.Empty;
     private WorkspaceSection _selectedWorkspaceSection = WorkspaceSection.Overview;
     private CanvasLayoutDocument? _canvasLayout;
@@ -127,6 +130,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _integrationStatusService = new IntegrationStatusService();
         _sourceDiscoveryService = new RepositorySourceDiscoveryService();
         _canvasViewStateStore = new FileSystemCanvasViewStateStore();
+        _vaultSyncExchangeRootAdapter = new FileSystemVaultSyncExchangeRootAdapter();
         SourceImportProposals = new ObservableCollection<SourceImportProposal>();
         ApplyDesignSession(CreateDesignSession());
         ApplyDesignSourceProposals();
@@ -136,12 +140,15 @@ public partial class MainWindowViewModel : ViewModelBase
     public MainWindowViewModel(
         ProjectWorkspaceCoordinatorService coordinatorService,
         IntegrationStatusService integrationStatusService,
-        ISourceDiscoveryService? sourceDiscoveryService = null)
+        ISourceDiscoveryService? sourceDiscoveryService = null,
+        IVaultSyncExchangeRootAdapter? vaultSyncExchangeRootAdapter = null)
     {
         _coordinatorService = coordinatorService;
         _integrationStatusService = integrationStatusService;
         _sourceDiscoveryService = sourceDiscoveryService ?? new RepositorySourceDiscoveryService();
         _canvasViewStateStore = new FileSystemCanvasViewStateStore();
+        _vaultSyncExchangeRootAdapter =
+            vaultSyncExchangeRootAdapter ?? new FileSystemVaultSyncExchangeRootAdapter();
         Versions = new ObservableCollection<WorkspaceVersionCard>();
         AvailableItemTypes = new ObservableCollection<string>();
         AvailableCategories = new ObservableCollection<string>();
@@ -277,6 +284,25 @@ public partial class MainWindowViewModel : ViewModelBase
             }
         }
     }
+
+    public string VaultSyncMetadataRoot
+    {
+        get => _vaultSyncMetadataRoot;
+        set
+        {
+            if (SetProperty(ref _vaultSyncMetadataRoot, value))
+            {
+                _pendingVaultSyncExchangeRootApproval = null;
+                OnPropertyChanged(nameof(CanRegisterVaultSyncExchangeRoot));
+            }
+        }
+    }
+
+    public bool CanRegisterVaultSyncExchangeRoot =>
+        HasActiveSession &&
+        CanMutateWorkspace &&
+        CurrentProject.ProjectId != Guid.Empty &&
+        !string.IsNullOrWhiteSpace(VaultSyncMetadataRoot);
 
     public string IntegrationMessage
     {
@@ -535,6 +561,7 @@ public partial class MainWindowViewModel : ViewModelBase
             if (SetProperty(ref _hasActiveSession, value))
             {
                 OnPropertyChanged(nameof(IsSetupMode));
+                OnPropertyChanged(nameof(CanRegisterVaultSyncExchangeRoot));
             }
         }
     }
@@ -1089,10 +1116,10 @@ public partial class MainWindowViewModel : ViewModelBase
             var attention = ReleaseReadinessDiagnostics.Count(
                 static diagnostic => diagnostic.Level == ReleaseReadinessLevel.Attention);
             return blocking > 0
-                ? $"{blocking} blocking source-control checks · {attention} need attention"
+                ? $"{blocking} blocking release checks · {attention} need attention"
                 : attention > 0
-                    ? $"No source-control blockers · {attention} checks need attention"
-                    : "Source-control checks are ready for human release review";
+                    ? $"No blocking release checks · {attention} checks need attention"
+                    : "Release checks are ready for human review";
         }
     }
 
@@ -1719,6 +1746,83 @@ public partial class MainWindowViewModel : ViewModelBase
         }
         catch (Exception exception)
         {
+            IntegrationMessage = exception.Message;
+        }
+    }
+
+    [RelayCommand]
+    private void SaveVaultSyncMetadataRoot()
+    {
+        try
+        {
+            var configuredRoot = VaultSyncMetadataRoot.Trim();
+            var settings = _integrationStatusService.GetSettings();
+            var keepRegisteredRoot = string.Equals(
+                settings.VaultSyncMetadataRoot.Trim(),
+                configuredRoot,
+                StringComparison.Ordinal);
+            _integrationStatusService.SaveSettings(settings with
+            {
+                VaultSyncMetadataRoot = configuredRoot,
+                RegisteredVaultSyncExchangeRoot = keepRegisteredRoot
+                    ? settings.RegisteredVaultSyncExchangeRoot
+                    : string.Empty,
+            });
+            _pendingVaultSyncExchangeRootApproval = null;
+            RefreshIntegrations();
+            IntegrationMessage = string.IsNullOrWhiteSpace(configuredRoot)
+                ? "VaultSync metadata link cleared."
+                : "VaultSync metadata link saved and checked read-only.";
+        }
+        catch (Exception exception)
+        {
+            IntegrationMessage = exception.Message;
+        }
+    }
+
+    [RelayCommand]
+    private void RegisterVaultSyncExchangeRoot()
+    {
+        if (!CanRegisterVaultSyncExchangeRoot)
+        {
+            IntegrationMessage =
+                "Open a trusted, conflict-free project and link VaultSync metadata before registering an exchange root.";
+            return;
+        }
+
+        try
+        {
+            var intent = _vaultSyncExchangeRootAdapter.PrepareIntent(
+                VaultSyncMetadataRoot,
+                CurrentProject.ProjectId);
+            if (_pendingVaultSyncExchangeRootApproval?.Intent != intent)
+            {
+                _pendingVaultSyncExchangeRootApproval =
+                    _vaultSyncExchangeRootAdapter.Approve(intent, DateTimeOffset.UtcNow);
+                IntegrationMessage =
+                    $"Register {intent.ExchangeRoot}? Select Register exchange again within ten minutes to confirm. " +
+                    "This creates a project-specific directory and registration marker but does not change the active shared root.";
+                return;
+            }
+
+            var registration = _vaultSyncExchangeRootAdapter.Register(
+                intent,
+                _pendingVaultSyncExchangeRootApproval,
+                DateTimeOffset.UtcNow);
+            var settings = _integrationStatusService.GetSettings();
+            _integrationStatusService.SaveSettings(settings with
+            {
+                RegisteredVaultSyncExchangeRoot = registration.ExchangeRoot,
+            });
+            _pendingVaultSyncExchangeRootApproval = null;
+            RefreshIntegrations();
+            IntegrationMessage = registration.AlreadyRegistered
+                ? $"VaultSync exchange root was already registered: {registration.ExchangeRoot}"
+                : $"VaultSync exchange root registered: {registration.ExchangeRoot}. Reopen the project with this shared root when you are ready to use it.";
+        }
+        catch (Exception exception)
+        {
+            _pendingVaultSyncExchangeRootApproval = null;
             IntegrationMessage = exception.Message;
         }
     }
@@ -2424,6 +2528,7 @@ public partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsWorkspaceReadOnly));
         OnPropertyChanged(nameof(HasConflicts));
         OnPropertyChanged(nameof(CanMutateWorkspace));
+        OnPropertyChanged(nameof(CanRegisterVaultSyncExchangeRoot));
         OnPropertyChanged(nameof(CanArchiveSelectedVersion));
         OnPropertyChanged(nameof(CanArchiveSelectedItem));
         OnPropertyChanged(nameof(IsProjectVersionEmpty));
@@ -2443,6 +2548,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private void ApplySetupState(string message)
     {
         _currentSession = null;
+        _pendingVaultSyncExchangeRootApproval = null;
         Title = "Blueprints Setup";
         CurrentProject = new ProjectSummary(string.Empty, string.Empty, TrustState.Corrupt, string.Empty);
         TrustSummary = message;
@@ -2510,6 +2616,7 @@ public partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsWorkspaceReadOnly));
         OnPropertyChanged(nameof(HasConflicts));
         OnPropertyChanged(nameof(CanMutateWorkspace));
+        OnPropertyChanged(nameof(CanRegisterVaultSyncExchangeRoot));
         OnPropertyChanged(nameof(WorkspaceModeSummary));
         OnPropertyChanged(nameof(CanResolveSelectedConflict));
         OnPropertyChanged(nameof(HasSyncDiagnostics));
@@ -2548,6 +2655,8 @@ public partial class MainWindowViewModel : ViewModelBase
         LocalGitRepositoryPath = string.Join(
             Environment.NewLine,
             settings.EffectiveLocalGitRepositoryPaths);
+        VaultSyncMetadataRoot = settings.VaultSyncMetadataRoot;
+        OnPropertyChanged(nameof(CanRegisterVaultSyncExchangeRoot));
 
         Integrations.Clear();
         foreach (var integration in _integrationStatusService.GetIntegrationStatuses())
@@ -2677,10 +2786,14 @@ public partial class MainWindowViewModel : ViewModelBase
 
         ReleaseReadinessDiagnostics.Clear();
         var localGit = GetLocalGitReadinessStatus();
+        var vaultSync = Integrations.FirstOrDefault(
+            static integration => integration.Provider == IntegrationProviderType.VaultSync);
         foreach (var diagnostic in ReleaseReadinessDiagnosticBuilder.Build(
                      SelectedVersion,
                      localGit,
-                     VersionSourceChangeDiagnostics))
+                     VersionSourceChangeDiagnostics,
+                     vaultSync,
+                     DateTimeOffset.UtcNow))
         {
             ReleaseReadinessDiagnostics.Add(diagnostic);
         }

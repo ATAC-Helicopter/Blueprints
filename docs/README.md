@@ -9,6 +9,7 @@ Use this directory as the canonical technical and user documentation.
 | Trying the app | [User guide](user-guide.md) |
 | Understanding the visual workspace | [Canvas engine](canvas-engine.md) |
 | Importing issues and planning files | [Source Lens](source-lens.md) |
+| Inspecting VaultSync backup health | [VaultSync integration](vaultsync-integration.md) |
 | Diagnosing a problem | [Troubleshooting](troubleshooting.md) |
 | Building or contributing | [Development guide](development.md) |
 | Understanding the code | [Architecture](architecture.md) |
