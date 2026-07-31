@@ -5,8 +5,8 @@ namespace Blueprints.App.Services;
 
 public sealed class FileSystemCanvasViewStateStore
 {
-    private const double MinimumZoom = 0.6;
-    private const double MaximumZoom = 1.5;
+    private const double MinimumZoom = 0.25;
+    private const double MaximumZoom = 2.5;
     private const double MaximumOffset = 100_000;
 
     private static readonly JsonSerializerOptions SerializerOptions = new()

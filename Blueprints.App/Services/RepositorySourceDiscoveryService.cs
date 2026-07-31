@@ -6,6 +6,7 @@ namespace Blueprints.App.Services;
 
 public sealed partial class RepositorySourceDiscoveryService : ISourceDiscoveryService
 {
+    public const int MaximumCandidatesPerRepository = 5_000;
     private readonly MarkdownSourceDiscoveryParser _markdownParser;
     private readonly IHostedSourceProviderReader _hostedSourceProviderReader;
 
@@ -72,7 +73,7 @@ public sealed partial class RepositorySourceDiscoveryService : ISourceDiscoveryS
                 static candidate => $"{candidate.Kind}:{NormalizeTitle(candidate.Title)}",
                 StringComparer.Ordinal)
             .Select(static group => group.First())
-            .Take(250)
+            .Take(MaximumCandidatesPerRepository)
             .ToArray();
 
         return new SourceDiscoveryResult(

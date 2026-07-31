@@ -25,10 +25,12 @@ Release notes often live in scattered issues, commit messages, and private docum
 
 - plan versions and categorized release items;
 - arrange versions and work items on a persistent signed blueprint canvas;
+- automatically organize related work by changelog category, work type, or version;
 - generate stable human-readable item keys;
 - freeze and release versions with immutable released content;
 - export Markdown changelogs, optionally enriched by local Git history;
 - discover changelog, roadmap, GitHub issue, and Project signals as editable approval-first proposals;
+- browse or clone local repositories and explicitly pull, commit, and push without running repository hooks;
 - validate signed project files and enter read-only mode when trust breaks;
 - exchange signed changes through a shared folder with explicit push, pull, and conflict resolution;
 - inspect membership, audit history, sync state, and integration boundaries in one desktop app;
@@ -44,7 +46,7 @@ Release notes often live in scattered issues, commit messages, and private docum
 | Markdown changelog export | Working |
 | Shared-folder push/pull | Working with distinct signed identities and staged validation |
 | Conflict and audit diagnostics | Document-aware, recoverable, and actionable |
-| Local Git awareness | Read-only integration available |
+| Local Git workflow | Browse, clone, inspect, fast-forward pull, commit all, and push |
 | Changelog, roadmap, and GitHub issue discovery | Working, explicit approval required |
 | GitHub and GitLab source discovery | Working, read-only and bounded |
 | VaultSync integration | Passive metadata and backup-health awareness |

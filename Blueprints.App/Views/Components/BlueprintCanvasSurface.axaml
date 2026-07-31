@@ -2,10 +2,9 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="Blueprints.App.Views.Components.BlueprintCanvasSurface"
              Focusable="True">
-  <Border Background="#24243A"
-          BorderBrush="#383A55"
-          BorderThickness="1"
-          CornerRadius="12"
+  <Border Background="#F5F4FA"
+          BorderBrush="#DEDDE8"
+          BorderThickness="0"
           ClipToBounds="True">
     <Grid>
       <ScrollViewer x:Name="Viewport"
@@ -19,9 +18,23 @@
           <Canvas x:Name="Surface"
                   Width="1500"
                   Height="960"
-                  Background="#25263D" />
+                  Background="#F5F4FA" />
         </Viewbox>
       </ScrollViewer>
+
+      <Border HorizontalAlignment="Left"
+              VerticalAlignment="Top"
+              Margin="18"
+              Padding="11,7"
+              Background="#F2FFFFFF"
+              BorderBrush="#DEDCEB"
+              BorderThickness="1"
+              CornerRadius="10"
+              IsHitTestVisible="False">
+        <TextBlock Text="Drag cards to shape the plan  ·  Drag the background to select  ·  Middle-drag to move"
+                   Foreground="#5D5C6D"
+                   FontSize="11" />
+      </Border>
 
       <Border HorizontalAlignment="Right"
               VerticalAlignment="Bottom"
@@ -29,18 +42,18 @@
               Height="132"
               Margin="0,0,18,18"
               Padding="7"
-              Background="#E6222337"
-              BorderBrush="#64627F"
+              Background="#F2FFFFFF"
+              BorderBrush="#D4D2E2"
               BorderThickness="1"
               CornerRadius="9"
               IsHitTestVisible="False">
         <Grid RowDefinitions="Auto,*" RowSpacing="4">
-          <TextBlock Text="OVERVIEW" Foreground="#B8B2F4" FontSize="8" FontWeight="Bold" LetterSpacing="1" />
+          <TextBlock Text="MAP" Foreground="#6254D9" FontSize="8" FontWeight="Bold" LetterSpacing="1" />
           <Canvas x:Name="MiniMapSurface"
                   Grid.Row="1"
                   Width="174"
                   Height="106"
-                  Background="#B925263D" />
+                  Background="#E8E6F0" />
         </Grid>
       </Border>
     </Grid>
