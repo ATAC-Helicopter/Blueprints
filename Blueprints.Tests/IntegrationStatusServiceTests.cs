@@ -133,6 +133,7 @@ public sealed class IntegrationStatusServiceTests
             .Single(status => status.Provider == IntegrationProviderType.VaultSync);
 
         Assert.Equal(IntegrationConnectionState.Connected, vaultSync.State);
+        Assert.Equal(vaultStatus, vaultSync.VaultSyncStatus);
         Assert.Contains("NAS", vaultSync.Target, StringComparison.Ordinal);
         Assert.Contains("read-only", vaultSync.Guidance, StringComparison.OrdinalIgnoreCase);
     }

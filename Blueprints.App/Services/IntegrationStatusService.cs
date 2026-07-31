@@ -167,7 +167,10 @@ public sealed class IntegrationStatusService
             guidance,
             BlueprintsTrustBoundary(),
             checkedAtUtc,
-            []);
+            [])
+        {
+            VaultSyncStatus = status,
+        };
     }
 
     private IReadOnlyList<IntegrationStatusCard> GetLocalGitStatuses(

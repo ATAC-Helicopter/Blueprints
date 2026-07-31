@@ -10,6 +10,7 @@ Notable changes to Blueprints are documented here. The project follows semantic 
 - A versioned `blueprints.status.json` interoperability contract for destination reachability, snapshot, backup, verification, restore-readiness, index-consistency, and metadata-conflict evidence.
 - An injectable VaultSync status-reader boundary and filesystem tests covering supported root forms, absent sidecars, malformed schemas, and oversized input.
 - Explicit two-step registration for project-specific VaultSync exchange roots, backed by a fresh exact-target approval, an atomic bounded marker, canonical path containment, and refusal to adopt unexpected content.
+- Advisory release-readiness diagnostics for missing, risky, incomplete, stale, future-dated, or recent healthy VaultSync recovery evidence.
 
 ### Changed
 
@@ -18,6 +19,7 @@ Notable changes to Blueprints are documented here. The project follows semantic 
 - Machine-local integration settings now recover safely from malformed or oversized JSON and use atomic replacement on save.
 - Registered VaultSync exchange roots remain separate from the active shared root until the project is deliberately reopened against the prepared location.
 - Changing or clearing the linked VaultSync metadata root also clears any stale registered exchange-root reference.
+- VaultSync release evidence is considered recent within seven days and allows five minutes of producer clock skew; it informs release review without silently blocking the release action.
 
 ### Security
 

@@ -1116,10 +1116,10 @@ public partial class MainWindowViewModel : ViewModelBase
             var attention = ReleaseReadinessDiagnostics.Count(
                 static diagnostic => diagnostic.Level == ReleaseReadinessLevel.Attention);
             return blocking > 0
-                ? $"{blocking} blocking source-control checks · {attention} need attention"
+                ? $"{blocking} blocking release checks · {attention} need attention"
                 : attention > 0
-                    ? $"No source-control blockers · {attention} checks need attention"
-                    : "Source-control checks are ready for human release review";
+                    ? $"No blocking release checks · {attention} checks need attention"
+                    : "Release checks are ready for human review";
         }
     }
 
@@ -2786,10 +2786,14 @@ public partial class MainWindowViewModel : ViewModelBase
 
         ReleaseReadinessDiagnostics.Clear();
         var localGit = GetLocalGitReadinessStatus();
+        var vaultSync = Integrations.FirstOrDefault(
+            static integration => integration.Provider == IntegrationProviderType.VaultSync);
         foreach (var diagnostic in ReleaseReadinessDiagnosticBuilder.Build(
                      SelectedVersion,
                      localGit,
-                     VersionSourceChangeDiagnostics))
+                     VersionSourceChangeDiagnostics,
+                     vaultSync,
+                     DateTimeOffset.UtcNow))
         {
             ReleaseReadinessDiagnostics.Add(diagnostic);
         }
