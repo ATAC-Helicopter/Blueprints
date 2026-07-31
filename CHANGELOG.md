@@ -4,6 +4,49 @@ Notable changes to Blueprints are documented here. The project follows semantic 
 
 ## Unreleased
 
+## 0.8.0 — 2026-07-31
+
+Interactive-blueprint-board milestone. This release replaces the changelog-like canvas with version frames, item lifecycle columns, focused dependency rendering, and direct signed relationship authoring.
+
+### Added
+
+- Plan view with movable, resizable, collapsible version frames and Planned, In Progress, Review, and Complete columns.
+- Dependencies view with automatic node placement, selectable typed edges, directional arrowheads, hover/selection labels, and incoming/outgoing focus.
+- Release Notes category projection plus an explicitly disabled Timeline mode pending a target-date contract.
+- Compact toolbar with mode switching, search, local filters, focus, direct Connect mode, zoom-to-selection, clickable/collapsible minimap, and trust/sync/readiness status.
+- Details, Relationships, Evidence, and History inspector tabs.
+- Backward-compatible signed item lifecycle state, lifecycle validation, signed drag/keyboard transitions, and legacy Planned/Complete mapping.
+- Projection and minimap services with lifecycle, filter, relationship, compatibility, and large-board tests.
+- Light and dark canvas theme resources plus expanded accessible names, help text, focus, and shortcuts.
+
+### Changed
+
+- Completed release builds identify themselves as `0.8.0`.
+- Plan communicates ownership by containment and no longer draws a connector from every version to every owned item.
+- Cards use readable multi-line titles and compact lifecycle, type, changelog, source, warning, and blocker metadata.
+- Relationship creation starts from two visible canvas endpoints but requires review in the existing relationship editor before saving.
+- View mode, search, filters, minimap visibility, viewport, zoom, and collapsed frames are retained as bounded machine-local preferences.
+
+### Security
+
+- Lifecycle changes use the existing trusted, conflict-free, immutable-aware signed item transaction and audit workflow.
+- Direct connections reuse existing endpoint/type/self-link/duplicate/count validation and signed relationship persistence.
+- Invalid or contradictory persisted lifecycle values make workspace loading fail closed as corrupt.
+- No view mode, filter, focus, collapse, or viewport state enters signed project truth or collaboration exchange.
+
+### Workspace compatibility
+
+- Signed workspace schema remains version 1.
+- `workflowState` is an optional item field. Missing incomplete items map to Planned; missing completed items map to Complete; opening does not rewrite them.
+- Existing signed layout and relationship documents remain compatible and retain whole-document conflict behavior.
+
+### Known limitations
+
+- Timeline remains disabled because versions do not yet have an authoritative target-date field.
+- Frame size is session-local; coordinates remain the only shared signed layout geometry.
+- Dependency auto-layout is deterministic rather than a graph-optimization engine.
+- Distribution remains deferred.
+
 ## 0.7.0 — 2026-07-31
 
 Repository-workflow and blueprint-clarity milestone. This release overhauls the planning canvas around automatic related-work lanes and turns local Git repositories into browsable, actionable project inputs without weakening signed Blueprints workspace boundaries.

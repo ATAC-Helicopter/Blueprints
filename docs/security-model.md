@@ -26,7 +26,7 @@ Blueprints uses signatures and explicit validation to detect unauthorized or inc
 | Source Lens proposals | Untrusted transient suggestions; no persistence before explicit approval |
 | UI input | Validated by application workflows before persistence |
 | Canvas layout | Signed shared node positions; entity references and coordinate bounds validated before rendering or saving |
-| Canvas viewport | Unsigned machine-local preference; bounded and excluded from sync and trust decisions |
+| Canvas view state | Unsigned machine-local mode, viewport, search, filters, minimap, and collapse preferences; bounded and excluded from sync and trust decisions |
 
 ## Cryptography
 
@@ -52,10 +52,12 @@ Blueprints uses signatures and explicit validation to detect unauthorized or inc
 - Only an active Admin may change membership.
 - At least one active Admin must remain.
 - Released versions reject further version and item edits.
+- Lifecycle transitions use the signed item workflow and reject untrusted, corrupt, conflicted, or immutable targets.
 - Local and shared roots may not overlap.
 - A persisted canvas node must reference an existing signed project entity.
 - Canvas coordinates, node count, project identity, schema, and uniqueness are bounded and validated.
 - Local viewport values are bounded but cannot affect signed project truth or workspace trust.
+- Direct canvas connections are proposals until the relationship editor commits through existing type, endpoint, duplicate, trust, signature, and audit validation.
 - Invalid canvas signatures place the workspace in read-only untrusted state.
 - Source discovery is read-only and enforces file, response, count, and text bounds.
 - Git write operations are explicit, use structured arguments, suppress hooks and submodule recursion, reject unsafe transports and executable repository-local configuration, cap output, and time out.

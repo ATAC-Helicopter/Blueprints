@@ -65,6 +65,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private string _itemEditorTitle = string.Empty;
     private string _itemEditorDescription = string.Empty;
     private bool _itemEditorIsDone;
+    private WorkItemLifecycle _itemEditorWorkflowState = WorkItemLifecycle.Planned;
     private string _selectedItemTypeId = "feature";
     private string _selectedCategoryId = "added";
     private string _changelogPreview = string.Empty;
@@ -118,6 +119,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private string _gitCommitMessage = string.Empty;
     private bool _isRunningGitOperation;
     private CanvasGroupingMode _canvasGroupingMode = CanvasGroupingMode.ChangelogCategory;
+    private int _inspectorTabIndex;
 
     public MainWindowViewModel()
     {
@@ -136,6 +138,7 @@ public partial class MainWindowViewModel : ViewModelBase
         RelationshipTypes = new ObservableCollection<RelationshipTypeDefinition>();
         Relationships = new ObservableCollection<RelationshipEdge>();
         RelationshipEndpoints = new ObservableCollection<RelationshipEndpointOption>();
+        AuditHistory = new ObservableCollection<AuditLogEntry>();
         _integrationStatusService = new IntegrationStatusService();
         _sourceDiscoveryService = new RepositorySourceDiscoveryService();
         _canvasViewStateStore = new FileSystemCanvasViewStateStore();
@@ -176,6 +179,7 @@ public partial class MainWindowViewModel : ViewModelBase
         RelationshipTypes = new ObservableCollection<RelationshipTypeDefinition>();
         Relationships = new ObservableCollection<RelationshipEdge>();
         RelationshipEndpoints = new ObservableCollection<RelationshipEndpointOption>();
+        AuditHistory = new ObservableCollection<AuditLogEntry>();
         SourceImportProposals = new ObservableCollection<SourceImportProposal>();
 
         RefreshRecentProjects();
@@ -216,6 +220,8 @@ public partial class MainWindowViewModel : ViewModelBase
     public ObservableCollection<RelationshipEdge> Relationships { get; }
 
     public ObservableCollection<RelationshipEndpointOption> RelationshipEndpoints { get; }
+
+    public ObservableCollection<AuditLogEntry> AuditHistory { get; }
 
     public SourceImportProposal? SelectedSourceProposal
     {
@@ -519,6 +525,7 @@ public partial class MainWindowViewModel : ViewModelBase
                         option.Endpoint == value.Target);
                     RelationshipLabel = value.Label ?? string.Empty;
                 }
+                OnPropertyChanged(nameof(InspectorSelectionSummary));
                 OnPropertyChanged(nameof(CanRemoveRelationship));
             }
         }
@@ -598,6 +605,12 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         get => _canvasViewState;
         private set => SetProperty(ref _canvasViewState, value);
+    }
+
+    public int InspectorTabIndex
+    {
+        get => _inspectorTabIndex;
+        set => SetProperty(ref _inspectorTabIndex, Math.Clamp(value, 0, 3));
     }
 
     public string Title
@@ -904,6 +917,7 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             if (SetProperty(ref _selectedVersion, value))
             {
+                SelectedRelationship = null;
                 PopulateVersionEditor();
                 ChangelogPreview = string.Empty;
                 LastChangelogExportPath = string.Empty;
@@ -931,6 +945,10 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             if (SetProperty(ref _selectedItem, value))
             {
+                if (value is not null)
+                {
+                    SelectedRelationship = null;
+                }
                 PopulateItemEditor();
                 OnPropertyChanged(nameof(HasSelectedItem));
                 OnPropertyChanged(nameof(InspectorSelectionSummary));
@@ -943,8 +961,10 @@ public partial class MainWindowViewModel : ViewModelBase
     public bool HasSelectedItem => SelectedItem is not null;
 
     public string InspectorSelectionSummary =>
-        SelectedItem is not null
-            ? $"{SelectedItem.ItemKey} / {SelectedItem.ItemTypeId}"
+        SelectedRelationship is not null
+            ? $"RELATIONSHIP / {SelectedRelationship.TypeId}"
+            : SelectedItem is not null
+                ? $"{SelectedItem.ItemKey} / {SelectedItem.ItemTypeId}"
             : SelectedVersion is not null
                 ? $"VERSION / {SelectedVersion.Name}"
                 : "SELECT A NODE";
@@ -988,8 +1008,30 @@ public partial class MainWindowViewModel : ViewModelBase
     public bool ItemEditorIsDone
     {
         get => _itemEditorIsDone;
-        set => SetProperty(ref _itemEditorIsDone, value);
+        set
+        {
+            if (SetProperty(ref _itemEditorIsDone, value) && value)
+            {
+                ItemEditorWorkflowState = WorkItemLifecycle.Complete;
+            }
+        }
     }
+
+    public WorkItemLifecycle ItemEditorWorkflowState
+    {
+        get => _itemEditorWorkflowState;
+        set
+        {
+            if (SetProperty(ref _itemEditorWorkflowState, value))
+            {
+                _itemEditorIsDone = value == WorkItemLifecycle.Complete;
+                OnPropertyChanged(nameof(ItemEditorIsDone));
+            }
+        }
+    }
+
+    public IReadOnlyList<WorkItemLifecycle> AvailableWorkflowStates { get; } =
+        Enum.GetValues<WorkItemLifecycle>();
 
     public string SelectedItemTypeId
     {
@@ -1383,6 +1425,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
         SelectedVersion = version;
         SelectedItem = null;
+        SelectedRelationship = null;
+        InspectorTabIndex = 0;
         OnPropertyChanged(nameof(InspectorSelectionSummary));
     }
 
@@ -1401,6 +1445,8 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         SelectedItem = item;
+        SelectedRelationship = null;
+        InspectorTabIndex = 0;
         OnPropertyChanged(nameof(InspectorSelectionSummary));
     }
 
@@ -2524,7 +2570,8 @@ public partial class MainWindowViewModel : ViewModelBase
                         SelectedCategoryId,
                         ItemEditorTitle,
                         ItemEditorDescription,
-                        ItemEditorIsDone)));
+                        ItemEditorIsDone,
+                        ItemEditorWorkflowState)));
             ReselectVersion(versionId);
             WorkspaceMessage = $"Added item {ItemEditorTitle}.";
             ClearItemEditorForNewItem();
@@ -2559,10 +2606,52 @@ public partial class MainWindowViewModel : ViewModelBase
                         SelectedCategoryId,
                         ItemEditorTitle,
                         ItemEditorDescription,
-                        ItemEditorIsDone)));
+                        ItemEditorIsDone,
+                        ItemEditorWorkflowState)));
             ReselectVersion(versionId);
             ReselectItem(itemId);
             WorkspaceMessage = $"Updated item {ItemEditorTitle}.";
+        }
+        catch (Exception exception)
+        {
+            WorkspaceMessage = exception.Message;
+        }
+    }
+
+    [RelayCommand]
+    private void ChangeItemLifecycle(WorkItemLifecycleChangeRequest? request)
+    {
+        if (_coordinatorService is null || _currentSession is null || request is null)
+        {
+            return;
+        }
+
+        var version = Versions.FirstOrDefault(candidate => candidate.VersionId == request.VersionId);
+        var item = version?.Items.FirstOrDefault(candidate => candidate.ItemId == request.ItemId);
+        if (version is null || item is null)
+        {
+            WorkspaceMessage = "The work item is no longer available.";
+            return;
+        }
+
+        try
+        {
+            ApplySession(
+                _coordinatorService.SaveItem(
+                    _currentSession.Paths.LocalWorkspaceRoot,
+                    _currentSession.Paths.SharedProjectRoot,
+                    new ItemEditRequest(
+                        version.VersionId,
+                        item.ItemId,
+                        item.ItemTypeId,
+                        item.CategoryId,
+                        item.Title,
+                        item.Description,
+                        request.WorkflowState == WorkItemLifecycle.Complete,
+                        request.WorkflowState)));
+            ReselectVersion(version.VersionId);
+            ReselectItem(item.ItemId);
+            WorkspaceMessage = $"Moved {item.ItemKey} to {FormatWorkflowState(request.WorkflowState)}.";
         }
         catch (Exception exception)
         {
@@ -2823,6 +2912,16 @@ public partial class MainWindowViewModel : ViewModelBase
             TrustDiagnostics.Add(diagnostic);
         }
 
+        AuditHistory.Clear();
+        if (_coordinatorService is not null && session.AuditLogValidation.IsValid)
+        {
+            foreach (var entry in _coordinatorService.GetAuditHistory(
+                         session.Paths.LocalWorkspaceRoot))
+            {
+                AuditHistory.Add(entry);
+            }
+        }
+
         VersionSourceChangeDiagnostics.Clear();
         ReleaseReadinessDiagnostics.Clear();
 
@@ -2924,6 +3023,7 @@ public partial class MainWindowViewModel : ViewModelBase
         RelationshipTypes.Clear();
         Relationships.Clear();
         RelationshipEndpoints.Clear();
+        AuditHistory.Clear();
         SelectedRelationship = null;
         SelectedRelationshipType = null;
         SelectedRelationshipSource = null;
@@ -3278,7 +3378,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         ItemEditorTitle = SelectedItem.Title;
         ItemEditorDescription = SelectedItem.Description ?? string.Empty;
-        ItemEditorIsDone = SelectedItem.IsDone;
+        ItemEditorWorkflowState = SelectedItem.WorkflowState;
         SelectedItemTypeId = SelectedItem.ItemTypeId;
         SelectedCategoryId = SelectedItem.CategoryId;
     }
@@ -3295,7 +3395,7 @@ public partial class MainWindowViewModel : ViewModelBase
         SelectedItem = null;
         ItemEditorTitle = string.Empty;
         ItemEditorDescription = string.Empty;
-        ItemEditorIsDone = false;
+        ItemEditorWorkflowState = WorkItemLifecycle.Planned;
         SelectedItemTypeId = AvailableItemTypes.FirstOrDefault() ?? "feature";
         SelectedCategoryId = AvailableCategories.FirstOrDefault() ?? "added";
     }
@@ -3789,8 +3889,17 @@ public partial class MainWindowViewModel : ViewModelBase
                     item.CategoryId,
                     item.Title,
                     item.Description,
-                    item.IsDone))
+                    item.IsDone,
+                    item.EffectiveWorkflowState,
+                    item.Tags))
                 .ToArray());
+
+    private static string FormatWorkflowState(WorkItemLifecycle state) =>
+        state switch
+        {
+            WorkItemLifecycle.InProgress => "In Progress",
+            _ => state.ToString(),
+        };
 
     private static LocalWorkspaceSession CreateDesignSession()
     {

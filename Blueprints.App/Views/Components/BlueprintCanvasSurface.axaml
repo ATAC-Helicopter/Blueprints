@@ -1,10 +1,12 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:automation="using:Avalonia.Automation"
              x:Class="Blueprints.App.Views.Components.BlueprintCanvasSurface"
-             Focusable="True">
-  <Border Background="#F5F4FA"
-          BorderBrush="#DEDDE8"
-          BorderThickness="0"
+             Focusable="True"
+             automation:AutomationProperties.Name="Interactive blueprint canvas"
+             automation:AutomationProperties.HelpText="Use the toolbar to change views, search, connect work, arrange, and zoom.">
+  <Border Background="{DynamicResource CanvasBackgroundBrush}"
+          BorderBrush="{DynamicResource CanvasFrameBorderBrush}"
           ClipToBounds="True">
     <Grid>
       <ScrollViewer x:Name="Viewport"
@@ -18,42 +20,41 @@
           <Canvas x:Name="Surface"
                   Width="1500"
                   Height="960"
-                  Background="#F5F4FA" />
+                  Background="{DynamicResource CanvasBackgroundBrush}" />
         </Viewbox>
       </ScrollViewer>
 
-      <Border HorizontalAlignment="Left"
-              VerticalAlignment="Top"
-              Margin="18"
-              Padding="11,7"
-              Background="#F2FFFFFF"
-              BorderBrush="#DEDCEB"
-              BorderThickness="1"
-              CornerRadius="10"
-              IsHitTestVisible="False">
-        <TextBlock Text="Drag cards to shape the plan  ·  Drag the background to select  ·  Middle-drag to move"
-                   Foreground="#5D5C6D"
-                   FontSize="11" />
-      </Border>
-
-      <Border HorizontalAlignment="Right"
+      <Border x:Name="MiniMapPanel"
+              HorizontalAlignment="Right"
               VerticalAlignment="Bottom"
-              Width="190"
-              Height="132"
+              Width="204"
+              Height="146"
               Margin="0,0,18,18"
-              Padding="7"
-              Background="#F2FFFFFF"
-              BorderBrush="#D4D2E2"
+              Padding="9"
+              Background="{DynamicResource CanvasOverlayBrush}"
+              BorderBrush="{DynamicResource CanvasFrameBorderBrush}"
               BorderThickness="1"
-              CornerRadius="9"
-              IsHitTestVisible="False">
-        <Grid RowDefinitions="Auto,*" RowSpacing="4">
-          <TextBlock Text="MAP" Foreground="#6254D9" FontSize="8" FontWeight="Bold" LetterSpacing="1" />
+              CornerRadius="7">
+        <Grid RowDefinitions="Auto,*" RowSpacing="6">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Text="BOARD MAP"
+                       Foreground="{DynamicResource CanvasAccentBrush}"
+                       FontSize="9"
+                       FontWeight="Bold"
+                       LetterSpacing="1" />
+            <TextBlock Grid.Column="1"
+                       Text="Click to navigate"
+                       Foreground="{DynamicResource CanvasMutedBrush}"
+                       FontSize="9" />
+          </Grid>
           <Canvas x:Name="MiniMapSurface"
                   Grid.Row="1"
-                  Width="174"
-                  Height="106"
-                  Background="#E8E6F0" />
+                  Width="184"
+                  Height="112"
+                  Background="{DynamicResource CanvasMinimapBackgroundBrush}"
+                  Cursor="Hand"
+                  automation:AutomationProperties.Name="Blueprint minimap"
+                  automation:AutomationProperties.HelpText="Click a location to center the canvas there." />
         </Grid>
       </Border>
     </Grid>

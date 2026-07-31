@@ -148,7 +148,7 @@ The file is signed, audited, synchronized, and optional for schema-1 compatibili
 
 ### `.blueprints/canvas-view.json`
 
-Contains machine-local zoom and scroll offsets. It is deliberately unsigned and excluded from exchange snapshots. Invalid or missing view state falls back to zoom `1` and zero offsets without changing workspace trust.
+Contains bounded machine-local zoom and scroll offsets plus the selected canvas mode, search, filters, minimap visibility, and collapsed version-frame IDs. It is deliberately unsigned and excluded from exchange snapshots. Invalid or missing view state falls back to Plan mode, zoom `1`, zero offsets, and no filters without changing workspace trust.
 
 ### `version.json`
 
@@ -158,7 +158,9 @@ Statuses are Planned, In Progress, Frozen, and Released.
 
 ### item document
 
-Contains project/version/item IDs, stable item key, type, category, title, optional description, completion state, tags, timestamps, and last-modifier identity.
+Contains project/version/item IDs, stable item key, type, category, title, optional description, completion state, optional lifecycle state, tags, timestamps, and last-modifier identity.
+
+The optional `workflowState` uses Planned, In Progress, Review, or Complete. It was added compatibly to schema 1: a missing value maps to Planned when `isDone` is false and Complete when `isDone` is true. Blueprints does not rewrite an old item merely by opening it. New edits keep `isDone` and Complete consistent so changelog export retains its established completion behavior.
 
 ### audit entry
 
