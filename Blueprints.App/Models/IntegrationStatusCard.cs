@@ -11,6 +11,8 @@ public sealed record IntegrationStatusCard(
     DateTimeOffset CheckedAtUtc,
     IReadOnlyList<SourceChangeSummary> RecentChanges)
 {
+    public VaultSyncStatusSummary? VaultSyncStatus { get; init; }
+
     public string CheckedAtSummary => $"Checked {CheckedAtUtc:yyyy-MM-dd HH:mm} UTC";
 
     public string RecentChangeSummary =>

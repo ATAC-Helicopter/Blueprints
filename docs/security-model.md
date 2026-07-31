@@ -22,6 +22,7 @@ Blueprints uses signatures and explicit validation to detect unauthorized or inc
 | Project invitation | Out-of-band signed trust bootstrap targeted to one local identity |
 | Local project trust anchors | Machine-local accepted member keys; never sourced from unverified shared data |
 | Git/provider integration | Informational; not authoritative project truth |
+| VaultSync metadata and health sidecar | Untrusted, bounded, read-only recovery evidence; never Blueprints trust authority |
 | Source Lens proposals | Untrusted transient suggestions; no persistence before explicit approval |
 | UI input | Validated by application workflows before persistence |
 | Canvas layout | Signed shared node positions; entity references and coordinate bounds validated before rendering or saving |
@@ -61,6 +62,10 @@ Blueprints uses signatures and explicit validation to detect unauthorized or inc
 - GitHub API credentials are accepted only through the process environment variable `BLUEPRINTS_GITHUB_TOKEN` and remain outside Blueprints workspaces and settings.
 - GitLab API credentials follow the same isolation rule through `BLUEPRINTS_GITLAB_TOKEN`.
 - Hosted-provider reads are allowed directly. Any future write must have a fresh, exact-target, single-use approval with a maximum ten-minute lifetime; credentials alone never authorize a write.
+- VaultSync passive awareness resolves only documented paths, does not parse the metadata SQLite database, and limits the optional health sidecar to 1 MiB, schema depth 16, and 32 distinct warnings.
+- VaultSync paths and health evidence are machine-local integration state. They do not enter signed workspaces, manifests, audit history, or release semantics.
+- VaultSync exchange registration requires a fresh exact-project and exact-destination approval with a maximum ten-minute lifetime. Approval is single-use; registration enforces the canonical contained path, rejects internal directory links and unexpected content, and atomically creates only a bounded marker.
+- VaultSync release readiness treats missing, stale, future-dated, and producer-reported risk as advisory attention. It does not infer that payloads were verified, elevate project trust, or silently block a release.
 
 ## Important limitations
 
@@ -75,7 +80,7 @@ Blueprints uses signatures and explicit validation to detect unauthorized or inc
 - Conflict recovery copies are local, unsigned operational records; protect and back them up according to the sensitivity of project content.
 - Blueprints does not encrypt project content.
 - Duplicate detection is an exact normalized-title warning, not semantic identity proof.
-- GitHub Project discovery currently sees project-linked repository issues, not standalone Project draft items.
+- VaultSync health freshness is reported from supplied timestamps; passive awareness does not independently verify backup payloads or destination contents.
 
 ## Reviewing security changes
 

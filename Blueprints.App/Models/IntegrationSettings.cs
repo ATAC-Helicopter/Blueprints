@@ -6,6 +6,8 @@ public sealed record IntegrationSettings(
 {
     public IReadOnlyList<string> LocalGitRepositoryPaths { get; init; } = [];
 
+    public string RegisteredVaultSyncExchangeRoot { get; init; } = string.Empty;
+
     public IReadOnlyList<string> EffectiveLocalGitRepositoryPaths =>
         LocalGitRepositoryPaths
             .Append(LocalGitRepositoryPath)

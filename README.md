@@ -31,7 +31,8 @@ Release notes often live in scattered issues, commit messages, and private docum
 - discover changelog, roadmap, GitHub issue, and Project signals as editable approval-first proposals;
 - validate signed project files and enter read-only mode when trust breaks;
 - exchange signed changes through a shared folder with explicit push, pull, and conflict resolution;
-- inspect membership, audit history, sync state, and integration boundaries in one desktop app.
+- inspect membership, audit history, sync state, and integration boundaries in one desktop app;
+- inspect passive VaultSync backup and restore-readiness evidence without coupling signed project truth to backup metadata.
 
 ## Current status
 
@@ -45,7 +46,8 @@ Release notes often live in scattered issues, commit messages, and private docum
 | Conflict and audit diagnostics | Document-aware, recoverable, and actionable |
 | Local Git awareness | Read-only integration available |
 | Changelog, roadmap, and GitHub issue discovery | Working, explicit approval required |
-| Full GitHub, GitLab, and VaultSync adapters | Planned |
+| GitHub and GitLab source discovery | Working, read-only and bounded |
+| VaultSync integration | Passive metadata and backup-health awareness |
 | Installers and supported releases | Not ready |
 
 The canonical delivery plan is [ROADMAP.md](Roadmap.md). Older planning files remain as design history and are not the active backlog.
@@ -94,6 +96,7 @@ Blueprints uses a local workspace as the editable source of truth and a separate
 - [User guide](docs/user-guide.md)
 - [Canvas engine](docs/canvas-engine.md)
 - [Source Lens](docs/source-lens.md)
+- [VaultSync integration](docs/vaultsync-integration.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Architecture](docs/architecture.md)
 - [Workspace format](docs/workspace-format.md)
