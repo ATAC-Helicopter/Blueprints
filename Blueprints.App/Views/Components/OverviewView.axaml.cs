@@ -68,6 +68,24 @@ public partial class OverviewView : UserControl
     private void ToggleMiniMapClick(object? sender, RoutedEventArgs eventArgs) =>
         BlueprintSurface.ToggleMiniMap();
 
+    private void ToggleInspectorClick(object? sender, RoutedEventArgs eventArgs) =>
+        SetInspectorVisible(!InspectorPanel.IsVisible);
+
+    private void CloseInspectorClick(object? sender, RoutedEventArgs eventArgs) =>
+        SetInspectorVisible(false);
+
+    private void OpenInspectorClick(object? sender, RoutedEventArgs eventArgs) =>
+        SetInspectorVisible(true);
+
+    private void SetInspectorVisible(bool isVisible)
+    {
+        InspectorPanel.IsVisible = isVisible;
+        ((Grid)InspectorPanel.Parent!).ColumnDefinitions[1].Width =
+            isVisible ? new GridLength(380) : new GridLength(0);
+        InspectorButton.Classes.Set("active", isVisible);
+        InspectorButton.Content = isVisible ? "Editor open" : "Open editor";
+    }
+
     private void SearchTextChanged(object? sender, TextChangedEventArgs eventArgs)
     {
         if (sender is TextBox textBox)

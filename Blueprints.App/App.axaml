@@ -2,7 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="using:Blueprints.App"
              x:Class="Blueprints.App.App"
-             RequestedThemeVariant="Default">
+             RequestedThemeVariant="Light">
   <Application.DataTemplates>
     <local:ViewLocator />
   </Application.DataTemplates>
@@ -209,6 +209,50 @@
     <Style Selector="Button.nav.active TextBlock">
       <Setter Property="Foreground" Value="White" />
     </Style>
+    <Style Selector="Button.project-switcher">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="HorizontalContentAlignment" Value="Left" />
+    </Style>
+    <Style Selector="Button.project-switcher:pointerover">
+      <Setter Property="Background" Value="#F3F2FA" />
+    </Style>
+    <Style Selector="Button.top-nav">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="#606273" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="13,8" />
+      <Setter Property="MinHeight" Value="38" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="Button.top-nav:pointerover">
+      <Setter Property="Background" Value="#F1F0F8" />
+      <Setter Property="Foreground" Value="#302A67" />
+    </Style>
+    <Style Selector="Button.top-nav.active">
+      <Setter Property="Background" Value="#ECE9FF" />
+      <Setter Property="Foreground" Value="#5145C7" />
+    </Style>
+    <Style Selector="Button.avatar">
+      <Setter Property="Width" Value="38" />
+      <Setter Property="Height" Value="38" />
+      <Setter Property="MinHeight" Value="38" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="CornerRadius" Value="19" />
+      <Setter Property="Background" Value="#292A43" />
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="FontSize" Value="10" />
+    </Style>
+    <Style Selector="Border.health-pill">
+      <Setter Property="Background" Value="#F2F8F6" />
+      <Setter Property="BorderBrush" Value="#DCEAE6" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="9" />
+      <Setter Property="Padding" Value="10,7" />
+    </Style>
     <Style Selector="Button.tool">
       <Setter Property="Background" Value="#FFFFFF" />
       <Setter Property="Foreground" Value="#3E4050" />
@@ -292,6 +336,11 @@
     </Style>
     <Style Selector="ListBoxItem">
       <Setter Property="CornerRadius" Value="10" />
+    </Style>
+    <Style Selector="TabControl.inspector-tabs TabItem">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Padding" Value="10,8" />
+      <Setter Property="MinHeight" Value="38" />
     </Style>
   </Application.Styles>
 </Application>

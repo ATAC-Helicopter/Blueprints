@@ -250,6 +250,16 @@ public static class GitHubSourceJsonParser
         var url = ReadString(release, "html_url", "url")
             ?? $"https://github.com/{repositoryName}/releases/tag/{Uri.EscapeDataString(tag)}";
         var title = string.IsNullOrWhiteSpace(name) ? tag : name;
+        var releaseNotes = Truncate(ReadString(release, "body", "description"), 1_600);
+        var distributionFiles = ReadReleaseAssetNames(release);
+        var description = new[]
+            {
+                releaseNotes,
+                distributionFiles.Count == 0
+                    ? null
+                    : $"Distribution files: {string.Join(", ", distributionFiles)}",
+            }
+            .Where(static value => !string.IsNullOrWhiteSpace(value));
         var states = new[]
             {
                 isDraft ? "draft" : null,
@@ -261,7 +271,7 @@ public static class GitHubSourceJsonParser
         return new SourceDiscoveryCandidate(
             SourceArtifactKind.Release,
             title,
-            null,
+            string.Join(Environment.NewLine + Environment.NewLine, description),
             "feature",
             "changed",
             !isDraft && publishedAt is not null,
@@ -274,6 +284,29 @@ public static class GitHubSourceJsonParser
                 repositoryName,
                 tag,
                 url));
+    }
+
+    private static IReadOnlyList<string> ReadReleaseAssetNames(JsonElement release)
+    {
+        if (!release.TryGetProperty("assets", out var assets))
+        {
+            return [];
+        }
+
+        if (assets.ValueKind == JsonValueKind.Object &&
+            assets.TryGetProperty("nodes", out var nodes))
+        {
+            assets = nodes;
+        }
+
+        return assets.ValueKind == JsonValueKind.Array
+            ? assets.EnumerateArray()
+                .Select(static asset => ReadString(asset, "name", "label"))
+                .Where(static name => !string.IsNullOrWhiteSpace(name))
+                .Take(50)
+                .Cast<string>()
+                .ToArray()
+            : [];
     }
 
     private static SourceDiscoveryCandidate ParseIssue(

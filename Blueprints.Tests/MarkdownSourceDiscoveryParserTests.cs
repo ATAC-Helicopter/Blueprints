@@ -125,6 +125,18 @@ public sealed class MarkdownSourceDiscoveryParserTests : IDisposable
     }
 
     [Fact]
+    public void Discover_ReadsCommonPlanAndReleaseNoteFileNames()
+    {
+        Write("RELEASE_NOTES.md", "- Published portable distribution");
+        Write("TODO.md", "- [ ] Verify package checksums");
+
+        var result = new RepositorySourceDiscoveryService().Discover(_root);
+
+        Assert.Contains(result.Candidates, static candidate => candidate.Title == "Published portable distribution");
+        Assert.Contains(result.Candidates, static candidate => candidate.Title == "Verify package checksums");
+    }
+
+    [Fact]
     public void Discover_UsesTheProviderNeutralHostedReaderBoundary()
     {
         Directory.CreateDirectory(_root);

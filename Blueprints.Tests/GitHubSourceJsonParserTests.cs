@@ -101,6 +101,8 @@ public sealed class GitHubSourceJsonParserTests
                 "isDraft": true,
                 "isPrerelease": true,
                 "publishedAt": null,
+                "body": "Preview release notes.",
+                "assets": [{ "name": "blueprints-macos-arm64.zip" }, { "name": "blueprints-linux.tar.gz" }],
                 "url": "https://github.com/example/project/releases/tag/v0.4.0-alpha.4"
               },
               {
@@ -121,6 +123,9 @@ public sealed class GitHubSourceJsonParserTests
                 Assert.Equal(SourceArtifactKind.Release, draft.Kind);
                 Assert.False(draft.IsDone);
                 Assert.Equal("Alpha 4", draft.Title);
+                Assert.Contains("Preview release notes", draft.Description, StringComparison.Ordinal);
+                Assert.Contains("blueprints-macos-arm64.zip", draft.Description, StringComparison.Ordinal);
+                Assert.Contains("blueprints-linux.tar.gz", draft.Description, StringComparison.Ordinal);
             },
             published =>
             {

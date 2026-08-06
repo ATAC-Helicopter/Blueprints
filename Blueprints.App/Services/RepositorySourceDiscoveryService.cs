@@ -55,7 +55,7 @@ public sealed partial class RepositorySourceDiscoveryService : ISourceDiscoveryS
         if (hostedRepository is null)
         {
             warnings.Add(
-                "Hosted sources were skipped because the origin remote is not a recognizable GitHub or GitLab repository.");
+                "Hosted issue and release metadata is available for GitHub and GitLab. Local Git and planning files were still scanned for this repository.");
         }
         else
         {
@@ -93,14 +93,14 @@ public sealed partial class RepositorySourceDiscoveryService : ISourceDiscoveryS
         ICollection<SourceDiscoveryCandidate> candidates)
     {
         var names = kind == SourceArtifactKind.Changelog
-            ? new[] { "CHANGELOG.md", "Changelog.md", "changelog.md" }
-            : new[] { "Roadmap.md", "ROADMAP.md", "roadmap.md" };
+            ? new[] { "CHANGELOG.md", "Changelog.md", "changelog.md", "RELEASES.md", "ReleaseNotes.md", "RELEASE_NOTES.md" }
+            : new[] { "Roadmap.md", "ROADMAP.md", "roadmap.md", "PLAN.md", "Plan.md", "TODO.md", "BACKLOG.md" };
         var paths = names
             .Select(name => Path.Combine(root, name))
             .Concat(names.Select(name => Path.Combine(root, "docs", name)))
             .Where(File.Exists)
             .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Take(2)
+            .Take(8)
             .ToArray();
 
         var countBefore = candidates.Count;

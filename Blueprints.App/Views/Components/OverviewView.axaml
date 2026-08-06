@@ -7,19 +7,19 @@
              xmlns:automation="using:Avalonia.Automation"
              x:Class="Blueprints.App.Views.Components.OverviewView"
              x:DataType="vm:MainWindowViewModel">
-  <Grid RowDefinitions="82,*">
+  <Grid RowDefinitions="Auto,*">
     <Border Background="{DynamicResource CanvasToolbarBrush}"
             BorderBrush="{DynamicResource LineBrush}"
             BorderThickness="0,0,0,1"
-            Padding="14,10">
-      <Grid RowDefinitions="Auto,Auto" RowSpacing="7">
-        <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto" ColumnSpacing="10">
-          <StackPanel Orientation="Horizontal" Spacing="2">
+            Padding="14,9">
+      <StackPanel Spacing="7">
+        <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto,Auto" ColumnSpacing="9">
+          <StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
             <Button x:Name="PlanModeButton"
                     Classes="tool active"
-                    Content="Plan"
+                    Content="Board"
                     Click="PlanModeClick"
-                    ToolTip.Tip="Plan view: version frames and lifecycle columns (Ctrl/Command+7)" />
+                    ToolTip.Tip="Work grouped into releases and progress columns (Ctrl/Command+7)" />
             <Button x:Name="DependenciesModeButton"
                     Classes="tool"
                     Content="Dependencies"
@@ -30,24 +30,26 @@
                     Content="Release Notes"
                     Click="ReleaseNotesModeClick"
                     ToolTip.Tip="Changelog-category projection (Ctrl/Command+9)" />
-            <Button Classes="tool"
-                    Content="Timeline"
-                    IsEnabled="False"
-                    ToolTip.Tip="Timeline requires a future target-date contract." />
           </StackPanel>
 
-          <Border Grid.Column="1" Width="1" Background="{DynamicResource LineBrush}" Margin="2,2" />
+          <Border Grid.Column="1" Width="1" Height="28" Background="{DynamicResource LineBrush}" />
 
-          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="5">
-            <TextBox Text="{Binding NewVersionName}"
-                     PlaceholderText="Version"
-                     Width="86"
-                     MinHeight="32"
-                     Padding="8,4"
-                     IsEnabled="{Binding CanMutateWorkspace}"
-                     automation:AutomationProperties.Name="New version name" />
-            <Button Classes="tool" Content="+ Version" Command="{Binding CreateVersionCommand}" IsEnabled="{Binding CanMutateWorkspace}" />
-            <Button Classes="tool" Content="+ Work item" Command="{Binding BeginNewItemCommand}" IsEnabled="{Binding CanEditItems}" />
+          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+            <Button Classes="primary compact" Content="＋ Add work" Command="{Binding BeginNewItemCommand}" Click="OpenInspectorClick"
+                    IsEnabled="{Binding CanEditItems}" ToolTip.Tip="Open the editor to add a work item" />
+            <Button Classes="tool" Content="＋ Release" IsEnabled="{Binding CanMutateWorkspace}">
+              <Button.Flyout>
+                <Flyout>
+                  <StackPanel Width="260" Spacing="9">
+                    <TextBlock Text="Create a release" FontSize="16" FontWeight="Bold" />
+                    <TextBlock Text="Give this group a recognizable version or milestone name." Classes="muted" FontSize="11" TextWrapping="Wrap" />
+                    <TextBox Text="{Binding NewVersionName}" PlaceholderText="For example, 2.4 or Summer launch"
+                             automation:AutomationProperties.Name="New release name" />
+                    <Button Classes="primary" Content="Create release" Command="{Binding CreateVersionCommand}" />
+                  </StackPanel>
+                </Flyout>
+              </Button.Flyout>
+            </Button>
             <Button x:Name="ConnectButton"
                     Classes="tool"
                     Content="Connect"
@@ -56,107 +58,90 @@
                     ToolTip.Tip="Connect two entities with a signed typed relationship (Ctrl/Command+L)" />
           </StackPanel>
 
-          <TextBox x:Name="SearchBox"
-                   Grid.Column="3"
-                   HorizontalAlignment="Right"
-                   Width="230"
+          <TextBox x:Name="SearchBox" Grid.Column="3" HorizontalAlignment="Right" Width="240"
                    MinHeight="32"
                    Padding="10,4"
-                   PlaceholderText="Search key, title, type…"
+                   PlaceholderText="Search this board…"
                    TextChanged="SearchTextChanged"
                    automation:AutomationProperties.Name="Search blueprint" />
 
-          <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="6">
-            <Border Classes="status-pill">
-              <TextBlock Text="{Binding TrustBadge}" FontSize="10" FontWeight="Bold" />
-            </Border>
-            <Border Classes="status-pill">
-              <TextBlock Text="{Binding SyncStatus}" FontSize="10" TextTrimming="CharacterEllipsis" MaxWidth="150" />
-            </Border>
-            <Border Classes="status-pill">
-              <TextBlock Text="{Binding ReleaseReadinessSummary}" FontSize="10" TextTrimming="CharacterEllipsis" MaxWidth="190" />
-            </Border>
-          </StackPanel>
-        </Grid>
+          <Button Grid.Column="4" Classes="tool" Content="Import from sources"
+                  Command="{Binding NavigateToIntegrationsCommand}"
+                  ToolTip.Tip="Review GitHub, GitLab, Git and planning-file suggestions" />
 
-        <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="10">
-          <StackPanel Orientation="Horizontal" Spacing="5">
-            <Button x:Name="UndoButton" Classes="tool square" Content="↶" Click="UndoClick" ToolTip.Tip="Undo layout change (Ctrl/Command+Z)" automation:AutomationProperties.Name="Undo layout change" />
-            <Button x:Name="RedoButton" Classes="tool square" Content="↷" Click="RedoClick" ToolTip.Tip="Redo layout change (Ctrl/Command+Shift+Z)" automation:AutomationProperties.Name="Redo layout change" />
-            <Button Classes="tool" Content="Auto arrange" Click="AutoArrangeClick" IsEnabled="{Binding CanMutateWorkspace}" />
-            <Button Classes="tool" Content="Fit view" Click="FitViewClick" ToolTip.Tip="Fit the complete board (Ctrl/Command+0)" />
-            <Button Classes="tool" Content="Selection" Click="ZoomSelectionClick" ToolTip.Tip="Zoom to selected entities" />
-            <Button x:Name="FocusButton" Classes="tool" Content="Focus" Click="FocusClick" ToolTip.Tip="Show only the selected item or version" />
-          </StackPanel>
-
-          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
-            <Button Classes="tool square" Content="−" Click="ZoomOutClick" ToolTip.Tip="Zoom out" automation:AutomationProperties.Name="Zoom out" />
-            <Border Background="{DynamicResource CanvasControlBackgroundBrush}" CornerRadius="6" Padding="8,5" MinWidth="54">
-              <TextBlock x:Name="ZoomLevelText" Text="100%" HorizontalAlignment="Center" FontSize="11" FontWeight="Bold" />
-            </Border>
-            <Button Classes="tool square" Content="＋" Click="ZoomInClick" ToolTip.Tip="Zoom in" automation:AutomationProperties.Name="Zoom in" />
-          </StackPanel>
-
-          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="5">
-            <ComboBox x:Name="VersionFilter"
-                      Width="150"
-                      MinHeight="32"
-                      SelectionChanged="VersionFilterChanged"
-                      ToolTip.Tip="Filter by version">
-              <ComboBoxItem Content="All versions" Tag="All" IsSelected="True" />
-            </ComboBox>
-            <ComboBox x:Name="LifecycleFilter"
-                      Width="140"
-                      MinHeight="32"
-                      SelectionChanged="LifecycleFilterChanged"
-                      ToolTip.Tip="Filter by lifecycle state">
-              <ComboBoxItem Content="All states" Tag="All" IsSelected="True" />
-              <ComboBoxItem Content="Planned" Tag="Planned" />
-              <ComboBoxItem Content="In Progress" Tag="In Progress" />
-              <ComboBoxItem Content="Review" Tag="Review" />
-              <ComboBoxItem Content="Complete" Tag="Complete" />
-            </ComboBox>
-            <Button Classes="tool" Content="More filters">
-              <Button.Flyout>
-                <Flyout>
-                  <StackPanel Width="240" Spacing="9">
-                    <TextBlock Classes="eyebrow" Text="FILTER BOARD" />
-                    <TextBlock Text="Work type" FontWeight="SemiBold" FontSize="11" />
-                    <ComboBox x:Name="ItemTypeFilter"
-                              SelectionChanged="ItemTypeFilterChanged">
+          <Button Grid.Column="5" Classes="tool" Content="Board tools">
+            <Button.Flyout>
+              <Flyout Placement="BottomEdgeAlignedRight">
+                <StackPanel Width="330" Spacing="12">
+                  <TextBlock Text="Board tools" FontSize="17" FontWeight="Bold" />
+                  <StackPanel Orientation="Horizontal" Spacing="5">
+                    <Button x:Name="UndoButton" Classes="tool square" Content="↶" Click="UndoClick" ToolTip.Tip="Undo layout change" />
+                    <Button x:Name="RedoButton" Classes="tool square" Content="↷" Click="RedoClick" ToolTip.Tip="Redo layout change" />
+                    <Button Classes="tool" Content="Arrange" Click="AutoArrangeClick" IsEnabled="{Binding CanMutateWorkspace}" />
+                    <Button Classes="tool" Content="Fit" Click="FitViewClick" />
+                    <Button x:Name="FocusButton" Classes="tool" Content="Focus" Click="FocusClick" />
+                  </StackPanel>
+                  <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                    <ComboBox x:Name="VersionFilter" SelectionChanged="VersionFilterChanged">
+                      <ComboBoxItem Content="All releases" Tag="All" IsSelected="True" />
+                    </ComboBox>
+                    <ComboBox x:Name="LifecycleFilter" Grid.Column="1" SelectionChanged="LifecycleFilterChanged">
+                      <ComboBoxItem Content="All progress" Tag="All" IsSelected="True" />
+                      <ComboBoxItem Content="Planned" Tag="Planned" />
+                      <ComboBoxItem Content="In progress" Tag="In Progress" />
+                      <ComboBoxItem Content="Review" Tag="Review" />
+                      <ComboBoxItem Content="Complete" Tag="Complete" />
+                    </ComboBox>
+                  </Grid>
+                  <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                    <ComboBox x:Name="ItemTypeFilter" SelectionChanged="ItemTypeFilterChanged">
                       <ComboBoxItem Content="All work types" Tag="All" IsSelected="True" />
                     </ComboBox>
-                    <TextBlock Text="Changelog category" FontWeight="SemiBold" FontSize="11" />
-                    <ComboBox x:Name="CategoryFilter"
-                              SelectionChanged="CategoryFilterChanged">
-                      <ComboBoxItem Content="All categories" Tag="All" IsSelected="True" />
+                    <ComboBox x:Name="CategoryFilter" Grid.Column="1" SelectionChanged="CategoryFilterChanged">
+                      <ComboBoxItem Content="All note groups" Tag="All" IsSelected="True" />
                     </ComboBox>
-                    <CheckBox x:Name="WarningsOnlyFilter"
-                              Content="Only work needing attention"
-                              Click="WarningsOnlyChanged" />
-                    <TextBlock Text="Filters change only this computer's view. They never edit signed project documents."
-                               Classes="muted"
-                               FontSize="10"
-                               TextWrapping="Wrap" />
+                  </Grid>
+                  <CheckBox x:Name="WarningsOnlyFilter" Content="Only show work needing attention" Click="WarningsOnlyChanged" />
+                  <StackPanel Orientation="Horizontal" Spacing="5">
+                    <Button Classes="tool square" Content="−" Click="ZoomOutClick" ToolTip.Tip="Zoom out" />
+                    <Border Background="{DynamicResource CanvasControlBackgroundBrush}" CornerRadius="6" Padding="8,7" MinWidth="58">
+                      <TextBlock x:Name="ZoomLevelText" Text="100%" HorizontalAlignment="Center" FontSize="11" FontWeight="Bold" />
+                    </Border>
+                    <Button Classes="tool square" Content="＋" Click="ZoomInClick" ToolTip.Tip="Zoom in" />
+                    <Button Classes="tool" Content="Selection" Click="ZoomSelectionClick" />
+                    <Button Classes="tool" Content="Minimap" Click="ToggleMiniMapClick" />
                   </StackPanel>
-                </Flyout>
-              </Button.Flyout>
-            </Button>
-            <Button Classes="tool" Content="Minimap" Click="ToggleMiniMapClick" />
-          </StackPanel>
+                  <TextBlock Text="Filters and zoom only change your view. They never change the team's signed plan."
+                             Classes="muted" FontSize="10" TextWrapping="Wrap" />
+                </StackPanel>
+              </Flyout>
+            </Button.Flyout>
+          </Button>
 
-          <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <Button x:Name="InspectorButton" Grid.Column="6" Classes="tool" Content="Open editor"
+                  Click="ToggleInspectorClick" ToolTip.Tip="Edit the selected release, work item, or relationship" />
+        </Grid>
+        <Grid ColumnDefinitions="*,Auto" Margin="4,0">
+          <TextBlock Text="Drag cards to shape the plan. Select anything, then open the editor when you need details."
+                     Classes="muted" FontSize="10" />
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
             <TextBlock x:Name="CanvasSelectionSummary" Classes="muted" FontSize="10" />
-            <TextBlock Text="{Binding CanvasLayoutRevisionSummary}" Classes="muted" FontSize="10" />
+            <TextBlock Text="{Binding ReleaseReadinessSummary}" Foreground="#5A4ECC" FontSize="10" FontWeight="SemiBold"
+                       MaxWidth="240" TextTrimming="CharacterEllipsis" />
           </StackPanel>
         </Grid>
-      </Grid>
+      </StackPanel>
     </Border>
 
-    <Grid Grid.Row="1" ColumnDefinitions="*,360">
+    <Grid Grid.Row="1">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="0" />
+      </Grid.ColumnDefinitions>
       <views:BlueprintCanvasSurface x:Name="BlueprintSurface" />
 
-      <Border Grid.Column="1"
+      <Border x:Name="InspectorPanel" Grid.Column="1"
+              IsVisible="False"
               Background="{DynamicResource CanvasInspectorBrush}"
               BorderBrush="{DynamicResource LineBrush}"
               BorderThickness="1,0,0,0">
@@ -165,7 +150,7 @@
                   BorderBrush="{DynamicResource LineBrush}"
                   BorderThickness="0,0,0,1"
                   Padding="16,11">
-            <Grid ColumnDefinitions="*,Auto">
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
               <StackPanel Spacing="2">
                 <TextBlock Classes="eyebrow" Text="INSPECTOR" />
                 <TextBlock Text="{Binding InspectorSelectionSummary}" Classes="mono" FontWeight="Bold" FontSize="12" />
@@ -173,10 +158,12 @@
               <Border Grid.Column="1" Classes="status-pill">
                 <TextBlock Text="{Binding SelectedVersion.Status}" FontSize="10" FontWeight="Bold" />
               </Border>
+              <Button Grid.Column="2" Classes="tool square" Content="×" Click="CloseInspectorClick"
+                      ToolTip.Tip="Close editor" />
             </Grid>
           </Border>
 
-          <TabControl Grid.Row="1" SelectedIndex="{Binding InspectorTabIndex}">
+          <TabControl Grid.Row="1" Classes="inspector-tabs" SelectedIndex="{Binding InspectorTabIndex}">
             <TabItem Header="Details">
               <ScrollViewer>
                 <StackPanel Margin="16" Spacing="18">

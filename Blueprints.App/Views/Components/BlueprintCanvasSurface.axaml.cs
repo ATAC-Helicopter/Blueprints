@@ -1725,14 +1725,23 @@ public partial class BlueprintCanvasSurface : UserControl
         string value,
         double size,
         FontWeight weight,
-        IBrush? foreground = null) =>
-        new()
+        IBrush? foreground = null)
+    {
+        var text = new TextBlock
         {
             Text = value,
             FontSize = size,
             FontWeight = weight,
-            Foreground = foreground,
         };
+        // Leaving Foreground unset lets the app theme supply a readable default.
+        // Assigning null locally suppresses inheritance and made card titles vanish.
+        if (foreground is not null)
+        {
+            text.Foreground = foreground;
+        }
+
+        return text;
+    }
 
     private IBrush ResourceBrush(string key, string fallback) =>
         this.TryFindResource(key, ActualThemeVariant, out var value) && value is IBrush brush

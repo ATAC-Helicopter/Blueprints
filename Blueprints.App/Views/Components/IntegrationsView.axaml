@@ -8,9 +8,9 @@
     <Border Background="#202238" BorderBrush="#343650" BorderThickness="1" CornerRadius="13" Padding="18">
       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="20">
         <StackPanel Spacing="6">
-          <TextBlock Text="REPOSITORIES + IMPORT" Foreground="#68D5EF" FontSize="11" FontWeight="Bold" LetterSpacing="1.6" />
-          <TextBlock Text="Bring your repository into the plan" Foreground="White" FontSize="22" FontWeight="Black" />
-          <TextBlock Text="Open a repository already on this computer, clone one, safely synchronize it, and turn its planning signals into work you review."
+          <TextBlock Text="SOURCES" Foreground="#68D5EF" FontSize="11" FontWeight="Bold" LetterSpacing="1.6" />
+          <TextBlock Text="Bring real project work onto the board" Foreground="White" FontSize="22" FontWeight="Black" />
+          <TextBlock Text="Link any local Git repository or clone from any Git remote. Blueprints reads common planning files everywhere, plus issues, change requests, projects, releases, notes, and distribution files from GitHub or GitLab. You review every suggestion before it enters the plan."
                      Foreground="#B5D4E3"
                      TextWrapping="Wrap"
                      MaxWidth="760" />
