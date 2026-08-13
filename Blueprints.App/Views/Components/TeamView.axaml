@@ -41,7 +41,7 @@
         <Border Classes="card">
           <StackPanel Spacing="10">
             <StackPanel Spacing="3">
-              <TextBlock Classes="eyebrow" Text="INVITATION NODE" />
+            <TextBlock Classes="eyebrow" Text="ADD A PERSON" />
               <TextBlock Text="Verify and add a member" FontSize="19" FontWeight="Bold" />
             </StackPanel>
             <Button Classes="secondary"
@@ -75,8 +75,8 @@
         <Grid RowDefinitions="Auto,*" RowSpacing="12">
           <Grid ColumnDefinitions="*,Auto">
             <StackPanel Spacing="3">
-              <TextBlock Classes="eyebrow" Text="MEMBERSHIP MAP" />
-              <TextBlock Text="Signed project participants" FontSize="21" FontWeight="Bold" />
+              <TextBlock Classes="eyebrow" Text="PEOPLE" />
+              <TextBlock Text="Who can work on this plan" FontSize="21" FontWeight="Bold" />
             </StackPanel>
             <TextBlock Grid.Column="1"
                        Text="{Binding MembershipRevision, StringFormat='REV {0:000}'}"

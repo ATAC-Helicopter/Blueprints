@@ -8,7 +8,7 @@
     <StackPanel Spacing="16">
       <Border Classes="dark-card">
         <StackPanel Spacing="12">
-          <TextBlock Classes="eyebrow" Text="SHARED CHANGES" Foreground="#B8B2F4" />
+          <TextBlock Classes="eyebrow" Text="SHARE CHANGES" Foreground="#FFB6A3" />
           <TextBlock Text="{Binding SyncStatus}" FontSize="21" FontWeight="Bold" Foreground="White" TextWrapping="Wrap" />
           <TextBlock Text="{Binding WorkspaceModeSummary}" Foreground="#B9BBCB" TextWrapping="Wrap" />
           <TextBlock Text="{Binding SyncEvidenceSummary}" Foreground="#B9BBCB" FontSize="11" TextWrapping="Wrap" />

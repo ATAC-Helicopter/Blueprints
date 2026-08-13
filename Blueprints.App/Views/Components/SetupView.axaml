@@ -4,62 +4,62 @@
              xmlns:models="using:Blueprints.App.Models"
              x:Class="Blueprints.App.Views.Components.SetupView"
              x:DataType="vm:MainWindowViewModel">
-  <Grid ColumnDefinitions="360,*" Background="#F6F7FB">
-    <Border Background="#191A2C" Padding="36">
+  <Grid ColumnDefinitions="380,*" Background="#F4F1EA">
+    <Border Background="#302E2A" Padding="40">
       <Grid RowDefinitions="Auto,*,Auto">
         <StackPanel Orientation="Horizontal" Spacing="12">
-          <Border Width="44" Height="44" CornerRadius="13" Background="#6B5CE7">
+          <Border Width="44" Height="44" CornerRadius="13" Background="#E85D3F">
             <TextBlock Text="B" Foreground="White" FontSize="21" FontWeight="Bold"
                        HorizontalAlignment="Center" VerticalAlignment="Center" />
           </Border>
           <StackPanel VerticalAlignment="Center" Spacing="1">
             <TextBlock Text="Blueprints" Foreground="White" FontSize="19" FontWeight="Bold" />
-            <TextBlock Text="Plan releases with confidence" Foreground="#9295A8" FontSize="11" />
+            <TextBlock Text="A calmer way to decide what ships" Foreground="#BDB6AA" FontSize="11" />
           </StackPanel>
         </StackPanel>
 
         <StackPanel Grid.Row="1" VerticalAlignment="Center" Spacing="18">
-          <TextBlock Text="From rough ideas to clear release notes."
+          <TextBlock Text="Make the plan visible. Then make it happen."
                      Foreground="White"
                      FontSize="35"
                      FontWeight="Bold"
                      LetterSpacing="-0.7"
                      TextWrapping="Wrap" />
-          <TextBlock Text="Keep every version, task, and decision together—without needing an account or learning a complicated system."
-                     Foreground="#B7B9C8"
+          <TextBlock Text="A shared planning space for turning loose work into releases people can actually understand."
+                     Foreground="#C9C2B6"
                      FontSize="15"
                      LineHeight="23"
                      TextWrapping="Wrap" />
 
           <StackPanel Spacing="14" Margin="0,14,0,0">
             <Grid ColumnDefinitions="34,*">
-              <Border Width="26" Height="26" CornerRadius="13" Background="#373455">
-                <TextBlock Text="1" Foreground="#DCD8FF" FontWeight="Bold" FontSize="11"
+              <Border Width="26" Height="26" CornerRadius="13" Background="#4B463F">
+                <TextBlock Text="1" Foreground="#FFD8CC" FontWeight="Bold" FontSize="11"
                            HorizontalAlignment="Center" VerticalAlignment="Center" />
               </Border>
               <StackPanel Grid.Column="1" Spacing="2">
                 <TextBlock Text="Create or open a project" Foreground="White" FontWeight="SemiBold" />
-                <TextBlock Text="Everything stays in folders you control." Foreground="#9295A8" FontSize="11" />
+                <TextBlock Text="Everything stays in folders you control." Foreground="#AFA89C" FontSize="11" />
               </StackPanel>
             </Grid>
             <Grid ColumnDefinitions="34,*">
-              <Border Width="26" Height="26" CornerRadius="13" Background="#373455">
-                <TextBlock Text="2" Foreground="#DCD8FF" FontWeight="Bold" FontSize="11"
+              <Border Width="26" Height="26" CornerRadius="13" Background="#4B463F">
+                <TextBlock Text="2" Foreground="#FFD8CC" FontWeight="Bold" FontSize="11"
                            HorizontalAlignment="Center" VerticalAlignment="Center" />
               </Border>
               <StackPanel Grid.Column="1" Spacing="2">
                 <TextBlock Text="Plan what ships next" Foreground="White" FontWeight="SemiBold" />
-                <TextBlock Text="Turn work into readable release notes." Foreground="#9295A8" FontSize="11" />
+                <TextBlock Text="Move work through a plan everyone can follow." Foreground="#AFA89C" FontSize="11" />
               </StackPanel>
             </Grid>
             <Grid ColumnDefinitions="34,*">
-              <Border Width="26" Height="26" CornerRadius="13" Background="#373455">
-                <TextBlock Text="3" Foreground="#DCD8FF" FontWeight="Bold" FontSize="11"
+              <Border Width="26" Height="26" CornerRadius="13" Background="#4B463F">
+                <TextBlock Text="3" Foreground="#FFD8CC" FontWeight="Bold" FontSize="11"
                            HorizontalAlignment="Center" VerticalAlignment="Center" />
               </Border>
               <StackPanel Grid.Column="1" Spacing="2">
                 <TextBlock Text="Share safely when ready" Foreground="White" FontWeight="SemiBold" />
-                <TextBlock Text="Every incoming change is checked first." Foreground="#9295A8" FontSize="11" />
+                <TextBlock Text="Every incoming change is checked first." Foreground="#AFA89C" FontSize="11" />
               </StackPanel>
             </Grid>
           </StackPanel>
@@ -67,7 +67,7 @@
 
         <TextBlock Grid.Row="2"
                    Text="Local-first  •  No hosted account required"
-                   Foreground="#747789"
+                   Foreground="#888176"
                    FontSize="11" />
       </Grid>
     </Border>
@@ -76,8 +76,8 @@
       <StackPanel Margin="40,32" Spacing="22" MaxWidth="930" HorizontalAlignment="Center">
         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
           <StackPanel Spacing="4">
-            <TextBlock Text="Welcome" Classes="page-title" />
-            <TextBlock Text="Choose what you want to do. Blueprints will validate the details before opening anything."
+            <TextBlock Text="Where do you want to begin?" Classes="page-title" />
+            <TextBlock Text="Start fresh, continue a plan, or join one your team already shares."
                        Classes="muted"
                        FontSize="14"
                        TextWrapping="Wrap" />
@@ -92,8 +92,8 @@
 
         <Border Classes="card">
           <Grid ColumnDefinitions="Auto,*,220,Auto" ColumnSpacing="14">
-            <Border Width="42" Height="42" CornerRadius="21" Background="#EAE7FF" VerticalAlignment="Center">
-              <TextBlock Text="ID" Foreground="#5A4ECC" FontSize="10" FontWeight="Bold"
+            <Border Width="42" Height="42" CornerRadius="21" Background="#F8DED6" VerticalAlignment="Center">
+              <TextBlock Text="ID" Foreground="#A83A25" FontSize="10" FontWeight="Bold"
                          HorizontalAlignment="Center" VerticalAlignment="Center" />
             </Border>
             <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
@@ -160,9 +160,9 @@
                 <StackPanel Grid.Column="1" Spacing="14">
                   <Border Classes="callout">
                     <StackPanel Spacing="4">
-                      <TextBlock Text="Where your files live" FontWeight="SemiBold" Foreground="#5145C7" />
+                      <TextBlock Text="Where your files live" FontWeight="SemiBold" Foreground="#A83A25" />
                       <TextBlock Text="The local folder is your editable copy. The shared folder is only for exchanging changes with teammates."
-                                 Foreground="#656079" FontSize="12" TextWrapping="Wrap" />
+                                 Foreground="#746F65" FontSize="12" TextWrapping="Wrap" />
                     </StackPanel>
                   </Border>
                   <StackPanel Spacing="5">
@@ -215,9 +215,9 @@
                 </StackPanel>
                 <Border Grid.Column="1" Classes="callout" VerticalAlignment="Top">
                   <StackPanel Spacing="8">
-                    <TextBlock Text="Your project is checked before it opens" FontWeight="SemiBold" Foreground="#5145C7" />
+                    <TextBlock Text="Your project is checked before it opens" FontWeight="SemiBold" Foreground="#A83A25" />
                     <TextBlock Text="Blueprints verifies the project files, signatures, membership, and change history. If something looks wrong, the project opens safely in read-only mode."
-                               Foreground="#656079" FontSize="12" TextWrapping="Wrap" />
+                               Foreground="#746F65" FontSize="12" TextWrapping="Wrap" />
                   </StackPanel>
                 </Border>
               </Grid>
@@ -262,9 +262,9 @@
                 </StackPanel>
                 <Border Grid.Column="1" Classes="callout" VerticalAlignment="Top">
                   <StackPanel Spacing="8">
-                    <TextBlock Text="Why an invitation file?" FontWeight="SemiBold" Foreground="#5145C7" />
+                    <TextBlock Text="Why an invitation file?" FontWeight="SemiBold" Foreground="#A83A25" />
                     <TextBlock Text="It lets Blueprints recognize the correct project and administrator before reading anything from the shared folder."
-                               Foreground="#656079" FontSize="12" TextWrapping="Wrap" />
+                               Foreground="#746F65" FontSize="12" TextWrapping="Wrap" />
                   </StackPanel>
                 </Border>
               </Grid>
@@ -274,15 +274,19 @@
 
         <Border Classes="card">
           <Grid RowDefinitions="Auto,*" RowSpacing="12">
-            <Grid ColumnDefinitions="*,Auto">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
               <StackPanel Spacing="3">
                 <TextBlock Text="Recent projects" Classes="section-title" />
                 <TextBlock Text="Pick up where you left off." Classes="muted" />
               </StackPanel>
-              <Button Grid.Column="1"
-                      Classes="primary"
-                      Content="Open selected"
-                      Command="{Binding OpenSelectedRecentProjectCommand}" />
+              <StackPanel Grid.Column="1" Spacing="8">
+                <Button Classes="primary"
+                        Content="Open selected"
+                        Command="{Binding OpenSelectedRecentProjectCommand}" />
+                <Button Classes="danger"
+                        Content="{Binding DeleteSelectedProjectLabel}"
+                        Command="{Binding DeleteSelectedRecentProjectCommand}" />
+              </StackPanel>
             </Grid>
             <ListBox Grid.Row="1"
                      ItemsSource="{Binding RecentProjects}"
@@ -299,8 +303,8 @@
                     <StackPanel Spacing="6">
                       <Grid ColumnDefinitions="*,Auto">
                         <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="15" />
-                        <Border Grid.Column="1" Background="#EAE7FF" CornerRadius="8" Padding="7,2">
-                          <TextBlock Classes="mono" Text="{Binding ProjectCode}" Foreground="#5A4ECC" FontSize="10" />
+                        <Border Grid.Column="1" Background="#F8DED6" CornerRadius="8" Padding="7,2">
+                          <TextBlock Classes="mono" Text="{Binding ProjectCode}" Foreground="#A83A25" FontSize="10" />
                         </Border>
                       </Grid>
                       <TextBlock Text="{Binding LocalWorkspaceRoot}" Classes="mono muted" FontSize="10" TextTrimming="CharacterEllipsis" />

@@ -65,20 +65,23 @@ public sealed class GitHubRestSourceProviderReader : IHostedSourceProviderReader
         ValidateRepositoryName(repositoryName);
 
         var token = _credentialSource.GetGitHubToken();
-        var issuesTask = ReadRestAsync(
+        var issuesTask = ReadRestPagesAsync(
             $"repos/{repositoryName}/issues?state=all&per_page=100",
+            100,
             repositoryName,
             "issues",
             GitHubSourceJsonParser.ParseIssues,
             token);
-        var pullRequestsTask = ReadRestAsync(
+        var pullRequestsTask = ReadRestPagesAsync(
             $"repos/{repositoryName}/pulls?state=all&per_page=100",
+            100,
             repositoryName,
             "pull requests",
             GitHubSourceJsonParser.ParsePullRequests,
             token);
-        var releasesTask = ReadRestAsync(
+        var releasesTask = ReadRestPagesAsync(
             $"repos/{repositoryName}/releases?per_page=50",
+            50,
             repositoryName,
             "releases",
             GitHubSourceJsonParser.ParseReleases,
@@ -110,18 +113,28 @@ public sealed class GitHubRestSourceProviderReader : IHostedSourceProviderReader
                 !projectIssueIds.Contains(candidate.ProviderReference.Identifier))
             .ToArray();
 
-        return new HostedSourceDiscoveryResult(
+        SourceDiscoveryCandidate[] candidates =
             [
                 .. unlinkedIssues,
                 .. pullRequests.Candidates,
                 .. releases.Candidates,
                 .. projectItems.Candidates,
-            ],
+            ];
+        var boundedCandidates = candidates
+            .Take(HostedSourceProviderContract.MaximumCandidatesPerDiscovery)
+            .ToArray();
+        var limitWarnings = candidates.Length > boundedCandidates.Length
+            ? new[] { $"GitHub discovery was limited to {HostedSourceProviderContract.MaximumCandidatesPerDiscovery} items." }
+            : [];
+
+        return new HostedSourceDiscoveryResult(
+            boundedCandidates,
             [
                 .. issues.Warnings,
                 .. pullRequests.Warnings,
                 .. releases.Warnings,
                 .. projectItems.Warnings,
+                .. limitWarnings,
             ],
             issues.Candidates.Count,
             projectItems.Candidates.Count,
@@ -129,7 +142,40 @@ public sealed class GitHubRestSourceProviderReader : IHostedSourceProviderReader
             releases.Candidates.Count);
     }
 
-    private async Task<ProviderReadResult> ReadRestAsync(
+    private async Task<ProviderReadResult> ReadRestPagesAsync(
+        string relativeUri,
+        int pageSize,
+        string repositoryName,
+        string sourceName,
+        Func<string, string, IReadOnlyList<SourceDiscoveryCandidate>> parser,
+        string? token)
+    {
+        var candidates = new List<SourceDiscoveryCandidate>();
+        var warnings = new List<string>();
+        var maximumPages = (int)Math.Ceiling(
+            HostedSourceProviderContract.MaximumCandidatesPerDiscovery / (double)pageSize);
+        for (var page = 1; page <= maximumPages; page++)
+        {
+            var separator = relativeUri.Contains('?', StringComparison.Ordinal) ? '&' : '?';
+            var result = await ReadRestPageAsync(
+                    $"{relativeUri}{separator}page={page}",
+                    repositoryName,
+                    sourceName,
+                    parser,
+                    token)
+                .ConfigureAwait(false);
+            candidates.AddRange(result.Candidates);
+            warnings.AddRange(result.Warnings);
+            if (result.RawItemCount < pageSize || result.Warnings.Count > 0)
+            {
+                break;
+            }
+        }
+
+        return new ProviderReadResult(candidates, warnings, candidates.Count);
+    }
+
+    private async Task<ProviderReadResult> ReadRestPageAsync(
         string relativeUri,
         string repositoryName,
         string sourceName,
@@ -149,7 +195,11 @@ public sealed class GitHubRestSourceProviderReader : IHostedSourceProviderReader
                 return Failure(sourceName, response.StatusCode);
             }
 
-            return new ProviderReadResult(parser(body, repositoryName), []);
+            using var document = JsonDocument.Parse(body);
+            var rawItemCount = document.RootElement.ValueKind == JsonValueKind.Array
+                ? document.RootElement.GetArrayLength()
+                : 0;
+            return new ProviderReadResult(parser(body, repositoryName), [], rawItemCount);
         }
         catch (Exception exception) when (
             exception is HttpRequestException or
@@ -159,7 +209,8 @@ public sealed class GitHubRestSourceProviderReader : IHostedSourceProviderReader
         {
             return new ProviderReadResult(
                 [],
-                [$"GitHub {sourceName} were skipped: {SafeMessage(exception.Message)}"]);
+                [$"GitHub {sourceName} were skipped: {SafeMessage(exception.Message)}"],
+                0);
         }
     }
 
@@ -313,5 +364,6 @@ public sealed class GitHubRestSourceProviderReader : IHostedSourceProviderReader
 
     private sealed record ProviderReadResult(
         IReadOnlyList<SourceDiscoveryCandidate> Candidates,
-        IReadOnlyList<string> Warnings);
+        IReadOnlyList<string> Warnings,
+        int RawItemCount = 0);
 }

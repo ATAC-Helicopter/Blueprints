@@ -10,4 +10,5 @@ public sealed record SourceDiscoveryCandidate(
     string SourceReference,
     string SourceContext,
     double Confidence,
-    ProviderReference? ProviderReference = null);
+    ProviderReference? ProviderReference = null,
+    string? SuggestedVersionName = null);

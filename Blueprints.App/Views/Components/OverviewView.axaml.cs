@@ -1,6 +1,7 @@
 using System.Collections.Specialized;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 using Blueprints.App.Models;
 using Blueprints.App.ViewModels;
 
@@ -8,6 +9,7 @@ namespace Blueprints.App.Views.Components;
 
 public partial class OverviewView : UserControl
 {
+    private bool _filterRefreshQueued;
     public OverviewView()
     {
         InitializeComponent();
@@ -83,7 +85,7 @@ public partial class OverviewView : UserControl
         ((Grid)InspectorPanel.Parent!).ColumnDefinitions[1].Width =
             isVisible ? new GridLength(380) : new GridLength(0);
         InspectorButton.Classes.Set("active", isVisible);
-        InspectorButton.Content = isVisible ? "Editor open" : "Open editor";
+        InspectorButton.Content = isVisible ? "Details open" : "Details";
     }
 
     private void SearchTextChanged(object? sender, TextChangedEventArgs eventArgs)
@@ -202,6 +204,20 @@ public partial class OverviewView : UserControl
         RefreshVersionFilter();
     }
 
-    private void HandleVersionsChanged(object? sender, NotifyCollectionChangedEventArgs eventArgs) =>
-        RefreshVersionFilter();
+    private void HandleVersionsChanged(object? sender, NotifyCollectionChangedEventArgs eventArgs)
+    {
+        if (_filterRefreshQueued)
+        {
+            return;
+        }
+
+        _filterRefreshQueued = true;
+        Dispatcher.UIThread.Post(
+            () =>
+            {
+                _filterRefreshQueued = false;
+                RefreshVersionFilter();
+            },
+            DispatcherPriority.Background);
+    }
 }

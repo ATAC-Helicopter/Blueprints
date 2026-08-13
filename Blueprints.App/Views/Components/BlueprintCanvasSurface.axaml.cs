@@ -60,6 +60,7 @@ public partial class BlueprintCanvasSurface : UserControl
     private Point _panStart;
     private Vector _panOrigin;
     private bool _isBoxSelecting;
+    private bool _renderQueued;
     private Point _boxStart;
     private Rectangle? _boxVisual;
 
@@ -79,8 +80,8 @@ public partial class BlueprintCanvasSurface : UserControl
     {
         0 when _viewModel?.SelectedRelationship is not null => "1 relationship selected",
         0 => "Nothing selected",
-        1 => "1 entity selected",
-        _ => $"{_selectedNodeIds.Count} entities selected",
+        1 => "1 thing selected",
+        _ => $"{_selectedNodeIds.Count} things selected",
     };
 
     public BlueprintCanvasSurface()
@@ -360,7 +361,24 @@ public partial class BlueprintCanvasSurface : UserControl
         {
             _layoutHistory.Clear();
         }
-        RenderGraph();
+        QueueRenderGraph();
+    }
+
+    private void QueueRenderGraph()
+    {
+        if (_renderQueued)
+        {
+            return;
+        }
+
+        _renderQueued = true;
+        Dispatcher.UIThread.Post(
+            () =>
+            {
+                _renderQueued = false;
+                RenderGraph();
+            },
+            DispatcherPriority.Background);
     }
 
     private void HandleViewModelPropertyChanged(object? sender, PropertyChangedEventArgs eventArgs)
@@ -433,6 +451,15 @@ public partial class BlueprintCanvasSurface : UserControl
 
     private void RenderPlan(CanvasBoardProjection projection)
     {
+        if (_collapsedVersionIds.Count == 0 &&
+            projection.Frames.Sum(static frame => frame.Version.ItemCount) > 500)
+        {
+            foreach (var frame in projection.Frames)
+            {
+                _collapsedVersionIds.Add(frame.Version.VersionId);
+            }
+        }
+
         var y = 70d;
         foreach (var frame in projection.Frames)
         {
@@ -973,7 +1000,7 @@ public partial class BlueprintCanvasSurface : UserControl
         empty.Children.Add(Text("No work matches this view", 20, FontWeight.Bold));
         empty.Children.Add(Text(
             _viewModel?.Versions.Count == 0
-                ? "Add a version to begin shaping the blueprint."
+                ? "Create a release, then add the work you want to move forward."
                 : "Clear search or filters to bring work back into view.",
             12,
             FontWeight.Normal,

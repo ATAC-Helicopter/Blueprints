@@ -8,4 +8,5 @@ public sealed record ApprovedSourceImportItem(
     string? Description,
     bool IsDone,
     SourceArtifactKind SourceKind,
-    string SourceReference);
+    string SourceReference,
+    string? TargetVersionName = null);

@@ -37,7 +37,7 @@
               CornerRadius="7">
         <Grid RowDefinitions="Auto,*" RowSpacing="6">
           <Grid ColumnDefinitions="*,Auto">
-            <TextBlock Text="BOARD MAP"
+            <TextBlock Text="OVERVIEW"
                        Foreground="{DynamicResource CanvasAccentBrush}"
                        FontSize="9"
                        FontWeight="Bold"
@@ -53,7 +53,7 @@
                   Height="112"
                   Background="{DynamicResource CanvasMinimapBackgroundBrush}"
                   Cursor="Hand"
-                  automation:AutomationProperties.Name="Blueprint minimap"
+                  automation:AutomationProperties.Name="Plan overview"
                   automation:AutomationProperties.HelpText="Click a location to center the canvas there." />
         </Grid>
       </Border>

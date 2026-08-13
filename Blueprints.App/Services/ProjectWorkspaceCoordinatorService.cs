@@ -24,6 +24,7 @@ public sealed class ProjectWorkspaceCoordinatorService
     private readonly WorkspaceSyncAnalyzer _syncAnalyzer;
     private readonly FileSystemWorkspaceSyncService _workspaceSyncService;
     private readonly RecentProjectsStore _recentProjectsStore;
+    private readonly ProjectDeletionService _projectDeletionService;
     private readonly FileSystemAuditLogService _auditLogService;
     private readonly SharedFolderSafetyInspector _sharedFolderSafetyInspector;
     private readonly IWorkspaceTransactionService _workspaceTransactionService;
@@ -52,6 +53,7 @@ public sealed class ProjectWorkspaceCoordinatorService
         _syncAnalyzer = syncAnalyzer;
         _workspaceSyncService = workspaceSyncService;
         _recentProjectsStore = recentProjectsStore;
+        _projectDeletionService = new ProjectDeletionService(recentProjectsStore);
         _auditLogService = auditLogService;
         _sharedFolderSafetyInspector = sharedFolderSafetyInspector;
         _workspaceTransactionService =
@@ -62,6 +64,9 @@ public sealed class ProjectWorkspaceCoordinatorService
 
     public IReadOnlyList<RecentProjectReference> GetRecentProjects() =>
         _recentProjectsStore.Load();
+
+    public ProjectDeletionResult DeleteProject(RecentProjectReference project) =>
+        _projectDeletionService.Delete(project);
 
     public IReadOnlyList<AuditLogEntry> GetAuditHistory(
         string localWorkspaceRoot,
@@ -430,10 +435,87 @@ public sealed class ProjectWorkspaceCoordinatorService
         EnsureWorkspaceMutable(session);
         var workspace = session.LoadResult.Workspace;
         var versions = workspace.Versions.ToList();
+        var createdVersionCount = 0;
+        var requestedVersionNames = request.Items
+            .Where(static item => item.VersionId == Guid.Empty)
+            .Select(static item => item.TargetVersionName?.Trim())
+            .Where(static name => !string.IsNullOrWhiteSpace(name))
+            .Cast<string>()
+            .DistinctBy(NormalizeVersionName, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        foreach (var requestedVersionName in requestedVersionNames)
+        {
+            if (versions.Any(version => string.Equals(
+                    NormalizeVersionName(version.Version.Name),
+                    NormalizeVersionName(requestedVersionName),
+                    StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            var createdUtc = DateTimeOffset.UtcNow;
+            versions.Add(
+                new VersionWorkspaceSnapshot(
+                    new VersionDocument(
+                        CurrentSchemaVersion,
+                        workspace.Project.ProjectId,
+                        Guid.NewGuid(),
+                        requestedVersionName,
+                        ReleaseStatus.InProgress,
+                        createdUtc,
+                        null,
+                        "Created automatically from imported release and milestone metadata.",
+                        []),
+                    []));
+            createdVersionCount++;
+        }
+
+        var itemLists = versions.ToDictionary(
+            static version => version.Version.VersionId,
+            static version => version.Items.ToList());
+        var projectSequences = new Dictionary<string, int>(StringComparer.Ordinal);
+        var versionSequences = new Dictionary<(Guid VersionId, string TypeId), int>();
+
+        string NextItemKey(VersionWorkspaceSnapshot version, string itemTypeId)
+        {
+            if (!workspace.Project.ItemKeyRules.TryGetValue(itemTypeId, out var rule))
+            {
+                return Guid.NewGuid().ToString("N");
+            }
+
+            if (rule.Scope == ItemKeyScope.Project)
+            {
+                if (!projectSequences.TryGetValue(itemTypeId, out var sequence))
+                {
+                    sequence = workspace.Versions
+                        .SelectMany(static entry => entry.Items)
+                        .Count(item => string.Equals(item.ItemKeyTypeId, itemTypeId, StringComparison.Ordinal));
+                }
+                projectSequences[itemTypeId] = ++sequence;
+                return ItemKeyFormatter.FormatProjectScoped(rule.Prefix, sequence);
+            }
+
+            var counterKey = (version.Version.VersionId, itemTypeId);
+            if (!versionSequences.TryGetValue(counterKey, out var versionSequence))
+            {
+                versionSequence = version.Items.Count(item =>
+                    string.Equals(item.ItemKeyTypeId, itemTypeId, StringComparison.Ordinal));
+            }
+            versionSequences[counterKey] = ++versionSequence;
+            var (major, minor) = ParseVersion(version.Version.Name);
+            return ItemKeyFormatter.FormatVersionScoped(rule.Prefix, major, minor, versionSequence);
+        }
 
         foreach (var import in request.Items)
         {
-            var versionIndex = versions.FindIndex(snapshot => snapshot.Version.VersionId == import.VersionId);
+            var versionIndex = import.VersionId != Guid.Empty
+                ? versions.FindIndex(snapshot => snapshot.Version.VersionId == import.VersionId)
+                : versions.FindIndex(snapshot =>
+                    !string.IsNullOrWhiteSpace(import.TargetVersionName) &&
+                    string.Equals(
+                        NormalizeVersionName(snapshot.Version.Name),
+                        NormalizeVersionName(import.TargetVersionName),
+                        StringComparison.OrdinalIgnoreCase));
             if (versionIndex < 0)
             {
                 throw new InvalidOperationException($"The target version for “{import.Title}” was not found.");
@@ -458,16 +540,14 @@ public sealed class ProjectWorkspaceCoordinatorService
 
             var targetVersion = versions[versionIndex];
             EnsureItemChangesAllowed(targetVersion.Version.Status);
-            var currentWorkspace = workspace with { Versions = versions.ToArray() };
             var createdUtc = DateTimeOffset.UtcNow;
-            var items = targetVersion.Items
-                .Append(
-                    new ItemDocument(
+            itemLists[targetVersion.Version.VersionId].Add(
+                new ItemDocument(
                         CurrentSchemaVersion,
                         workspace.Project.ProjectId,
-                        import.VersionId,
+                        targetVersion.Version.VersionId,
                         Guid.NewGuid(),
-                        GenerateItemKey(currentWorkspace, targetVersion, import.ItemTypeId),
+                        NextItemKey(targetVersion, import.ItemTypeId),
                         import.ItemTypeId,
                         import.CategoryId,
                         title,
@@ -484,17 +564,21 @@ public sealed class ProjectWorkspaceCoordinatorService
                         identity.Profile.DisplayName,
                         import.IsDone
                             ? WorkItemLifecycle.Complete
-                            : WorkItemLifecycle.Planned))
-                .ToArray();
-            versions[versionIndex] = targetVersion with
+                            : WorkItemLifecycle.Planned));
+        }
+
+        versions = versions.Select(version =>
+        {
+            var items = itemLists[version.Version.VersionId].ToArray();
+            return version with
             {
                 Items = items,
-                Version = targetVersion.Version with
+                Version = version.Version with
                 {
                     ManualOrder = items.Select(static item => item.ItemId).ToArray(),
                 },
             };
-        }
+        }).ToList();
 
         return SaveWorkspace(
             localWorkspaceRoot,
@@ -502,7 +586,9 @@ public sealed class ProjectWorkspaceCoordinatorService
             identity,
             workspace with { Versions = versions.ToArray() },
             "source.import.apply",
-            $"Approved and imported {request.Items.Count} source proposals.");
+            createdVersionCount == 0
+                ? $"Approved and imported {request.Items.Count} source proposals."
+                : $"Created {createdVersionCount} detected releases and imported {request.Items.Count} source proposals.");
     }
 
     public LocalWorkspaceSession SaveCanvasLayout(
@@ -1691,6 +1777,9 @@ public sealed class ProjectWorkspaceCoordinatorService
         var minor = parts.Length > 1 && int.TryParse(parts[1], out var parsedMinor) ? parsedMinor : 0;
         return (major, minor);
     }
+
+    private static string NormalizeVersionName(string versionName) =>
+        versionName.Trim().Trim('[', ']').TrimStart('v', 'V');
 
     private static void ValidatePublicKey(string publicKeyBase64)
     {

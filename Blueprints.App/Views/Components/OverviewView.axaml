@@ -11,69 +11,61 @@
     <Border Background="{DynamicResource CanvasToolbarBrush}"
             BorderBrush="{DynamicResource LineBrush}"
             BorderThickness="0,0,0,1"
-            Padding="14,9">
-      <StackPanel Spacing="7">
-        <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto,Auto" ColumnSpacing="9">
-          <StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
-            <Button x:Name="PlanModeButton"
-                    Classes="tool active"
-                    Content="Board"
-                    Click="PlanModeClick"
-                    ToolTip.Tip="Work grouped into releases and progress columns (Ctrl/Command+7)" />
-            <Button x:Name="DependenciesModeButton"
-                    Classes="tool"
-                    Content="Dependencies"
-                    Click="DependenciesModeClick"
-                    ToolTip.Tip="Dependency graph (Ctrl/Command+8)" />
-            <Button x:Name="ReleaseNotesModeButton"
-                    Classes="tool"
-                    Content="Release Notes"
-                    Click="ReleaseNotesModeClick"
-                    ToolTip.Tip="Changelog-category projection (Ctrl/Command+9)" />
+            Padding="24,16,20,12">
+      <StackPanel Spacing="14">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="20">
+          <StackPanel Spacing="2">
+            <TextBlock Text="Plan" FontSize="26" FontWeight="Bold" LetterSpacing="-0.5" />
+            <TextBlock Text="Shape the work, move it forward, and decide what ships together."
+                       Classes="muted" FontSize="12" />
           </StackPanel>
-
-          <Border Grid.Column="1" Width="1" Height="28" Background="{DynamicResource LineBrush}" />
-
-          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
-            <Button Classes="primary compact" Content="＋ Add work" Command="{Binding BeginNewItemCommand}" Click="OpenInspectorClick"
-                    IsEnabled="{Binding CanEditItems}" ToolTip.Tip="Open the editor to add a work item" />
-            <Button Classes="tool" Content="＋ Release" IsEnabled="{Binding CanMutateWorkspace}">
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
+            <Button Classes="secondary compact" Content="New release" IsEnabled="{Binding CanMutateWorkspace}">
               <Button.Flyout>
                 <Flyout>
-                  <StackPanel Width="260" Spacing="9">
-                    <TextBlock Text="Create a release" FontSize="16" FontWeight="Bold" />
-                    <TextBlock Text="Give this group a recognizable version or milestone name." Classes="muted" FontSize="11" TextWrapping="Wrap" />
-                    <TextBox Text="{Binding NewVersionName}" PlaceholderText="For example, 2.4 or Summer launch"
+                  <StackPanel Width="280" Spacing="10">
+                    <TextBlock Text="Start a release" FontSize="17" FontWeight="Bold" />
+                    <TextBlock Text="A release is a home for work that should move and ship together."
+                               Classes="muted" FontSize="11" TextWrapping="Wrap" />
+                    <TextBox Text="{Binding NewVersionName}" PlaceholderText="e.g. Summer launch or 2.4"
                              automation:AutomationProperties.Name="New release name" />
                     <Button Classes="primary" Content="Create release" Command="{Binding CreateVersionCommand}" />
                   </StackPanel>
                 </Flyout>
               </Button.Flyout>
             </Button>
-            <Button x:Name="ConnectButton"
-                    Classes="tool"
-                    Content="Connect"
-                    Click="ConnectClick"
-                    IsEnabled="{Binding CanMutateWorkspace}"
-                    ToolTip.Tip="Connect two entities with a signed typed relationship (Ctrl/Command+L)" />
+            <Button Classes="primary compact" Content="＋ Add work"
+                    Command="{Binding BeginNewItemCommand}" Click="OpenInspectorClick"
+                    IsEnabled="{Binding CanEditItems}" ToolTip.Tip="Add work to the selected release" />
           </StackPanel>
+        </Grid>
 
-          <TextBox x:Name="SearchBox" Grid.Column="3" HorizontalAlignment="Right" Width="240"
-                   MinHeight="32"
-                   Padding="10,4"
-                   PlaceholderText="Search this board…"
+        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+          <Border Classes="view-switcher">
+            <StackPanel Orientation="Horizontal" Spacing="2">
+              <Button x:Name="PlanModeButton" Classes="view-tab active" Content="Board"
+                      Click="PlanModeClick" ToolTip.Tip="Work by release and progress (Ctrl/Command+7)" />
+              <Button x:Name="DependenciesModeButton" Classes="view-tab" Content="Connections"
+                      Click="DependenciesModeClick" ToolTip.Tip="See dependencies (Ctrl/Command+8)" />
+              <Button x:Name="ReleaseNotesModeButton" Classes="view-tab" Content="Release notes"
+                      Click="ReleaseNotesModeClick" ToolTip.Tip="Preview the changelog structure (Ctrl/Command+9)" />
+            </StackPanel>
+          </Border>
+
+          <TextBox x:Name="SearchBox" Grid.Column="1" HorizontalAlignment="Right" Width="180"
+                   MinHeight="34" Padding="11,5" PlaceholderText="Find work…"
                    TextChanged="SearchTextChanged"
-                   automation:AutomationProperties.Name="Search blueprint" />
+                   automation:AutomationProperties.Name="Search plan" />
 
-          <Button Grid.Column="4" Classes="tool" Content="Import from sources"
-                  Command="{Binding NavigateToIntegrationsCommand}"
-                  ToolTip.Tip="Review GitHub, GitLab, Git and planning-file suggestions" />
-
-          <Button Grid.Column="5" Classes="tool" Content="Board tools">
+          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
+            <Button x:Name="ConnectButton" Classes="tool" Content="Connect"
+                    Click="ConnectClick" IsEnabled="{Binding CanMutateWorkspace}"
+                    ToolTip.Tip="Connect two things in the plan (Ctrl/Command+L)" />
+            <Button Classes="tool" Content="View options">
             <Button.Flyout>
               <Flyout Placement="BottomEdgeAlignedRight">
                 <StackPanel Width="330" Spacing="12">
-                  <TextBlock Text="Board tools" FontSize="17" FontWeight="Bold" />
+                  <TextBlock Text="View options" FontSize="17" FontWeight="Bold" />
                   <StackPanel Orientation="Horizontal" Spacing="5">
                     <Button x:Name="UndoButton" Classes="tool square" Content="↶" Click="UndoClick" ToolTip.Tip="Undo layout change" />
                     <Button x:Name="RedoButton" Classes="tool square" Content="↷" Click="RedoClick" ToolTip.Tip="Redo layout change" />
@@ -111,22 +103,22 @@
                     <Button Classes="tool" Content="Selection" Click="ZoomSelectionClick" />
                     <Button Classes="tool" Content="Minimap" Click="ToggleMiniMapClick" />
                   </StackPanel>
-                  <TextBlock Text="Filters and zoom only change your view. They never change the team's signed plan."
+                  <TextBlock Text="These options only change your view, never the shared plan."
                              Classes="muted" FontSize="10" TextWrapping="Wrap" />
                 </StackPanel>
               </Flyout>
             </Button.Flyout>
-          </Button>
-
-          <Button x:Name="InspectorButton" Grid.Column="6" Classes="tool" Content="Open editor"
-                  Click="ToggleInspectorClick" ToolTip.Tip="Edit the selected release, work item, or relationship" />
+            </Button>
+            <Button x:Name="InspectorButton" Classes="tool" Content="Details"
+                    Click="ToggleInspectorClick" ToolTip.Tip="Edit the selected release, work item, or connection" />
+          </StackPanel>
         </Grid>
-        <Grid ColumnDefinitions="*,Auto" Margin="4,0">
-          <TextBlock Text="Drag cards to shape the plan. Select anything, then open the editor when you need details."
+        <Grid ColumnDefinitions="*,Auto" Margin="2,0">
+          <TextBlock Text="Tip: drag a card between columns to update its progress."
                      Classes="muted" FontSize="10" />
           <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
             <TextBlock x:Name="CanvasSelectionSummary" Classes="muted" FontSize="10" />
-            <TextBlock Text="{Binding ReleaseReadinessSummary}" Foreground="#5A4ECC" FontSize="10" FontWeight="SemiBold"
+            <TextBlock Text="{Binding ReleaseReadinessSummary}" Foreground="#B54431" FontSize="10" FontWeight="SemiBold"
                        MaxWidth="240" TextTrimming="CharacterEllipsis" />
           </StackPanel>
         </Grid>

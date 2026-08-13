@@ -21,7 +21,7 @@
 
       <Border Classes="card">
         <StackPanel Spacing="10">
-          <TextBlock Classes="eyebrow" Text="TRUST BOUNDARIES" />
+          <TextBlock Classes="eyebrow" Text="STORAGE" />
           <StackPanel Spacing="3">
             <TextBlock Text="Editable local workspace" FontWeight="Bold" />
             <TextBlock Text="{Binding WorkspacePath}" Classes="mono muted" FontSize="11" TextWrapping="Wrap" />
@@ -38,8 +38,8 @@
     <Border Grid.Column="1" Classes="card">
       <Grid RowDefinitions="Auto,*" RowSpacing="12">
         <StackPanel Spacing="3">
-          <TextBlock Classes="eyebrow" Text="VALIDATION SCHEMATIC" />
-          <TextBlock Text="Audit, signatures, storage, and safety findings" FontSize="21" FontWeight="Bold" />
+          <TextBlock Classes="eyebrow" Text="SAFETY CHECKS" />
+          <TextBlock Text="What Blueprints checked" FontSize="21" FontWeight="Bold" />
           <TextBlock Text="Every finding describes the affected boundary and the safest next action."
                      Classes="muted"
                      TextWrapping="Wrap" />

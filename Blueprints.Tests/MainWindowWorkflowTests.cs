@@ -121,6 +121,39 @@ public sealed class MainWindowWorkflowTests : IDisposable
         Assert.Empty(settingsStore.Load().RegisteredVaultSyncExchangeRoot);
     }
 
+    [Fact]
+    public void Commands_DeleteCurrentProjectOnlyAfterConfirmationAndPreserveUnrelatedFiles()
+    {
+        var viewModel = new MainWindowViewModel(
+            CreateCoordinator(),
+            new IntegrationStatusService());
+        var localRoot = Path.Combine(_rootDirectory, "delete-local", "BP");
+        var sharedRoot = Path.Combine(_rootDirectory, "delete-shared", "BP");
+
+        viewModel.IdentitySetupName = "Delete Admin";
+        viewModel.CreateLocalIdentityCommand.Execute(null);
+        viewModel.CreateProjectName = "Blueprints";
+        viewModel.CreateProjectCode = "BP";
+        viewModel.CreateLocalWorkspaceRoot = localRoot;
+        viewModel.CreateSharedWorkspaceRoot = sharedRoot;
+        viewModel.CreateProjectCommand.Execute(null);
+        File.WriteAllText(Path.Combine(localRoot, "source.txt"), "keep this");
+
+        viewModel.DeleteCurrentProjectCommand.Execute(null);
+
+        Assert.True(viewModel.HasActiveSession);
+        Assert.Equal("Confirm delete BP", viewModel.DeleteCurrentProjectLabel);
+        Assert.True(File.Exists(Path.Combine(localRoot, "project", "project.json")));
+
+        viewModel.DeleteCurrentProjectCommand.Execute(null);
+
+        Assert.False(viewModel.HasActiveSession);
+        Assert.Empty(viewModel.RecentProjects);
+        Assert.False(Directory.Exists(Path.Combine(localRoot, "project")));
+        Assert.Equal("keep this", File.ReadAllText(Path.Combine(localRoot, "source.txt")));
+        Assert.Contains("source files were not changed", viewModel.SetupMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
     private ProjectWorkspaceCoordinatorService CreateCoordinator()
     {
         var identityRoot = Path.Combine(_rootDirectory, "identities");
