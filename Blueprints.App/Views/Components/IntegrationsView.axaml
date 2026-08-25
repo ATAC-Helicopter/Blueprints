@@ -5,12 +5,11 @@
              x:Class="Blueprints.App.Views.Components.IntegrationsView"
              x:DataType="vm:MainWindowViewModel">
   <Grid RowDefinitions="Auto,Auto,*" RowSpacing="12">
-    <!-- One obvious first step: choose a repository and scan it. -->
     <Border Classes="card" Padding="18">
       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
         <StackPanel Spacing="4">
-          <TextBlock Text="IMPORT WORK" Classes="eyebrow" />
-          <TextBlock Text="Bring existing work into this plan" FontSize="24" FontWeight="Bold" LetterSpacing="-0.4" />
+          <TextBlock Text="IMPORTS" Classes="eyebrow" />
+          <TextBlock Text="Import work from a repository" FontSize="24" FontWeight="Bold" LetterSpacing="-0.4" />
           <TextBlock Text="Choose a repository, scan it, then review what should come across. Nothing is imported until you confirm it."
                      Classes="muted" TextWrapping="Wrap" MaxWidth="720" />
         </StackPanel>
@@ -23,8 +22,8 @@
 
     <Border Grid.Row="1" Classes="card" Padding="14">
       <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="10" RowSpacing="10">
-        <Border Width="32" Height="32" CornerRadius="9" Background="#F8DED6" VerticalAlignment="Center">
-          <TextBlock Text="1" Foreground="#A83A25" FontWeight="Bold"
+        <Border Width="32" Height="32" CornerRadius="9" Background="#E8F0FF" VerticalAlignment="Center">
+          <TextBlock Text="1" Foreground="#1D4ED8" FontWeight="Bold"
                      HorizontalAlignment="Center" VerticalAlignment="Center" />
         </Border>
         <StackPanel Grid.Column="1" Spacing="3">
@@ -154,8 +153,8 @@
                 <TextBlock Text="2 · REVIEW" Classes="eyebrow" />
                 <TextBlock Text="Choose what to bring in" FontSize="18" FontWeight="Bold" />
               </StackPanel>
-              <Border Grid.Column="1" Background="#F8DED6" CornerRadius="12" Padding="9,4" VerticalAlignment="Center">
-                <TextBlock Text="{Binding SourceImportProposals.Count}" Foreground="#A83A25" FontWeight="Bold" FontSize="11" />
+              <Border Grid.Column="1" Background="#E8F0FF" CornerRadius="12" Padding="9,4" VerticalAlignment="Center">
+                <TextBlock Text="{Binding SourceImportProposals.Count}" Foreground="#1D4ED8" FontWeight="Bold" FontSize="11" />
               </Border>
             </Grid>
           </Border>
@@ -199,7 +198,7 @@
                           <TextBlock Text="{Binding SourceContext}" Classes="muted" FontSize="9"
                                      TextTrimming="CharacterEllipsis" />
                           <TextBlock Grid.Column="1" Text="{Binding DestinationHint}"
-                                     Foreground="#A83A25" FontSize="9" />
+                                     Foreground="#1D4ED8" FontSize="9" />
                         </Grid>
                       </StackPanel>
                     </Grid>
@@ -210,7 +209,7 @@
 
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="7"
                         MaxWidth="290" IsVisible="{Binding IsSourceProposalEmpty}">
-              <Border Width="48" Height="48" CornerRadius="24" Background="#F1ECE3">
+              <Border Width="48" Height="48" CornerRadius="12" Background="#F1F5F9">
                 <TextBlock Text="↓" FontSize="22" HorizontalAlignment="Center" VerticalAlignment="Center" />
               </Border>
               <TextBlock Text="No work to review yet" FontSize="17" FontWeight="Bold" HorizontalAlignment="Center" />
@@ -311,7 +310,7 @@
             </StackPanel>
           </ScrollViewer>
 
-          <Border Grid.Row="2" Background="#302E2A" Padding="14,10">
+          <Border Grid.Row="2" Background="#172033" Padding="14,10">
             <TextBlock Text="{Binding IntegrationMessage}" Foreground="#E8E1D7" TextWrapping="Wrap" />
           </Border>
         </Grid>

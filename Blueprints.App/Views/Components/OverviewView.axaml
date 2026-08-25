@@ -15,8 +15,8 @@
       <StackPanel Spacing="14">
         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="20">
           <StackPanel Spacing="2">
-            <TextBlock Text="Plan" FontSize="26" FontWeight="Bold" LetterSpacing="-0.5" />
-            <TextBlock Text="Shape the work, move it forward, and decide what ships together."
+            <TextBlock Text="Overview" FontSize="26" FontWeight="Bold" LetterSpacing="-0.5" />
+            <TextBlock Text="Organize work by release and progress. Drag a card to update its status."
                        Classes="muted" FontSize="12" />
           </StackPanel>
           <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
@@ -34,7 +34,7 @@
                 </Flyout>
               </Button.Flyout>
             </Button>
-            <Button Classes="primary compact" Content="＋ Add work"
+            <Button Classes="primary compact" Content="Add work item"
                     Command="{Binding BeginNewItemCommand}" Click="OpenInspectorClick"
                     IsEnabled="{Binding CanEditItems}" ToolTip.Tip="Add work to the selected release" />
           </StackPanel>
@@ -45,7 +45,7 @@
             <StackPanel Orientation="Horizontal" Spacing="2">
               <Button x:Name="PlanModeButton" Classes="view-tab active" Content="Board"
                       Click="PlanModeClick" ToolTip.Tip="Work by release and progress (Ctrl/Command+7)" />
-              <Button x:Name="DependenciesModeButton" Classes="view-tab" Content="Connections"
+              <Button x:Name="DependenciesModeButton" Classes="view-tab" Content="Dependencies"
                       Click="DependenciesModeClick" ToolTip.Tip="See dependencies (Ctrl/Command+8)" />
               <Button x:Name="ReleaseNotesModeButton" Classes="view-tab" Content="Release notes"
                       Click="ReleaseNotesModeClick" ToolTip.Tip="Preview the changelog structure (Ctrl/Command+9)" />
@@ -58,7 +58,7 @@
                    automation:AutomationProperties.Name="Search plan" />
 
           <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
-            <Button x:Name="ConnectButton" Classes="tool" Content="Connect"
+            <Button x:Name="ConnectButton" Classes="tool" Content="Add dependency"
                     Click="ConnectClick" IsEnabled="{Binding CanMutateWorkspace}"
                     ToolTip.Tip="Connect two things in the plan (Ctrl/Command+L)" />
             <Button Classes="tool" Content="View options">
@@ -109,12 +109,12 @@
               </Flyout>
             </Button.Flyout>
             </Button>
-            <Button x:Name="InspectorButton" Classes="tool" Content="Details"
+            <Button x:Name="InspectorButton" Classes="tool" Content="Edit details"
                     Click="ToggleInspectorClick" ToolTip.Tip="Edit the selected release, work item, or connection" />
           </StackPanel>
         </Grid>
         <Grid ColumnDefinitions="*,Auto" Margin="2,0">
-          <TextBlock Text="Tip: drag a card between columns to update its progress."
+          <TextBlock Text="Drag cards between columns to update progress. Select a card to edit its details."
                      Classes="muted" FontSize="10" />
           <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
             <TextBlock x:Name="CanvasSelectionSummary" Classes="muted" FontSize="10" />

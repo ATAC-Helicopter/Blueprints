@@ -19,7 +19,7 @@ public sealed class MainWindowNavigationTests
         Assert.False(viewModel.IsSyncSelected);
         Assert.False(viewModel.IsTrustSelected);
         Assert.False(viewModel.IsIntegrationsSelected);
-        Assert.Equal("Plan releases", viewModel.SelectedWorkspaceSectionTitle);
+        Assert.Equal("Releases", viewModel.SelectedWorkspaceSectionTitle);
     }
 
     [Fact]

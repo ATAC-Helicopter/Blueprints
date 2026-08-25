@@ -871,24 +871,24 @@ public partial class MainWindowViewModel : ViewModelBase
     public string SelectedWorkspaceSectionTitle =>
         SelectedWorkspaceSection switch
         {
-            WorkspaceSection.Overview => "Home",
-            WorkspaceSection.Releases => "Plan releases",
-            WorkspaceSection.Team => "People",
-            WorkspaceSection.Sync => "Share changes",
-            WorkspaceSection.Trust => "Safety check",
-            WorkspaceSection.Integrations => "Import work",
+            WorkspaceSection.Overview => "Overview",
+            WorkspaceSection.Releases => "Releases",
+            WorkspaceSection.Team => "Team",
+            WorkspaceSection.Sync => "Sync",
+            WorkspaceSection.Trust => "Validation",
+            WorkspaceSection.Integrations => "Imports",
             _ => "Home",
         };
 
     public string SelectedWorkspaceSectionDescription =>
         SelectedWorkspaceSection switch
         {
-            WorkspaceSection.Overview => "See the plan, spot what needs attention, and choose your next step.",
-            WorkspaceSection.Releases => "Organize versions and accomplishments, then turn them into clear release notes.",
-            WorkspaceSection.Team => "Invite teammates and manage who can view or change this project.",
-            WorkspaceSection.Sync => "Review incoming and outgoing work before sharing it with your team.",
-            WorkspaceSection.Trust => "Confirm that project files and history are valid, with guidance when something needs attention.",
-            WorkspaceSection.Integrations => "Bring existing issues, changes, releases, and planning notes into this plan.",
+            WorkspaceSection.Overview => "View and update work across releases and progress states.",
+            WorkspaceSection.Releases => "Manage release scope, status, readiness, and release notes.",
+            WorkspaceSection.Team => "Manage members, roles, invitations, and identity backups.",
+            WorkspaceSection.Sync => "Compare local and shared changes before you push or pull.",
+            WorkspaceSection.Trust => "Validate project files, signatures, membership, and change history.",
+            WorkspaceSection.Integrations => "Review and import issues, pull requests, releases, and planning files.",
             _ => string.Empty,
         };
 

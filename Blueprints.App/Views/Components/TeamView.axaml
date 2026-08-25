@@ -76,7 +76,7 @@
           <Grid ColumnDefinitions="*,Auto">
             <StackPanel Spacing="3">
               <TextBlock Classes="eyebrow" Text="PEOPLE" />
-              <TextBlock Text="Who can work on this plan" FontSize="21" FontWeight="Bold" />
+              <TextBlock Text="Project members and roles" FontSize="21" FontWeight="Bold" />
             </StackPanel>
             <TextBlock Grid.Column="1"
                        Text="{Binding MembershipRevision, StringFormat='REV {0:000}'}"
