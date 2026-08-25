@@ -54,6 +54,9 @@ public partial class MainWindowViewModel : ViewModelBase
     private string _joinSharedWorkspaceRoot = string.Empty;
     private RecentProjectReference? _selectedRecentProject;
     private string? _pendingProjectDeletionKey;
+    private RecentProjectReference? _projectDeletionTarget;
+    private bool _projectDeletionTargetsCurrentSession;
+    private bool _isProjectDeletionDialogOpen;
     private WorkspaceVersionCard? _selectedVersion;
     private WorkspaceItemCard? _selectedItem;
     private Guid? _pendingArchiveVersionId;
@@ -112,6 +115,8 @@ public partial class MainWindowViewModel : ViewModelBase
     private string _sourceProposalSearchText = string.Empty;
     private string _sourceDiscoverySummary = "Connect a repository, then scan its planning sources.";
     private string _sourceDiscoveryWarnings = string.Empty;
+    private string _overviewSearchText = string.Empty;
+    private string _overviewLifecycleFilter = "All";
     private bool _isDiscoveringSources;
     private bool _isUpdatingSourceProposals;
     private readonly IGitRepositoryService _gitRepositoryService;
@@ -548,7 +553,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public string RelationshipRevisionSummary =>
         RelationshipDocument is null
-            ? "No custom relationship graph yet"
+            ? "No relationships have been defined yet"
             : $"Relationship revision {RelationshipDocument.Revision} · {Relationships.Count} links";
 
     public RelationshipTypeDefinition? SelectedRelationshipType
@@ -986,6 +991,22 @@ public partial class MainWindowViewModel : ViewModelBase
             ? $"Confirm delete {CurrentProject.Code}"
             : "Delete from Blueprints…";
 
+    public bool IsProjectDeletionDialogOpen
+    {
+        get => _isProjectDeletionDialogOpen;
+        private set => SetProperty(ref _isProjectDeletionDialogOpen, value);
+    }
+
+    public string ProjectDeletionDialogTitle => _projectDeletionTarget is null
+        ? "Delete project"
+        : $"Delete {_projectDeletionTarget.Name}?";
+
+    public string ProjectDeletionDialogCode => _projectDeletionTarget?.ProjectCode ?? string.Empty;
+
+    public string ProjectDeletionDialogLocalPath => _projectDeletionTarget?.LocalWorkspaceRoot ?? string.Empty;
+
+    public string ProjectDeletionDialogSharedPath => _projectDeletionTarget?.SharedWorkspaceRoot ?? string.Empty;
+
     public WorkspaceVersionCard? SelectedVersion
     {
         get => _selectedVersion;
@@ -995,6 +1016,8 @@ public partial class MainWindowViewModel : ViewModelBase
             {
                 SelectedRelationship = null;
                 PopulateVersionEditor();
+                OnPropertyChanged(nameof(OverviewItems));
+                OnPropertyChanged(nameof(IsOverviewItemEmpty));
                 ChangelogPreview = string.Empty;
                 LastChangelogExportPath = string.Empty;
                 GitChangelogSummary = string.Empty;
@@ -1013,6 +1036,56 @@ public partial class MainWindowViewModel : ViewModelBase
             }
         }
     }
+
+    public string OverviewSearchText
+    {
+        get => _overviewSearchText;
+        set
+        {
+            if (SetProperty(ref _overviewSearchText, value))
+            {
+                OnPropertyChanged(nameof(OverviewItems));
+                OnPropertyChanged(nameof(IsOverviewItemEmpty));
+            }
+        }
+    }
+
+    public string OverviewLifecycleFilter
+    {
+        get => _overviewLifecycleFilter;
+        set
+        {
+            if (SetProperty(ref _overviewLifecycleFilter, value))
+            {
+                OnPropertyChanged(nameof(OverviewItems));
+                OnPropertyChanged(nameof(IsOverviewItemEmpty));
+            }
+        }
+    }
+
+    public IReadOnlyList<string> OverviewLifecycleFilters { get; } =
+        ["All", "Planned", "In Progress", "Review", "Complete"];
+
+    public IReadOnlyList<WorkspaceItemCard> OverviewItems =>
+        (SelectedVersion?.Items ?? [])
+            .Where(item =>
+                string.Equals(OverviewLifecycleFilter, "All", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(
+                    item.WorkflowState.ToString().Replace("InProgress", "In Progress", StringComparison.Ordinal),
+                    OverviewLifecycleFilter,
+                    StringComparison.OrdinalIgnoreCase))
+            .Where(item =>
+                string.IsNullOrWhiteSpace(OverviewSearchText)
+                || item.ItemKey.Contains(OverviewSearchText, StringComparison.OrdinalIgnoreCase)
+                || item.Title.Contains(OverviewSearchText, StringComparison.OrdinalIgnoreCase)
+                || (item.Description?.Contains(OverviewSearchText, StringComparison.OrdinalIgnoreCase) ?? false)
+                || item.ItemTypeId.Contains(OverviewSearchText, StringComparison.OrdinalIgnoreCase)
+                || item.CategoryId.Contains(OverviewSearchText, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(static item => item.WorkflowState)
+            .ThenBy(static item => item.ItemKey, StringComparer.Ordinal)
+            .ToArray();
+
+    public bool IsOverviewItemEmpty => OverviewItems.Count == 0;
 
     public WorkspaceItemCard? SelectedItem
     {
@@ -1699,6 +1772,76 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             ResetPendingProjectDeletion();
             SetupMessage = exception.Message;
+        }
+    }
+
+    [RelayCommand]
+    private void BeginDeleteSelectedProject()
+    {
+        if (SelectedRecentProject is null)
+        {
+            SetupMessage = "Select a recent project first.";
+            return;
+        }
+
+        OpenProjectDeletionDialog(SelectedRecentProject, targetsCurrentSession: false);
+    }
+
+    [RelayCommand]
+    private void BeginDeleteCurrentProject()
+    {
+        var project = CreateCurrentProjectReference();
+        if (project is null)
+        {
+            return;
+        }
+
+        OpenProjectDeletionDialog(project, targetsCurrentSession: true);
+    }
+
+    [RelayCommand]
+    private void CancelProjectDeletion()
+    {
+        _projectDeletionTarget = null;
+        _projectDeletionTargetsCurrentSession = false;
+        IsProjectDeletionDialogOpen = false;
+        NotifyProjectDeletionDialogChanged();
+    }
+
+    [RelayCommand]
+    private void ConfirmProjectDeletion()
+    {
+        if (_coordinatorService is null || _projectDeletionTarget is null)
+        {
+            CancelProjectDeletion();
+            return;
+        }
+
+        var project = _projectDeletionTarget;
+        var targetsCurrentSession = _projectDeletionTargetsCurrentSession;
+
+        try
+        {
+            var result = _coordinatorService.DeleteProject(project);
+            _projectDeletionTarget = null;
+            _projectDeletionTargetsCurrentSession = false;
+            IsProjectDeletionDialogOpen = false;
+            ResetPendingProjectDeletion();
+
+            if (targetsCurrentSession)
+            {
+                ApplySetupState("The project was removed from Blueprints.");
+            }
+
+            RefreshRecentProjects();
+            SetupMessage = BuildProjectDeletedMessage(result);
+            NotifyProjectDeletionDialogChanged();
+        }
+        catch (Exception exception)
+        {
+            SetupMessage = exception.Message;
+            WorkspaceMessage = exception.Message;
+            CancelProjectDeletion();
         }
     }
 
@@ -3319,6 +3462,24 @@ public partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(DeleteCurrentProjectLabel));
     }
 
+    private void OpenProjectDeletionDialog(
+        RecentProjectReference project,
+        bool targetsCurrentSession)
+    {
+        _projectDeletionTarget = project;
+        _projectDeletionTargetsCurrentSession = targetsCurrentSession;
+        IsProjectDeletionDialogOpen = true;
+        NotifyProjectDeletionDialogChanged();
+    }
+
+    private void NotifyProjectDeletionDialogChanged()
+    {
+        OnPropertyChanged(nameof(ProjectDeletionDialogTitle));
+        OnPropertyChanged(nameof(ProjectDeletionDialogCode));
+        OnPropertyChanged(nameof(ProjectDeletionDialogLocalPath));
+        OnPropertyChanged(nameof(ProjectDeletionDialogSharedPath));
+    }
+
     private void ResetPendingProjectDeletion()
     {
         _pendingProjectDeletionKey = null;
@@ -4001,7 +4162,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         if (string.Equals(normalizedPath, "project/relationships.json", StringComparison.Ordinal))
         {
-            return "Typed relationship graph";
+            return "Typed relationships";
         }
 
         if (normalizedPath.StartsWith("versions/", StringComparison.Ordinal) &&

@@ -4,256 +4,204 @@
              xmlns:models="using:Blueprints.App.Models"
              x:Class="Blueprints.App.Views.Components.ReleasePlannerView"
              x:DataType="vm:MainWindowViewModel">
-  <Grid ColumnDefinitions="300,*" ColumnSpacing="16">
-    <Border Classes="card">
-      <Grid RowDefinitions="Auto,Auto,*" RowSpacing="12">
-        <StackPanel Spacing="3">
-          <TextBlock Classes="eyebrow" Text="RELEASES" />
-          <TextBlock Text="What ships together" FontSize="21" FontWeight="Bold" />
+  <Grid RowDefinitions="104,*" Background="#F7F8FA">
+    <Border Background="#FFFFFF" BorderBrush="#E4E7EC" BorderThickness="0,0,0,1" Padding="28,18">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="20">
+        <StackPanel Spacing="4" VerticalAlignment="Center">
+          <TextBlock Text="Releases" Classes="page-title" />
+          <TextBlock Text="Define scope, check readiness, and publish release notes from one place." Classes="muted" />
         </StackPanel>
-        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8">
-          <TextBox PlaceholderText="0.2.0" Text="{Binding NewVersionName}" IsEnabled="{Binding CanMutateWorkspace}" />
-          <Button Grid.Column="1" Classes="primary" Content="+ Add" Command="{Binding CreateVersionCommand}" IsEnabled="{Binding CanMutateWorkspace}" />
+        <Grid Grid.Column="1" ColumnDefinitions="220,Auto" ColumnSpacing="8" VerticalAlignment="Center">
+          <TextBox Text="{Binding NewVersionName}" PlaceholderText="New release name" />
+          <Button Grid.Column="1" Classes="primary" Content="Create release" Command="{Binding CreateVersionCommand}"
+                  IsEnabled="{Binding CanMutateWorkspace}" />
         </Grid>
-        <ListBox Grid.Row="2" ItemsSource="{Binding Versions}" SelectedItem="{Binding SelectedVersion}">
-          <ListBox.ItemTemplate>
-            <DataTemplate x:DataType="models:WorkspaceVersionCard">
-              <Border Classes="blueprint-card" Margin="0,0,0,9">
-                <StackPanel Spacing="6">
-                  <Grid ColumnDefinitions="*,Auto">
-                    <TextBlock Classes="mono" Text="{Binding Name}" FontSize="17" FontWeight="Bold" />
-                    <Border Grid.Column="1" Background="#E8F0FF" CornerRadius="10" Padding="8,3">
-                      <TextBlock Text="{Binding Status}" FontSize="11" Foreground="#1D4ED8" />
-                    </Border>
-                  </Grid>
-                  <TextBlock Text="{Binding Notes}" Classes="muted" TextWrapping="Wrap" MaxHeight="44" />
-                  <Grid ColumnDefinitions="*,*">
-                    <TextBlock Text="{Binding CompletedItemCount, StringFormat='✓ {0} done'}" FontSize="12" Foreground="#277A67" />
-                    <TextBlock Grid.Column="1" Text="{Binding ItemCount, StringFormat='Total: {0}'}" Classes="muted" FontSize="12" HorizontalAlignment="Right" />
-                  </Grid>
-                </StackPanel>
-              </Border>
-            </DataTemplate>
-          </ListBox.ItemTemplate>
-        </ListBox>
-        <TextBlock Grid.Row="2"
-                   Text="No versions yet. Add the next milestone above."
-                   Classes="muted"
-                   TextWrapping="Wrap"
-                   HorizontalAlignment="Center"
-                   VerticalAlignment="Center"
-                   IsVisible="{Binding IsProjectVersionEmpty}" />
       </Grid>
     </Border>
 
-    <ScrollViewer Grid.Column="1">
-      <StackPanel Spacing="16">
-        <Border Classes="card">
-          <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="14">
-            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-              <StackPanel Spacing="3">
-                <TextBlock Classes="eyebrow" Text="SELECTED RELEASE" />
-                <TextBlock Text="{Binding SelectedVersionStateSummary}" Classes="muted" TextWrapping="Wrap" />
-              </StackPanel>
-              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                <Button Classes="danger" Content="Mark released" Command="{Binding ReleaseSelectedVersionCommand}" IsEnabled="{Binding CanReleaseSelectedVersion}" />
-                <Button Classes="danger" Content="Archive version…" Command="{Binding ArchiveSelectedVersionCommand}" IsEnabled="{Binding CanArchiveSelectedVersion}" />
-                <Button Classes="secondary" Content="Preview notes" Command="{Binding PreviewSelectedVersionChangelogCommand}" IsEnabled="{Binding IsWorkspaceTrusted}" />
-                <Button Classes="primary" Content="Export notes" Command="{Binding ExportSelectedVersionChangelogCommand}" IsEnabled="{Binding IsWorkspaceTrusted}" />
-              </StackPanel>
-            </Grid>
-
-            <Grid Grid.Row="1" ColumnDefinitions="1.2*,0.8*" ColumnSpacing="14">
-              <StackPanel Spacing="10">
-                <Grid ColumnDefinitions="*,170" ColumnSpacing="10">
-                  <StackPanel Spacing="5">
-                    <TextBlock Text="Version" FontWeight="SemiBold" />
-                    <TextBox PlaceholderText="Select a version" Text="{Binding VersionEditorName}" IsEnabled="{Binding CanEditSelectedVersion}" />
-                  </StackPanel>
-                  <StackPanel Grid.Column="1" Spacing="5">
-                    <TextBlock Text="State" FontWeight="SemiBold" />
-                    <ComboBox ItemsSource="{Binding AvailableStatuses}" SelectedItem="{Binding VersionEditorStatus}" IsEnabled="{Binding CanEditSelectedVersion}" />
-                  </StackPanel>
-                </Grid>
-                <StackPanel Spacing="5">
-                  <TextBlock Text="Accomplishment notes" FontWeight="SemiBold" />
-                  <TextBox PlaceholderText="What does this milestone accomplish?"
-                           Text="{Binding VersionEditorNotes}"
-                           AcceptsReturn="True"
-                           Height="88"
-                           IsEnabled="{Binding CanEditSelectedVersion}" />
-                </StackPanel>
-                <Button Classes="secondary"
-                        Content="Save version details"
-                        Command="{Binding SaveVersionDetailsCommand}"
-                        IsEnabled="{Binding CanEditSelectedVersion}"
-                        HorizontalAlignment="Left" />
-              </StackPanel>
-
-              <Border Grid.Column="1" Classes="blueprint-card">
-                <StackPanel Spacing="7">
-                  <TextBlock Classes="eyebrow" Text="CHANGELOG PREVIEW" />
-                  <WrapPanel>
-                    <CheckBox Content="Incomplete" IsChecked="{Binding ChangelogIncludeIncomplete}" Margin="0,0,10,0" />
-                    <CheckBox Content="Item keys" IsChecked="{Binding ChangelogIncludeItemKeys}" Margin="0,0,10,0" />
-                    <CheckBox Content="Descriptions" IsChecked="{Binding ChangelogIncludeDescriptions}" Margin="0,0,10,0" />
-                    <CheckBox Content="Compact" IsChecked="{Binding ChangelogCompactMode}" />
-                  </WrapPanel>
-                  <TextBlock Text="{Binding LastChangelogExportPath}" Classes="mono muted" FontSize="11" TextWrapping="Wrap" />
-                  <TextBlock Text="{Binding GitChangelogSummary}" Classes="muted" FontSize="12" TextWrapping="Wrap" />
-                  <TextBox Text="{Binding ChangelogPreview}"
-                           AcceptsReturn="True"
-                           IsReadOnly="True"
-                           MinHeight="150"
-                           TextWrapping="Wrap"
-                           FontFamily="Cascadia Mono, SFMono-Regular, Consolas, monospace"
-                           FontSize="12" />
-                </StackPanel>
-              </Border>
-            </Grid>
-
-            <Border Grid.Row="2" Background="#FAFAFD" BorderBrush="#E2E4EC" BorderThickness="1" CornerRadius="10" Padding="12">
-              <StackPanel Spacing="6">
-                <TextBlock Classes="eyebrow" Text="SOURCE TRACE" />
-                <TextBlock Text="{Binding VersionSourceChangeSummary}" Classes="muted" TextWrapping="Wrap" />
-                <ItemsControl ItemsSource="{Binding VersionSourceChangeDiagnostics}">
-                  <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="models:VersionSourceChangeDiagnostic">
-                      <Grid ColumnDefinitions="72,*,140" ColumnSpacing="8" Margin="0,3,0,0">
-                        <TextBlock Classes="mono muted" Text="{Binding Change.ShortHash}" />
-                        <TextBlock Grid.Column="1" Text="{Binding Change.Subject}" TextWrapping="Wrap" />
-                        <TextBlock Grid.Column="2" Text="{Binding MatchSummary}" Classes="muted" TextWrapping="Wrap" />
-                      </Grid>
-                    </DataTemplate>
-                  </ItemsControl.ItemTemplate>
-                </ItemsControl>
-              </StackPanel>
-            </Border>
-          </Grid>
-        </Border>
-
-        <Border Classes="card">
-          <StackPanel Spacing="10">
-            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-              <StackPanel Spacing="3">
-                <TextBlock Classes="eyebrow" Text="RELEASE READINESS" />
-                <TextBlock Text="{Binding ReleaseReadinessSummary}" FontSize="17" FontWeight="Bold" TextWrapping="Wrap" />
-              </StackPanel>
-              <Button Grid.Column="1"
-                      Classes="secondary"
-                      Content="Open Source Lens"
-                      Command="{Binding NavigateToIntegrationsCommand}" />
-            </Grid>
-            <ItemsControl ItemsSource="{Binding ReleaseReadinessDiagnostics}">
-              <ItemsControl.ItemTemplate>
-                <DataTemplate x:DataType="models:ReleaseReadinessDiagnostic">
-                  <Border Background="#FAFAFD"
-                          BorderBrush="#E2E4EC"
-                          BorderThickness="1"
-                          CornerRadius="10"
-                          Padding="11"
-                          Margin="0,0,0,6">
-                    <Grid ColumnDefinitions="90,220,*,*" ColumnSpacing="10">
-                      <TextBlock Text="{Binding Level}" Classes="eyebrow" VerticalAlignment="Top" />
-                      <TextBlock Grid.Column="1" Text="{Binding Title}" FontWeight="Bold" TextWrapping="Wrap" />
-                      <TextBlock Grid.Column="2" Text="{Binding Detail}" Classes="muted" TextWrapping="Wrap" />
-                      <TextBlock Grid.Column="3" Text="{Binding Guidance}" Foreground="#1D4ED8" TextWrapping="Wrap" />
-                    </Grid>
-                  </Border>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
+    <Grid Grid.Row="1" ColumnDefinitions="300,*" ColumnSpacing="20" Margin="24,20">
+      <Border Classes="card" Padding="12">
+        <Grid RowDefinitions="Auto,*" RowSpacing="10">
+          <StackPanel Margin="8,4" Spacing="3">
+            <TextBlock Text="RELEASE LIST" Classes="eyebrow" />
+            <TextBlock Text="Select a release to manage" FontWeight="SemiBold" />
           </StackPanel>
-        </Border>
+          <Grid Grid.Row="1">
+            <ListBox ItemsSource="{Binding Versions}" SelectedItem="{Binding SelectedVersion}">
+              <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="models:WorkspaceVersionCard">
+                  <Grid Margin="5,9" RowDefinitions="Auto,Auto,Auto" RowSpacing="5">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="SemiBold" />
+                      <Border Grid.Column="1" Classes="status-pill">
+                        <TextBlock Text="{Binding Status}" FontSize="9" FontWeight="SemiBold" />
+                      </Border>
+                    </Grid>
+                    <TextBlock Grid.Row="1" Text="{Binding Notes}" Classes="muted" FontSize="10"
+                               MaxHeight="32" TextWrapping="Wrap" />
+                    <Grid Grid.Row="2" ColumnDefinitions="*,Auto">
+                      <TextBlock Text="{Binding CompletedItemCount, StringFormat='Completed {0}'}" Foreground="#067647" FontSize="10" />
+                      <TextBlock Grid.Column="1" Text="{Binding ItemCount, StringFormat='Total {0}'}" Classes="muted" FontSize="10" />
+                    </Grid>
+                  </Grid>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+            <TextBlock Text="No releases yet" Classes="muted" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       IsVisible="{Binding IsProjectVersionEmpty}" />
+          </Grid>
+        </Grid>
+      </Border>
 
-        <Grid ColumnDefinitions="340,*" ColumnSpacing="16">
+      <ScrollViewer Grid.Column="1">
+        <StackPanel Spacing="16">
           <Border Classes="card">
-            <StackPanel Spacing="10">
-              <StackPanel Spacing="3">
-                <TextBlock Classes="eyebrow" Text="WORK ITEM" />
-                <TextBlock Text="Add or edit an accomplishment" FontSize="19" FontWeight="Bold" />
-              </StackPanel>
-              <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                <StackPanel Spacing="5">
-                  <TextBlock Text="Type" FontWeight="SemiBold" />
-                  <ComboBox ItemsSource="{Binding AvailableItemTypes}" SelectedItem="{Binding SelectedItemTypeId}" IsEnabled="{Binding CanEditItems}" />
+            <StackPanel Spacing="16">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="18">
+                <StackPanel Spacing="3">
+                  <TextBlock Text="SELECTED RELEASE" Classes="eyebrow" />
+                  <TextBlock Text="{Binding SelectedVersionStateSummary}" Classes="muted" TextWrapping="Wrap" />
                 </StackPanel>
-                <StackPanel Grid.Column="1" Spacing="5">
-                  <TextBlock Text="Changelog group" FontWeight="SemiBold" />
-                  <ComboBox ItemsSource="{Binding AvailableCategories}" SelectedItem="{Binding SelectedCategoryId}" IsEnabled="{Binding CanEditItems}" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                  <Button Classes="secondary" Content="Preview notes" Command="{Binding PreviewSelectedVersionChangelogCommand}" />
+                  <Button Classes="primary" Content="Export notes" Command="{Binding ExportSelectedVersionChangelogCommand}" />
+                  <Button Classes="danger" Content="Archive…" Command="{Binding ArchiveSelectedVersionCommand}"
+                          IsEnabled="{Binding CanArchiveSelectedVersion}" />
+                  <Button Classes="danger-solid" Content="Mark released" Command="{Binding ReleaseSelectedVersionCommand}"
+                          IsEnabled="{Binding CanReleaseSelectedVersion}" />
                 </StackPanel>
               </Grid>
-              <TextBox PlaceholderText="Concise outcome" Text="{Binding ItemEditorTitle}" IsEnabled="{Binding CanEditItems}" />
-              <TextBox PlaceholderText="Useful context for people reading the release"
-                       Text="{Binding ItemEditorDescription}"
-                       AcceptsReturn="True"
-                       Height="90"
-                       IsEnabled="{Binding CanEditItems}" />
-              <CheckBox Content="Completed and ready for release notes" IsChecked="{Binding ItemEditorIsDone}" IsEnabled="{Binding CanEditItems}" />
-              <StackPanel Orientation="Horizontal" Spacing="8">
-                <Button Classes="primary" Content="Add item" Command="{Binding AddItemCommand}" IsEnabled="{Binding CanEditItems}" />
-                <Button Classes="secondary" Content="Save selected" Command="{Binding SaveItemDetailsCommand}" IsEnabled="{Binding CanEditItems}" />
-                <Button Classes="danger" Content="Archive item…" Command="{Binding ArchiveSelectedItemCommand}" IsEnabled="{Binding CanArchiveSelectedItem}" />
-              </StackPanel>
-              <TextBlock Text="Archiving requires a second click, removes the draft from the active plan, and keeps a machine-local signed recovery copy."
-                         Classes="muted"
-                         FontSize="11"
-                         TextWrapping="Wrap" />
+
+              <Grid ColumnDefinitions="1.1*,0.9*" ColumnSpacing="18">
+                <StackPanel Spacing="10">
+                  <Grid ColumnDefinitions="*,170" ColumnSpacing="10">
+                    <StackPanel Spacing="5">
+                      <TextBlock Text="Release name" Classes="field-label" />
+                      <TextBox Text="{Binding VersionEditorName}" IsEnabled="{Binding CanEditSelectedVersion}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="5">
+                      <TextBlock Text="State" Classes="field-label" />
+                      <ComboBox ItemsSource="{Binding AvailableStatuses}" SelectedItem="{Binding VersionEditorStatus}"
+                                IsEnabled="{Binding CanEditSelectedVersion}" />
+                    </StackPanel>
+                  </Grid>
+                  <StackPanel Spacing="5">
+                    <TextBlock Text="Outcome and context" Classes="field-label" />
+                    <TextBox Text="{Binding VersionEditorNotes}" AcceptsReturn="True" Height="86"
+                             IsEnabled="{Binding CanEditSelectedVersion}" />
+                  </StackPanel>
+                  <Button Classes="secondary" Content="Save release details" Command="{Binding SaveVersionDetailsCommand}"
+                          IsEnabled="{Binding CanEditSelectedVersion}" HorizontalAlignment="Left" />
+                </StackPanel>
+
+                <Border Grid.Column="1" Classes="subtle-card">
+                  <StackPanel Spacing="8">
+                    <TextBlock Text="RELEASE NOTES" Classes="eyebrow" />
+                    <WrapPanel>
+                      <CheckBox Content="Incomplete" IsChecked="{Binding ChangelogIncludeIncomplete}" Margin="0,0,10,0" />
+                      <CheckBox Content="Keys" IsChecked="{Binding ChangelogIncludeItemKeys}" Margin="0,0,10,0" />
+                      <CheckBox Content="Descriptions" IsChecked="{Binding ChangelogIncludeDescriptions}" Margin="0,0,10,0" />
+                      <CheckBox Content="Compact" IsChecked="{Binding ChangelogCompactMode}" />
+                    </WrapPanel>
+                    <TextBox Text="{Binding ChangelogPreview}" AcceptsReturn="True" IsReadOnly="True"
+                             MinHeight="145" TextWrapping="Wrap" Classes="mono" FontSize="11" />
+                    <TextBlock Text="{Binding LastChangelogExportPath}" Classes="mono muted" FontSize="10" TextWrapping="Wrap" />
+                  </StackPanel>
+                </Border>
+              </Grid>
             </StackPanel>
           </Border>
 
-          <Border Grid.Column="1" Classes="card">
-            <Grid RowDefinitions="Auto,*" RowSpacing="10">
-              <Grid ColumnDefinitions="*,Auto">
-                <StackPanel Spacing="3">
-                  <TextBlock Classes="eyebrow" Text="CONNECTED ITEMS" />
-                  <TextBlock Text="Selected version scope" FontSize="19" FontWeight="Bold" />
-                </StackPanel>
-                <TextBlock Grid.Column="1" Text="{Binding SelectedVersion.ItemCount, StringFormat='Mapped: {0}'}" Classes="mono muted" VerticalAlignment="Center" />
-              </Grid>
-              <ScrollViewer Grid.Row="1" MinHeight="260">
-                <ItemsControl ItemsSource="{Binding SelectedVersion.ItemGroups}">
-                  <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="models:WorkspaceItemCategoryGroup">
-                      <StackPanel Spacing="6" Margin="0,0,0,12">
-                        <TextBlock Text="{Binding CategoryId}" Classes="eyebrow" />
-                        <ItemsControl ItemsSource="{Binding Items}">
-                          <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="models:WorkspaceItemCard">
-                              <Button Classes="item-row"
-                                      Click="SelectReleaseItem_Click"
-                                      HorizontalContentAlignment="Stretch"
-                                      Margin="0,0,0,6">
-                                <Grid ColumnDefinitions="92,*,Auto" ColumnSpacing="10">
-                                  <TextBlock Classes="mono" Text="{Binding ItemKey}" FontWeight="Bold" Foreground="#1D4ED8" />
-                                  <StackPanel Grid.Column="1" Spacing="2">
-                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                                    <TextBlock Text="{Binding Description}" Classes="muted" FontSize="11" TextTrimming="CharacterEllipsis" />
-                                  </StackPanel>
-                                  <Border Grid.Column="2" Background="#EEF4F7" CornerRadius="10" Padding="8,3" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding ItemTypeId}" Classes="muted" FontSize="11" />
-                                  </Border>
-                                </Grid>
-                              </Button>
-                            </DataTemplate>
-                          </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                      </StackPanel>
-                    </DataTemplate>
-                  </ItemsControl.ItemTemplate>
-                </ItemsControl>
-              </ScrollViewer>
-              <TextBlock Grid.Row="1"
-                         Text="No connected items yet. Add the first accomplishment from the editor."
-                         Classes="muted"
-                         TextWrapping="Wrap"
-                         HorizontalAlignment="Center"
-                         VerticalAlignment="Center"
-                         IsVisible="{Binding IsSelectedVersionEmpty}" />
+          <Border Classes="card">
+            <Grid ColumnDefinitions="0.9*,1.1*" ColumnSpacing="20">
+              <StackPanel Spacing="10">
+                <TextBlock Text="RELEASE READINESS" Classes="eyebrow" />
+                <TextBlock Text="{Binding ReleaseReadinessSummary}" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding GitChangelogSummary}" Classes="muted" FontSize="11" TextWrapping="Wrap" />
+                <Button Classes="secondary" Content="Open Imports" Command="{Binding NavigateToIntegrationsCommand}"
+                        HorizontalAlignment="Left" />
+              </StackPanel>
+              <ItemsControl Grid.Column="1" ItemsSource="{Binding ReleaseReadinessDiagnostics}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="models:ReleaseReadinessDiagnostic">
+                    <Border Classes="subtle-card" Margin="0,0,0,7">
+                      <Grid ColumnDefinitions="90,*,1.1*" ColumnSpacing="10">
+                        <TextBlock Text="{Binding Level}" Classes="eyebrow" />
+                        <StackPanel Grid.Column="1" Spacing="2">
+                          <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                          <TextBlock Text="{Binding Detail}" Classes="muted" FontSize="10" TextWrapping="Wrap" />
+                        </StackPanel>
+                        <TextBlock Grid.Column="2" Text="{Binding Guidance}" Foreground="#5A4AE8" FontSize="10" TextWrapping="Wrap" />
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
             </Grid>
           </Border>
-        </Grid>
-      </StackPanel>
-    </ScrollViewer>
+
+          <Border Classes="card">
+            <Grid ColumnDefinitions="330,*" ColumnSpacing="20">
+              <StackPanel Spacing="10">
+                <TextBlock Text="WORK ITEM" Classes="eyebrow" />
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                  <ComboBox ItemsSource="{Binding AvailableItemTypes}" SelectedItem="{Binding SelectedItemTypeId}" />
+                  <ComboBox Grid.Column="1" ItemsSource="{Binding AvailableCategories}" SelectedItem="{Binding SelectedCategoryId}" />
+                </Grid>
+                <TextBox Text="{Binding ItemEditorTitle}" PlaceholderText="Concise outcome" />
+                <TextBox Text="{Binding ItemEditorDescription}" PlaceholderText="Useful context" AcceptsReturn="True" Height="80" />
+                <CheckBox Content="Completed and ready for release notes" IsChecked="{Binding ItemEditorIsDone}" />
+                <WrapPanel>
+                  <Button Classes="primary" Content="Add item" Command="{Binding AddItemCommand}" Margin="0,0,8,8" />
+                  <Button Classes="secondary" Content="Save selected" Command="{Binding SaveItemDetailsCommand}" Margin="0,0,8,8" />
+                  <Button Classes="danger" Content="Archive item…" Command="{Binding ArchiveSelectedItemCommand}"
+                          IsEnabled="{Binding CanArchiveSelectedItem}" Margin="0,0,8,8" />
+                </WrapPanel>
+              </StackPanel>
+
+              <StackPanel Grid.Column="1" Spacing="10">
+                <Grid ColumnDefinitions="*,Auto">
+                  <StackPanel Spacing="2">
+                    <TextBlock Text="ITEMS IN THIS RELEASE" Classes="eyebrow" />
+                    <TextBlock Text="Select an item to edit it" Classes="muted" FontSize="11" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="1" Text="{Binding SelectedVersion.ItemCount, StringFormat='Items {0}'}"
+                             Classes="muted" VerticalAlignment="Center" />
+                </Grid>
+                <ScrollViewer MinHeight="230">
+                  <ItemsControl ItemsSource="{Binding SelectedVersion.ItemGroups}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="models:WorkspaceItemCategoryGroup">
+                        <StackPanel Spacing="6" Margin="0,0,0,12">
+                          <TextBlock Text="{Binding CategoryId}" Classes="eyebrow" />
+                          <ItemsControl ItemsSource="{Binding Items}">
+                            <ItemsControl.ItemTemplate>
+                              <DataTemplate x:DataType="models:WorkspaceItemCard">
+                                <Button Classes="item-row" Click="SelectReleaseItem_Click" HorizontalContentAlignment="Stretch" Margin="0,0,0,6">
+                                  <Grid ColumnDefinitions="88,*,Auto" ColumnSpacing="10">
+                                    <TextBlock Text="{Binding ItemKey}" Classes="mono" Foreground="#5A4AE8" FontWeight="SemiBold" />
+                                    <StackPanel Grid.Column="1" Spacing="2">
+                                      <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                                      <TextBlock Text="{Binding Description}" Classes="muted" FontSize="10" TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                    <Border Grid.Column="2" Classes="status-pill">
+                                      <TextBlock Text="{Binding ItemTypeId}" FontSize="9" />
+                                    </Border>
+                                  </Grid>
+                                </Button>
+                              </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                          </ItemsControl>
+                        </StackPanel>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </ScrollViewer>
+              </StackPanel>
+            </Grid>
+          </Border>
+        </StackPanel>
+      </ScrollViewer>
+    </Grid>
   </Grid>
 </UserControl>

@@ -4,319 +4,240 @@
              xmlns:models="using:Blueprints.App.Models"
              x:Class="Blueprints.App.Views.Components.SetupView"
              x:DataType="vm:MainWindowViewModel">
-  <Grid ColumnDefinitions="340,*" Background="#F6F8FC">
-    <Border Background="#172033" Padding="36">
-      <Grid RowDefinitions="Auto,*,Auto">
-        <StackPanel Orientation="Horizontal" Spacing="12">
-          <Border Width="42" Height="42" CornerRadius="10" Background="#2563EB">
-            <TextBlock Text="B" Foreground="White" FontSize="21" FontWeight="Bold"
+  <Grid RowDefinitions="72,*" Background="#F7F8FA">
+    <Border Background="#101828" Padding="28,0">
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel Orientation="Horizontal" Spacing="11" VerticalAlignment="Center">
+          <Border Width="36" Height="36" CornerRadius="9" Background="#6D5EF5">
+            <TextBlock Text="B" Foreground="White" FontSize="17" FontWeight="Bold"
                        HorizontalAlignment="Center" VerticalAlignment="Center" />
           </Border>
-          <StackPanel VerticalAlignment="Center" Spacing="1">
-            <TextBlock Text="Blueprints" Foreground="White" FontSize="19" FontWeight="Bold" />
-            <TextBlock Text="Clear project planning" Foreground="#AAB8CC" FontSize="11" />
+          <StackPanel Spacing="0" VerticalAlignment="Center">
+            <TextBlock Text="Blueprints" Foreground="White" FontSize="17" FontWeight="Bold" />
+            <TextBlock Text="Local-first release planning" Foreground="#A9B7CD" FontSize="10" />
           </StackPanel>
         </StackPanel>
-
-        <StackPanel Grid.Row="1" VerticalAlignment="Center" Spacing="18">
-          <TextBlock Text="Set up your workspace"
-                     Foreground="White"
-                     FontSize="32"
-                     FontWeight="Bold"
-                     LetterSpacing="-0.7"
-                     TextWrapping="Wrap" />
-          <TextBlock Text="Create a project, open an existing one, or join your team with an invitation. Your project files remain in folders you control."
-                     Foreground="#B8C4D6"
-                     FontSize="15"
-                     LineHeight="23"
-                     TextWrapping="Wrap" />
-
-          <StackPanel Spacing="16" Margin="0,14,0,0">
-            <Grid ColumnDefinitions="34,*">
-              <Border Width="26" Height="26" CornerRadius="7" Background="#25324A">
-                <TextBlock Text="1" Foreground="#BFDBFE" FontWeight="Bold" FontSize="11"
-                           HorizontalAlignment="Center" VerticalAlignment="Center" />
-              </Border>
-              <StackPanel Grid.Column="1" Spacing="2">
-                <TextBlock Text="Choose a project" Foreground="White" FontWeight="SemiBold" />
-                <TextBlock Text="Create, open, or join a workspace." Foreground="#AAB8CC" FontSize="11" />
-              </StackPanel>
-            </Grid>
-            <Grid ColumnDefinitions="34,*">
-              <Border Width="26" Height="26" CornerRadius="7" Background="#25324A">
-                <TextBlock Text="2" Foreground="#BFDBFE" FontWeight="Bold" FontSize="11"
-                           HorizontalAlignment="Center" VerticalAlignment="Center" />
-              </Border>
-              <StackPanel Grid.Column="1" Spacing="2">
-                <TextBlock Text="Organize the work" Foreground="White" FontWeight="SemiBold" />
-                <TextBlock Text="Plan items, dependencies, and releases." Foreground="#AAB8CC" FontSize="11" />
-              </StackPanel>
-            </Grid>
-            <Grid ColumnDefinitions="34,*">
-              <Border Width="26" Height="26" CornerRadius="7" Background="#25324A">
-                <TextBlock Text="3" Foreground="#BFDBFE" FontWeight="Bold" FontSize="11"
-                           HorizontalAlignment="Center" VerticalAlignment="Center" />
-              </Border>
-              <StackPanel Grid.Column="1" Spacing="2">
-                <TextBlock Text="Sync with your team" Foreground="White" FontWeight="SemiBold" />
-                <TextBlock Text="Review and validate shared changes." Foreground="#AAB8CC" FontSize="11" />
-              </StackPanel>
-            </Grid>
-          </StackPanel>
-        </StackPanel>
-
-        <TextBlock Grid.Row="2"
-                   Text="Local-first  •  Signed changes  •  No account required"
-                   Foreground="#8291A8"
-                   FontSize="11" />
+        <Border Grid.Column="1" Background="#182230" CornerRadius="9" Padding="12,8" VerticalAlignment="Center">
+          <TextBlock Text="No hosted account required" Foreground="#D0D5DD" FontSize="11" />
+        </Border>
       </Grid>
     </Border>
 
-    <ScrollViewer Grid.Column="1">
-      <StackPanel Margin="40,32" Spacing="22" MaxWidth="930" HorizontalAlignment="Center">
-        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-          <StackPanel Spacing="4">
-            <TextBlock Text="Choose how to continue" Classes="page-title" />
-            <TextBlock Text="Complete your identity once, then choose a project option below."
-                       Classes="muted"
-                       FontSize="14"
-                       TextWrapping="Wrap" />
+    <ScrollViewer Grid.Row="1">
+      <Grid ColumnDefinitions="320,*" ColumnSpacing="24" Margin="32,28" MaxWidth="1320" HorizontalAlignment="Center">
+        <StackPanel Spacing="16">
+          <StackPanel Spacing="5">
+            <TextBlock Text="Your projects" Classes="page-title" />
+            <TextBlock Text="Open a recent workspace or start with a new one."
+                       Classes="muted" TextWrapping="Wrap" />
           </StackPanel>
-          <Border Grid.Column="1"
-                  Classes="success"
-                  VerticalAlignment="Center"
-                  IsVisible="{Binding HasSetupMessage}">
-            <TextBlock Text="{Binding SetupMessage}" Foreground="#216D60" FontSize="11" TextWrapping="Wrap" MaxWidth="310" />
-          </Border>
-        </Grid>
 
-        <Border Classes="card">
-          <Grid ColumnDefinitions="Auto,*,220,Auto" ColumnSpacing="14">
-            <Border Width="42" Height="42" CornerRadius="10" Background="#E8F0FF" VerticalAlignment="Center">
-              <TextBlock Text="ID" Foreground="#1D4ED8" FontSize="10" FontWeight="Bold"
-                         HorizontalAlignment="Center" VerticalAlignment="Center" />
-            </Border>
-            <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
-              <TextBlock Text="Your signing identity" FontWeight="SemiBold" />
-              <TextBlock Text="{Binding LocalIdentitySetupSummary}" Classes="muted" FontSize="12" TextWrapping="Wrap" />
-            </StackPanel>
-            <Grid Grid.Column="2">
-              <TextBox PlaceholderText="Your display name"
-                       Text="{Binding IdentitySetupName}"
-                       IsVisible="{Binding IsIdentitySetupRequired}" />
-              <TextBox PlaceholderText="Backup passphrase (12+ characters)"
-                       Text="{Binding IdentityBackupPassphrase}"
-                       PasswordChar="●"
-                       IsVisible="{Binding HasLocalIdentity}" />
+          <Border Classes="card" Padding="12">
+            <Grid RowDefinitions="*,Auto" RowSpacing="12">
+              <ListBox ItemsSource="{Binding RecentProjects}"
+                       SelectedItem="{Binding SelectedRecentProject}"
+                       MinHeight="240" MaxHeight="520">
+                <ListBox.ItemTemplate>
+                  <DataTemplate x:DataType="models:RecentProjectReference">
+                    <Grid Margin="4,8" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                      <StackPanel Spacing="3">
+                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="14" />
+                        <TextBlock Text="{Binding LocalWorkspaceRoot}" Classes="mono muted" FontSize="9"
+                                   MaxWidth="230" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding LastOpenedUtc, StringFormat='Opened {0:g}'}"
+                                   Classes="muted" FontSize="9" />
+                      </StackPanel>
+                      <Border Grid.Column="1" Background="#F0EEFF" CornerRadius="7" Padding="7,3" VerticalAlignment="Top">
+                        <TextBlock Text="{Binding ProjectCode}" Foreground="#5A4AE8" Classes="mono" FontSize="9" FontWeight="Bold" />
+                      </Border>
+                    </Grid>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+
+              <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <Button Classes="primary" Content="Open selected"
+                        Command="{Binding OpenSelectedRecentProjectCommand}" />
+                <Button Grid.Column="1" Classes="danger" Content="Delete…"
+                        Command="{Binding BeginDeleteSelectedProjectCommand}" />
+              </Grid>
             </Grid>
-            <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8">
-              <Button Classes="primary"
-                      Content="Create identity"
-                      Command="{Binding CreateLocalIdentityCommand}"
-                      IsEnabled="{Binding IsIdentitySetupRequired}" />
-              <Button Classes="secondary compact"
-                      Content="Back up…"
-                      Click="ExportIdentityBackup_Click"
-                      IsVisible="{Binding HasLocalIdentity}" />
-              <Button Classes="secondary compact"
-                      Content="Restore backup…"
-                      Click="ImportIdentityBackup_Click"
-                      IsVisible="{Binding IsIdentitySetupRequired}" />
-            </StackPanel>
-          </Grid>
-        </Border>
+          </Border>
 
-        <TabControl>
-          <TabItem Header="Start a new project">
-            <Border Classes="card" Margin="0,12,0,0">
-              <Grid ColumnDefinitions="1.15*,0.85*" ColumnSpacing="28">
-                <StackPanel Spacing="14">
+          <Border Classes="subtle-card">
+            <StackPanel Spacing="5">
+              <TextBlock Text="What Blueprints stores" FontWeight="SemiBold" />
+              <TextBlock Text="Your editable workspace, a separate shared exchange, and a device-local signing identity. Repositories remain independent."
+                         Classes="muted" FontSize="11" TextWrapping="Wrap" />
+            </StackPanel>
+          </Border>
+        </StackPanel>
+
+        <StackPanel Grid.Column="1" Spacing="16">
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="14">
+            <StackPanel Spacing="5">
+              <TextBlock Text="Set up Blueprints" Classes="page-title" />
+              <TextBlock Text="Create your identity once, then choose how you want to open a workspace."
+                         Classes="muted" />
+            </StackPanel>
+            <Border Grid.Column="1" Classes="success" IsVisible="{Binding HasSetupMessage}" MaxWidth="360">
+              <TextBlock Text="{Binding SetupMessage}" Foreground="#067647" FontSize="11" TextWrapping="Wrap" />
+            </Border>
+          </Grid>
+
+          <Border Classes="card">
+            <Grid ColumnDefinitions="48,*,250,Auto" ColumnSpacing="14">
+              <Border Width="44" Height="44" CornerRadius="12" Background="#F0EEFF" VerticalAlignment="Center">
+                <TextBlock Text="1" Foreground="#5A4AE8" FontWeight="Bold" FontSize="15"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Border>
+              <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
+                <TextBlock Text="Signing identity" FontWeight="SemiBold" FontSize="15" />
+                <TextBlock Text="{Binding LocalIdentitySetupSummary}" Classes="muted" FontSize="11" TextWrapping="Wrap" />
+              </StackPanel>
+              <Grid Grid.Column="2">
+                <TextBox Text="{Binding IdentitySetupName}" PlaceholderText="Display name"
+                         IsVisible="{Binding IsIdentitySetupRequired}" />
+                <TextBox Text="{Binding IdentityBackupPassphrase}" PlaceholderText="Backup passphrase"
+                         PasswordChar="●" IsVisible="{Binding HasLocalIdentity}" />
+              </Grid>
+              <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8">
+                <Button Classes="primary" Content="Create identity"
+                        Command="{Binding CreateLocalIdentityCommand}" IsVisible="{Binding IsIdentitySetupRequired}" />
+                <Button Classes="secondary" Content="Back up…" Click="ExportIdentityBackup_Click"
+                        IsVisible="{Binding HasLocalIdentity}" />
+                <Button Classes="secondary" Content="Restore…" Click="ImportIdentityBackup_Click"
+                        IsVisible="{Binding IsIdentitySetupRequired}" />
+              </StackPanel>
+            </Grid>
+          </Border>
+
+          <TabControl>
+            <TabItem Header="Create project">
+              <Border Classes="card" Margin="0,12,0,0">
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="24">
+                  <StackPanel Spacing="14">
+                    <StackPanel Spacing="4">
+                      <TextBlock Text="Create a new workspace" Classes="section-title" />
+                      <TextBlock Text="Name the project and choose how releases are identified."
+                                 Classes="muted" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <Grid ColumnDefinitions="*,150" ColumnSpacing="10">
+                      <StackPanel Spacing="5">
+                        <TextBlock Text="Project name" Classes="field-label" />
+                        <TextBox Text="{Binding CreateProjectName}" PlaceholderText="Mobile application" />
+                      </StackPanel>
+                      <StackPanel Grid.Column="1" Spacing="5">
+                        <TextBlock Text="Project code" Classes="field-label" />
+                        <TextBox Text="{Binding CreateProjectCode}" PlaceholderText="APP" />
+                      </StackPanel>
+                    </Grid>
+                    <StackPanel Spacing="5">
+                      <TextBlock Text="Release naming" Classes="field-label" />
+                      <TextBox Text="{Binding CreateVersioningScheme}" PlaceholderText="SemVer" />
+                    </StackPanel>
+                    <Button Classes="primary" Content="Create and open project"
+                            Command="{Binding CreateProjectCommand}" IsEnabled="{Binding HasLocalIdentity}"
+                            HorizontalAlignment="Left" />
+                  </StackPanel>
+
+                  <StackPanel Grid.Column="1" Spacing="14">
+                    <StackPanel Spacing="5">
+                      <TextBlock Text="Local workspace" Classes="field-label" />
+                      <TextBlock Text="The editable copy on this computer." Classes="muted" FontSize="10" />
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <TextBox Text="{Binding CreateLocalWorkspaceRoot}" />
+                        <Button Grid.Column="1" Classes="secondary" Content="Choose…" Click="BrowseCreateLocal_Click" />
+                      </Grid>
+                    </StackPanel>
+                    <StackPanel Spacing="5">
+                      <TextBlock Text="Shared exchange" Classes="field-label" />
+                      <TextBlock Text="A separate folder used only for signed team changes." Classes="muted" FontSize="10" />
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <TextBox Text="{Binding CreateSharedWorkspaceRoot}" />
+                        <Button Grid.Column="1" Classes="secondary" Content="Choose…" Click="BrowseCreateShared_Click" />
+                      </Grid>
+                    </StackPanel>
+                    <Border Classes="callout">
+                      <TextBlock Text="The two folders must be separate and neither can contain the other."
+                                 Foreground="#5A4AE8" FontSize="11" TextWrapping="Wrap" />
+                    </Border>
+                  </StackPanel>
+                </Grid>
+              </Border>
+            </TabItem>
+
+            <TabItem Header="Open project">
+              <Border Classes="card" Margin="0,12,0,0">
+                <StackPanel Spacing="16">
                   <StackPanel Spacing="4">
-                    <TextBlock Text="Start something new" Classes="section-title" />
-                    <TextBlock Text="Give the project a friendly name. Short codes keep release item IDs easy to scan."
+                    <TextBlock Text="Open an existing workspace" Classes="section-title" />
+                    <TextBlock Text="Choose the local editable copy and its matching shared exchange. Blueprints validates both before opening."
                                Classes="muted" TextWrapping="Wrap" />
                   </StackPanel>
-                  <Grid ColumnDefinitions="1.4*,0.6*" ColumnSpacing="10">
+                  <Grid ColumnDefinitions="*,*" ColumnSpacing="14">
                     <StackPanel Spacing="5">
-                      <TextBlock Text="Project name" FontWeight="SemiBold" />
-                      <TextBox Text="{Binding CreateProjectName}" PlaceholderText="Mobile app" />
+                      <TextBlock Text="Local workspace" Classes="field-label" />
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <TextBox Text="{Binding OpenLocalWorkspaceRoot}" />
+                        <Button Grid.Column="1" Classes="secondary" Content="Choose…" Click="BrowseOpenLocal_Click" />
+                      </Grid>
                     </StackPanel>
                     <StackPanel Grid.Column="1" Spacing="5">
-                      <TextBlock Text="Short code" FontWeight="SemiBold" />
-                      <TextBox Text="{Binding CreateProjectCode}" PlaceholderText="APP" />
+                      <TextBlock Text="Shared exchange" Classes="field-label" />
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <TextBox Text="{Binding OpenSharedWorkspaceRoot}" />
+                        <Button Grid.Column="1" Classes="secondary" Content="Choose…" Click="BrowseOpenShared_Click" />
+                      </Grid>
                     </StackPanel>
                   </Grid>
-                  <StackPanel Spacing="5">
-                    <TextBlock Text="How do you name releases?" FontWeight="SemiBold" />
-                    <TextBox Text="{Binding CreateVersioningScheme}" PlaceholderText="Semantic versions, e.g. 1.2.0" />
-                  </StackPanel>
-                  <Button Classes="primary"
-                          Content="Create project  →"
-                          Command="{Binding CreateProjectCommand}"
-                          HorizontalAlignment="Left"
-                          IsEnabled="{Binding HasLocalIdentity}" />
+                  <Button Classes="primary" Content="Validate and open"
+                          Command="{Binding OpenProjectCommand}" IsEnabled="{Binding HasLocalIdentity}"
+                          HorizontalAlignment="Left" />
                 </StackPanel>
+              </Border>
+            </TabItem>
 
-                <StackPanel Grid.Column="1" Spacing="14">
-                  <Border Classes="callout">
-                    <StackPanel Spacing="4">
-                      <TextBlock Text="Where your files live" FontWeight="SemiBold" Foreground="#1D4ED8" />
-                      <TextBlock Text="The local folder is your editable copy. The shared folder is only for exchanging changes with teammates."
-                                 Foreground="#746F65" FontSize="12" TextWrapping="Wrap" />
-                    </StackPanel>
-                  </Border>
-                  <StackPanel Spacing="5">
-                    <TextBlock Text="Local project folder" FontWeight="SemiBold" />
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                      <TextBox Text="{Binding CreateLocalWorkspaceRoot}" />
-                      <Button Grid.Column="1" Classes="secondary" Content="Browse…" Click="BrowseCreateLocal_Click" />
-                    </Grid>
-                  </StackPanel>
-                  <StackPanel Spacing="5">
-                    <TextBlock Text="Shared folder" FontWeight="SemiBold" />
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                      <TextBox Text="{Binding CreateSharedWorkspaceRoot}" />
-                      <Button Grid.Column="1" Classes="secondary" Content="Browse…" Click="BrowseCreateShared_Click" />
-                    </Grid>
-                  </StackPanel>
-                </StackPanel>
-              </Grid>
-            </Border>
-          </TabItem>
-
-          <TabItem Header="Open a project">
-            <Border Classes="card" Margin="0,12,0,0">
-              <Grid ColumnDefinitions="1.05*,0.95*" ColumnSpacing="28">
-                <StackPanel Spacing="14">
+            <TabItem Header="Join team">
+              <Border Classes="card" Margin="0,12,0,0">
+                <StackPanel Spacing="16">
                   <StackPanel Spacing="4">
-                    <TextBlock Text="Open an existing project" Classes="section-title" />
-                    <TextBlock Text="Choose your editable project folder and its matching shared folder."
+                    <TextBlock Text="Join with a project invitation" Classes="section-title" />
+                    <TextBlock Text="Use the invitation created specifically for your signing identity."
                                Classes="muted" TextWrapping="Wrap" />
                   </StackPanel>
                   <StackPanel Spacing="5">
-                    <TextBlock Text="Local project folder" FontWeight="SemiBold" />
+                    <TextBlock Text="Project invitation" Classes="field-label" />
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                      <TextBox Text="{Binding OpenLocalWorkspaceRoot}" />
-                      <Button Grid.Column="1" Classes="secondary" Content="Browse…" Click="BrowseOpenLocal_Click" />
-                    </Grid>
-                  </StackPanel>
-                  <StackPanel Spacing="5">
-                    <TextBlock Text="Shared folder" FontWeight="SemiBold" />
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                      <TextBox Text="{Binding OpenSharedWorkspaceRoot}" />
-                      <Button Grid.Column="1" Classes="secondary" Content="Browse…" Click="BrowseOpenShared_Click" />
-                    </Grid>
-                  </StackPanel>
-                  <Button Classes="primary"
-                          Content="Validate and open  →"
-                          Command="{Binding OpenProjectCommand}"
-                          HorizontalAlignment="Left"
-                          IsEnabled="{Binding HasLocalIdentity}" />
-                </StackPanel>
-                <Border Grid.Column="1" Classes="callout" VerticalAlignment="Top">
-                  <StackPanel Spacing="8">
-                    <TextBlock Text="Your project is checked before it opens" FontWeight="SemiBold" Foreground="#1D4ED8" />
-                    <TextBlock Text="Blueprints verifies the project files, signatures, membership, and change history. If something looks wrong, the project opens safely in read-only mode."
-                               Foreground="#746F65" FontSize="12" TextWrapping="Wrap" />
-                  </StackPanel>
-                </Border>
-              </Grid>
-            </Border>
-          </TabItem>
-
-          <TabItem Header="Join a team">
-            <Border Classes="card" Margin="0,12,0,0">
-              <Grid ColumnDefinitions="1.05*,0.95*" ColumnSpacing="28">
-                <StackPanel Spacing="14">
-                  <StackPanel Spacing="4">
-                    <TextBlock Text="Join with an invitation" Classes="section-title" />
-                    <TextBlock Text="Ask a project administrator for a Blueprints invitation file, then choose an empty folder for your local copy."
-                               Classes="muted" TextWrapping="Wrap" />
-                  </StackPanel>
-                  <StackPanel Spacing="5">
-                    <TextBlock Text="Invitation file" FontWeight="SemiBold" />
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                      <TextBox Text="{Binding JoinInvitationFilePath}" IsReadOnly="True" />
+                      <TextBox Text="{Binding JoinInvitationFilePath}" />
                       <Button Grid.Column="1" Classes="secondary" Content="Choose…" Click="BrowseJoinInvitation_Click" />
                     </Grid>
                   </StackPanel>
-                  <StackPanel Spacing="5">
-                    <TextBlock Text="New local project folder" FontWeight="SemiBold" />
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                      <TextBox Text="{Binding JoinLocalWorkspaceRoot}" />
-                      <Button Grid.Column="1" Classes="secondary" Content="Browse…" Click="BrowseJoinLocal_Click" />
-                    </Grid>
-                  </StackPanel>
-                  <StackPanel Spacing="5">
-                    <TextBlock Text="Different shared folder (optional)" FontWeight="SemiBold" />
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                      <TextBox Text="{Binding JoinSharedWorkspaceRoot}" />
-                      <Button Grid.Column="1" Classes="secondary" Content="Browse…" Click="BrowseJoinShared_Click" />
-                    </Grid>
-                  </StackPanel>
-                  <Button Classes="primary"
-                          Content="Check invitation and join  →"
-                          Command="{Binding JoinProjectCommand}"
-                          HorizontalAlignment="Left"
-                          IsEnabled="{Binding HasLocalIdentity}" />
-                </StackPanel>
-                <Border Grid.Column="1" Classes="callout" VerticalAlignment="Top">
-                  <StackPanel Spacing="8">
-                    <TextBlock Text="Why an invitation file?" FontWeight="SemiBold" Foreground="#1D4ED8" />
-                    <TextBlock Text="It lets Blueprints recognize the correct project and administrator before reading anything from the shared folder."
-                               Foreground="#746F65" FontSize="12" TextWrapping="Wrap" />
-                  </StackPanel>
-                </Border>
-              </Grid>
-            </Border>
-          </TabItem>
-        </TabControl>
-
-        <Border Classes="card">
-          <Grid RowDefinitions="Auto,*" RowSpacing="12">
-            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-              <StackPanel Spacing="3">
-                <TextBlock Text="Recent projects" Classes="section-title" />
-                <TextBlock Text="Pick up where you left off." Classes="muted" />
-              </StackPanel>
-              <StackPanel Grid.Column="1" Spacing="8">
-                <Button Classes="primary"
-                        Content="Open selected"
-                        Command="{Binding OpenSelectedRecentProjectCommand}" />
-                <Button Classes="danger"
-                        Content="{Binding DeleteSelectedProjectLabel}"
-                        Command="{Binding DeleteSelectedRecentProjectCommand}" />
-              </StackPanel>
-            </Grid>
-            <ListBox Grid.Row="1"
-                     ItemsSource="{Binding RecentProjects}"
-                     SelectedItem="{Binding SelectedRecentProject}"
-                     MaxHeight="210">
-              <ListBox.ItemsPanel>
-                <ItemsPanelTemplate>
-                  <WrapPanel />
-                </ItemsPanelTemplate>
-              </ListBox.ItemsPanel>
-              <ListBox.ItemTemplate>
-                <DataTemplate x:DataType="models:RecentProjectReference">
-                  <Border Classes="blueprint-card" Width="275" Margin="0,0,10,10">
-                    <StackPanel Spacing="6">
-                      <Grid ColumnDefinitions="*,Auto">
-                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="15" />
-                        <Border Grid.Column="1" Background="#E8F0FF" CornerRadius="8" Padding="7,2">
-                          <TextBlock Classes="mono" Text="{Binding ProjectCode}" Foreground="#1D4ED8" FontSize="10" />
-                        </Border>
+                  <Grid ColumnDefinitions="*,*" ColumnSpacing="14">
+                    <StackPanel Spacing="5">
+                      <TextBlock Text="New local workspace" Classes="field-label" />
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <TextBox Text="{Binding JoinLocalWorkspaceRoot}" />
+                        <Button Grid.Column="1" Classes="secondary" Content="Choose…" Click="BrowseJoinLocal_Click" />
                       </Grid>
-                      <TextBlock Text="{Binding LocalWorkspaceRoot}" Classes="mono muted" FontSize="10" TextTrimming="CharacterEllipsis" />
-                      <TextBlock Text="{Binding LastOpenedUtc, StringFormat='Last opened {0:g}'}" Classes="muted" FontSize="10" />
                     </StackPanel>
-                  </Border>
-                </DataTemplate>
-              </ListBox.ItemTemplate>
-            </ListBox>
-          </Grid>
-        </Border>
-      </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="5">
+                      <TextBlock Text="Shared exchange" Classes="field-label" />
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <TextBox Text="{Binding JoinSharedWorkspaceRoot}" />
+                        <Button Grid.Column="1" Classes="secondary" Content="Choose…" Click="BrowseJoinShared_Click" />
+                      </Grid>
+                    </StackPanel>
+                  </Grid>
+                  <Button Classes="primary" Content="Validate invitation and join"
+                          Command="{Binding JoinProjectCommand}" IsEnabled="{Binding HasLocalIdentity}"
+                          HorizontalAlignment="Left" />
+                </StackPanel>
+              </Border>
+            </TabItem>
+          </TabControl>
+        </StackPanel>
+      </Grid>
     </ScrollViewer>
   </Grid>
 </UserControl>

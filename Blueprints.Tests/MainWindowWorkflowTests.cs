@@ -154,6 +154,66 @@ public sealed class MainWindowWorkflowTests : IDisposable
         Assert.Contains("source files were not changed", viewModel.SetupMessage, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void ProjectDeletionDialog_ExplainsTargetAndDeletesOnlyAfterExplicitConfirmation()
+    {
+        var viewModel = new MainWindowViewModel(
+            CreateCoordinator(),
+            new IntegrationStatusService());
+        var localRoot = Path.Combine(_rootDirectory, "dialog-delete-local", "BP");
+        var sharedRoot = Path.Combine(_rootDirectory, "dialog-delete-shared", "BP");
+
+        viewModel.IdentitySetupName = "Delete Admin";
+        viewModel.CreateLocalIdentityCommand.Execute(null);
+        viewModel.CreateProjectName = "Blueprints";
+        viewModel.CreateProjectCode = "BP";
+        viewModel.CreateLocalWorkspaceRoot = localRoot;
+        viewModel.CreateSharedWorkspaceRoot = sharedRoot;
+        viewModel.CreateProjectCommand.Execute(null);
+
+        viewModel.BeginDeleteCurrentProjectCommand.Execute(null);
+
+        Assert.True(viewModel.IsProjectDeletionDialogOpen);
+        Assert.Equal("Delete Blueprints?", viewModel.ProjectDeletionDialogTitle);
+        Assert.Equal("BP", viewModel.ProjectDeletionDialogCode);
+        Assert.Equal(localRoot, viewModel.ProjectDeletionDialogLocalPath);
+        Assert.Equal(sharedRoot, viewModel.ProjectDeletionDialogSharedPath);
+        Assert.True(File.Exists(Path.Combine(localRoot, "project", "project.json")));
+
+        viewModel.ConfirmProjectDeletionCommand.Execute(null);
+
+        Assert.False(viewModel.IsProjectDeletionDialogOpen);
+        Assert.False(viewModel.HasActiveSession);
+        Assert.False(Directory.Exists(localRoot));
+        Assert.False(Directory.Exists(sharedRoot));
+        Assert.Contains("Removed Blueprints", viewModel.SetupMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ProjectDeletionDialog_CancelLeavesTheProjectUntouched()
+    {
+        var viewModel = new MainWindowViewModel(
+            CreateCoordinator(),
+            new IntegrationStatusService());
+        var localRoot = Path.Combine(_rootDirectory, "dialog-cancel-local", "BP");
+        var sharedRoot = Path.Combine(_rootDirectory, "dialog-cancel-shared", "BP");
+
+        viewModel.IdentitySetupName = "Delete Admin";
+        viewModel.CreateLocalIdentityCommand.Execute(null);
+        viewModel.CreateProjectName = "Blueprints";
+        viewModel.CreateProjectCode = "BP";
+        viewModel.CreateLocalWorkspaceRoot = localRoot;
+        viewModel.CreateSharedWorkspaceRoot = sharedRoot;
+        viewModel.CreateProjectCommand.Execute(null);
+
+        viewModel.BeginDeleteCurrentProjectCommand.Execute(null);
+        viewModel.CancelProjectDeletionCommand.Execute(null);
+
+        Assert.False(viewModel.IsProjectDeletionDialogOpen);
+        Assert.True(viewModel.HasActiveSession);
+        Assert.True(File.Exists(Path.Combine(localRoot, "project", "project.json")));
+    }
+
     private ProjectWorkspaceCoordinatorService CreateCoordinator()
     {
         var identityRoot = Path.Combine(_rootDirectory, "identities");
