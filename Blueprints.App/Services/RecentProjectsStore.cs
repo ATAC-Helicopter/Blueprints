@@ -45,15 +45,34 @@ public sealed class RecentProjectsStore
             .Take(10)
             .ToArray();
 
+        Save(projects);
+    }
+
+    public void Remove(RecentProjectReference project)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+
+        var projects = Load()
+            .Where(existing =>
+                !string.Equals(existing.LocalWorkspaceRoot, project.LocalWorkspaceRoot, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(existing.SharedWorkspaceRoot, project.SharedWorkspaceRoot, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        Save(projects);
+    }
+
+    private void Save(IReadOnlyList<RecentProjectReference> projects)
+    {
         var directory = Path.GetDirectoryName(_recentProjectsPath);
         if (!string.IsNullOrWhiteSpace(directory))
         {
             Directory.CreateDirectory(directory);
         }
 
+        var temporaryPath = _recentProjectsPath + ".tmp";
         File.WriteAllText(
-            _recentProjectsPath,
+            temporaryPath,
             JsonSerializer.Serialize(projects, SerializerOptions),
             new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        File.Move(temporaryPath, _recentProjectsPath, overwrite: true);
     }
 }

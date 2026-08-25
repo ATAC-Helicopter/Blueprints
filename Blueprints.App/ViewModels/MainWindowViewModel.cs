@@ -53,6 +53,10 @@ public partial class MainWindowViewModel : ViewModelBase
     private string _joinLocalWorkspaceRoot = string.Empty;
     private string _joinSharedWorkspaceRoot = string.Empty;
     private RecentProjectReference? _selectedRecentProject;
+    private string? _pendingProjectDeletionKey;
+    private RecentProjectReference? _projectDeletionTarget;
+    private bool _projectDeletionTargetsCurrentSession;
+    private bool _isProjectDeletionDialogOpen;
     private WorkspaceVersionCard? _selectedVersion;
     private WorkspaceItemCard? _selectedItem;
     private Guid? _pendingArchiveVersionId;
@@ -108,9 +112,13 @@ public partial class MainWindowViewModel : ViewModelBase
     private string _relationshipLabel = string.Empty;
     private CanvasViewState _canvasViewState = CanvasViewState.Default;
     private SourceImportProposal? _selectedSourceProposal;
+    private string _sourceProposalSearchText = string.Empty;
     private string _sourceDiscoverySummary = "Connect a repository, then scan its planning sources.";
     private string _sourceDiscoveryWarnings = string.Empty;
+    private string _overviewSearchText = string.Empty;
+    private string _overviewLifecycleFilter = "All";
     private bool _isDiscoveringSources;
+    private bool _isUpdatingSourceProposals;
     private readonly IGitRepositoryService _gitRepositoryService;
     private string _selectedRepositoryPath = string.Empty;
     private string _cloneRemote = string.Empty;
@@ -237,6 +245,36 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public bool HasSelectedSourceProposal => SelectedSourceProposal is not null;
 
+    public string SourceProposalSearchText
+    {
+        get => _sourceProposalSearchText;
+        set
+        {
+            if (SetProperty(ref _sourceProposalSearchText, value))
+            {
+                OnPropertyChanged(nameof(VisibleSourceImportProposals));
+                OnPropertyChanged(nameof(VisibleSourceProposalCount));
+                OnPropertyChanged(nameof(HasVisibleSourceProposals));
+                SelectedSourceProposal = VisibleSourceImportProposals.FirstOrDefault();
+            }
+        }
+    }
+
+    public IReadOnlyList<SourceImportProposal> VisibleSourceImportProposals =>
+        string.IsNullOrWhiteSpace(SourceProposalSearchText)
+            ? SourceImportProposals
+            : SourceImportProposals
+                .Where(proposal =>
+                    proposal.Title.Contains(SourceProposalSearchText, StringComparison.OrdinalIgnoreCase) ||
+                    proposal.SourceContext.Contains(SourceProposalSearchText, StringComparison.OrdinalIgnoreCase) ||
+                    proposal.SourceReference.Contains(SourceProposalSearchText, StringComparison.OrdinalIgnoreCase) ||
+                    proposal.Kind.ToString().Contains(SourceProposalSearchText, StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+
+    public int VisibleSourceProposalCount => VisibleSourceImportProposals.Count;
+
+    public bool HasVisibleSourceProposals => VisibleSourceProposalCount > 0;
+
     public string SourceDiscoverySummary
     {
         get => _sourceDiscoverySummary;
@@ -274,6 +312,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public bool HasSourceProposals => SourceImportProposals.Count > 0;
 
+    public bool IsSourceProposalEmpty => !HasSourceProposals;
+
     public int ApprovedSourceProposalCount =>
         SourceImportProposals.Count(static proposal => proposal.IsIncluded);
 
@@ -282,14 +322,39 @@ public partial class MainWindowViewModel : ViewModelBase
             ? $"{ApprovedSourceProposalCount} of {SourceImportProposals.Count} proposals approved"
             : "Nothing is queued for approval.";
 
+    public string SourceImportActionLabel =>
+        ApprovedSourceProposalCount > 0 &&
+        SourceImportProposals.Any(static proposal => proposal.IsIncluded && proposal.TargetVersion is null)
+            ? DetectedSourceReleaseCount switch
+            {
+                > 1 => $"Create {DetectedSourceReleaseCount} detected releases and import",
+                1 => "Create detected release and import",
+                _ when SelectedVersion is null => $"Create {NewVersionName} and import selected work",
+                _ => "Import selected work",
+            }
+            : "Import selected work";
+
+    public int DetectedSourceReleaseCount => SourceImportProposals
+        .Where(static proposal =>
+            proposal.IsIncluded &&
+            proposal.TargetVersion is null &&
+            !string.IsNullOrWhiteSpace(proposal.SuggestedVersionName))
+        .Select(static proposal => NormalizeVersionName(proposal.SuggestedVersionName!))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .Count();
+
     public bool CanApplyApprovedSourceProposals =>
         CanMutateWorkspace &&
         ApprovedSourceProposalCount > 0 &&
         SourceImportProposals
             .Where(static proposal => proposal.IsIncluded)
-            .All(static proposal =>
-                proposal.TargetVersion is not null &&
-                !string.IsNullOrWhiteSpace(proposal.Title));
+            .All(static proposal => !string.IsNullOrWhiteSpace(proposal.Title)) &&
+        (SourceImportProposals
+             .Where(static proposal => proposal.IsIncluded)
+             .All(static proposal => proposal.TargetVersion is not null) ||
+         SelectedVersion is not null ||
+         DetectedSourceReleaseCount > 0 ||
+         !string.IsNullOrWhiteSpace(NewVersionName));
 
     public string LocalGitRepositoryPath
     {
@@ -488,7 +553,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public string RelationshipRevisionSummary =>
         RelationshipDocument is null
-            ? "No custom relationship graph yet"
+            ? "No relationships have been defined yet"
             : $"Relationship revision {RelationshipDocument.Revision} · {Relationships.Count} links";
 
     public RelationshipTypeDefinition? SelectedRelationshipType
@@ -811,24 +876,24 @@ public partial class MainWindowViewModel : ViewModelBase
     public string SelectedWorkspaceSectionTitle =>
         SelectedWorkspaceSection switch
         {
-            WorkspaceSection.Overview => "Home",
-            WorkspaceSection.Releases => "Plan releases",
-            WorkspaceSection.Team => "People",
-            WorkspaceSection.Sync => "Share changes",
-            WorkspaceSection.Trust => "Safety check",
-            WorkspaceSection.Integrations => "Find work",
+            WorkspaceSection.Overview => "Overview",
+            WorkspaceSection.Releases => "Releases",
+            WorkspaceSection.Team => "Team",
+            WorkspaceSection.Sync => "Sync",
+            WorkspaceSection.Trust => "Validation",
+            WorkspaceSection.Integrations => "Imports",
             _ => "Home",
         };
 
     public string SelectedWorkspaceSectionDescription =>
         SelectedWorkspaceSection switch
         {
-            WorkspaceSection.Overview => "See the plan, spot what needs attention, and choose your next step.",
-            WorkspaceSection.Releases => "Organize versions and accomplishments, then turn them into clear release notes.",
-            WorkspaceSection.Team => "Invite teammates and manage who can view or change this project.",
-            WorkspaceSection.Sync => "Review incoming and outgoing work before sharing it with your team.",
-            WorkspaceSection.Trust => "Confirm that project files and history are valid, with guidance when something needs attention.",
-            WorkspaceSection.Integrations => "Bring in useful work from Git, GitHub, and GitLab only after you review it.",
+            WorkspaceSection.Overview => "View and update work across releases and progress states.",
+            WorkspaceSection.Releases => "Manage release scope, status, readiness, and release notes.",
+            WorkspaceSection.Team => "Manage members, roles, invitations, and identity backups.",
+            WorkspaceSection.Sync => "Compare local and shared changes before you push or pull.",
+            WorkspaceSection.Trust => "Validate project files, signatures, membership, and change history.",
+            WorkspaceSection.Integrations => "Review and import issues, pull requests, releases, and planning files.",
             _ => string.Empty,
         };
 
@@ -907,8 +972,40 @@ public partial class MainWindowViewModel : ViewModelBase
     public RecentProjectReference? SelectedRecentProject
     {
         get => _selectedRecentProject;
-        set => SetProperty(ref _selectedRecentProject, value);
+        set
+        {
+            if (SetProperty(ref _selectedRecentProject, value))
+            {
+                ResetPendingProjectDeletion();
+            }
+        }
     }
+
+    public string DeleteSelectedProjectLabel =>
+        IsProjectDeletionPending(SelectedRecentProject)
+            ? $"Confirm delete {SelectedRecentProject!.ProjectCode}"
+            : "Delete from Blueprints…";
+
+    public string DeleteCurrentProjectLabel =>
+        IsProjectDeletionPending(CreateCurrentProjectReference())
+            ? $"Confirm delete {CurrentProject.Code}"
+            : "Delete from Blueprints…";
+
+    public bool IsProjectDeletionDialogOpen
+    {
+        get => _isProjectDeletionDialogOpen;
+        private set => SetProperty(ref _isProjectDeletionDialogOpen, value);
+    }
+
+    public string ProjectDeletionDialogTitle => _projectDeletionTarget is null
+        ? "Delete project"
+        : $"Delete {_projectDeletionTarget.Name}?";
+
+    public string ProjectDeletionDialogCode => _projectDeletionTarget?.ProjectCode ?? string.Empty;
+
+    public string ProjectDeletionDialogLocalPath => _projectDeletionTarget?.LocalWorkspaceRoot ?? string.Empty;
+
+    public string ProjectDeletionDialogSharedPath => _projectDeletionTarget?.SharedWorkspaceRoot ?? string.Empty;
 
     public WorkspaceVersionCard? SelectedVersion
     {
@@ -919,6 +1016,8 @@ public partial class MainWindowViewModel : ViewModelBase
             {
                 SelectedRelationship = null;
                 PopulateVersionEditor();
+                OnPropertyChanged(nameof(OverviewItems));
+                OnPropertyChanged(nameof(IsOverviewItemEmpty));
                 ChangelogPreview = string.Empty;
                 LastChangelogExportPath = string.Empty;
                 GitChangelogSummary = string.Empty;
@@ -937,6 +1036,56 @@ public partial class MainWindowViewModel : ViewModelBase
             }
         }
     }
+
+    public string OverviewSearchText
+    {
+        get => _overviewSearchText;
+        set
+        {
+            if (SetProperty(ref _overviewSearchText, value))
+            {
+                OnPropertyChanged(nameof(OverviewItems));
+                OnPropertyChanged(nameof(IsOverviewItemEmpty));
+            }
+        }
+    }
+
+    public string OverviewLifecycleFilter
+    {
+        get => _overviewLifecycleFilter;
+        set
+        {
+            if (SetProperty(ref _overviewLifecycleFilter, value))
+            {
+                OnPropertyChanged(nameof(OverviewItems));
+                OnPropertyChanged(nameof(IsOverviewItemEmpty));
+            }
+        }
+    }
+
+    public IReadOnlyList<string> OverviewLifecycleFilters { get; } =
+        ["All", "Planned", "In Progress", "Review", "Complete"];
+
+    public IReadOnlyList<WorkspaceItemCard> OverviewItems =>
+        (SelectedVersion?.Items ?? [])
+            .Where(item =>
+                string.Equals(OverviewLifecycleFilter, "All", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(
+                    item.WorkflowState.ToString().Replace("InProgress", "In Progress", StringComparison.Ordinal),
+                    OverviewLifecycleFilter,
+                    StringComparison.OrdinalIgnoreCase))
+            .Where(item =>
+                string.IsNullOrWhiteSpace(OverviewSearchText)
+                || item.ItemKey.Contains(OverviewSearchText, StringComparison.OrdinalIgnoreCase)
+                || item.Title.Contains(OverviewSearchText, StringComparison.OrdinalIgnoreCase)
+                || (item.Description?.Contains(OverviewSearchText, StringComparison.OrdinalIgnoreCase) ?? false)
+                || item.ItemTypeId.Contains(OverviewSearchText, StringComparison.OrdinalIgnoreCase)
+                || item.CategoryId.Contains(OverviewSearchText, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(static item => item.WorkflowState)
+            .ThenBy(static item => item.ItemKey, StringComparer.Ordinal)
+            .ToArray();
+
+    public bool IsOverviewItemEmpty => OverviewItems.Count == 0;
 
     public WorkspaceItemCard? SelectedItem
     {
@@ -972,7 +1121,14 @@ public partial class MainWindowViewModel : ViewModelBase
     public string NewVersionName
     {
         get => _newVersionName;
-        set => SetProperty(ref _newVersionName, value);
+        set
+        {
+            if (SetProperty(ref _newVersionName, value))
+            {
+                OnPropertyChanged(nameof(CanApplyApprovedSourceProposals));
+                OnPropertyChanged(nameof(SourceImportActionLabel));
+            }
+        }
     }
 
     public string VersionEditorName
@@ -1427,7 +1583,9 @@ public partial class MainWindowViewModel : ViewModelBase
         SelectedItem = null;
         SelectedRelationship = null;
         InspectorTabIndex = 0;
-        OnPropertyChanged(nameof(InspectorSelectionSummary));
+                OnPropertyChanged(nameof(InspectorSelectionSummary));
+                OnPropertyChanged(nameof(CanApplyApprovedSourceProposals));
+                OnPropertyChanged(nameof(SourceImportActionLabel));
     }
 
     [RelayCommand]
@@ -1586,6 +1744,140 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    private void DeleteSelectedRecentProject()
+    {
+        if (_coordinatorService is null || SelectedRecentProject is null)
+        {
+            SetupMessage = "Select a recent project first.";
+            return;
+        }
+
+        var project = SelectedRecentProject;
+        if (!IsProjectDeletionPending(project))
+        {
+            StageProjectDeletion(project);
+            SetupMessage =
+                $"Click Confirm delete {project.ProjectCode} to remove its Blueprints plan and shared sync data. Linked repositories and source files will not be touched.";
+            return;
+        }
+
+        try
+        {
+            var result = _coordinatorService.DeleteProject(project);
+            ResetPendingProjectDeletion();
+            RefreshRecentProjects();
+            SetupMessage = BuildProjectDeletedMessage(result);
+        }
+        catch (Exception exception)
+        {
+            ResetPendingProjectDeletion();
+            SetupMessage = exception.Message;
+        }
+    }
+
+    [RelayCommand]
+    private void BeginDeleteSelectedProject()
+    {
+        if (SelectedRecentProject is null)
+        {
+            SetupMessage = "Select a recent project first.";
+            return;
+        }
+
+        OpenProjectDeletionDialog(SelectedRecentProject, targetsCurrentSession: false);
+    }
+
+    [RelayCommand]
+    private void BeginDeleteCurrentProject()
+    {
+        var project = CreateCurrentProjectReference();
+        if (project is null)
+        {
+            return;
+        }
+
+        OpenProjectDeletionDialog(project, targetsCurrentSession: true);
+    }
+
+    [RelayCommand]
+    private void CancelProjectDeletion()
+    {
+        _projectDeletionTarget = null;
+        _projectDeletionTargetsCurrentSession = false;
+        IsProjectDeletionDialogOpen = false;
+        NotifyProjectDeletionDialogChanged();
+    }
+
+    [RelayCommand]
+    private void ConfirmProjectDeletion()
+    {
+        if (_coordinatorService is null || _projectDeletionTarget is null)
+        {
+            CancelProjectDeletion();
+            return;
+        }
+
+        var project = _projectDeletionTarget;
+        var targetsCurrentSession = _projectDeletionTargetsCurrentSession;
+
+        try
+        {
+            var result = _coordinatorService.DeleteProject(project);
+            _projectDeletionTarget = null;
+            _projectDeletionTargetsCurrentSession = false;
+            IsProjectDeletionDialogOpen = false;
+            ResetPendingProjectDeletion();
+
+            if (targetsCurrentSession)
+            {
+                ApplySetupState("The project was removed from Blueprints.");
+            }
+
+            RefreshRecentProjects();
+            SetupMessage = BuildProjectDeletedMessage(result);
+            NotifyProjectDeletionDialogChanged();
+        }
+        catch (Exception exception)
+        {
+            SetupMessage = exception.Message;
+            WorkspaceMessage = exception.Message;
+            CancelProjectDeletion();
+        }
+    }
+
+    [RelayCommand]
+    private void DeleteCurrentProject()
+    {
+        if (_coordinatorService is null || _currentSession is null)
+        {
+            return;
+        }
+
+        var project = CreateCurrentProjectReference()!;
+        if (!IsProjectDeletionPending(project))
+        {
+            StageProjectDeletion(project);
+            WorkspaceMessage =
+                $"Open workspace options again and click Confirm delete {project.ProjectCode}. This removes Blueprints planning and sync data only—not linked repositories or project source files.";
+            return;
+        }
+
+        try
+        {
+            var result = _coordinatorService.DeleteProject(project);
+            ResetPendingProjectDeletion();
+            ApplySetupState("The project was removed from Blueprints.");
+            RefreshRecentProjects();
+            SetupMessage = BuildProjectDeletedMessage(result);
+        }
+        catch (Exception exception)
+        {
+            ResetPendingProjectDeletion();
+            WorkspaceMessage = exception.Message;
+        }
+    }
+
+    [RelayCommand]
     private void JoinProject()
     {
         if (_coordinatorService is null)
@@ -1625,6 +1917,7 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     private void ReturnToProjectSetup()
     {
+        ResetPendingProjectDeletion();
         ApplySetupState("Choose a project to create or open.");
         RefreshRecentProjects();
         RefreshSuggestedPaths();
@@ -1764,6 +2057,12 @@ public partial class MainWindowViewModel : ViewModelBase
                     _currentSession.Paths.LocalWorkspaceRoot,
                     _currentSession.Paths.SharedProjectRoot,
                     new VersionEditRequest(null, NewVersionName, ReleaseStatus.InProgress, null)));
+            if (SelectedVersion is not null)
+            {
+                UpdateSourceProposals(
+                    SourceImportProposals.Where(static proposal => proposal.TargetVersion is null),
+                    proposal => proposal.TargetVersion = SelectedVersion);
+            }
             WorkspaceMessage = $"Created version {NewVersionName}.";
             NewVersionName = NextSuggestedVersionName();
         }
@@ -2277,23 +2576,40 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     private void ApproveAllSourceProposals()
     {
-        foreach (var proposal in SourceImportProposals)
-        {
-            proposal.IsIncluded = true;
-        }
+        UpdateSourceProposals(SourceImportProposals, static proposal => proposal.IsIncluded = true);
+    }
 
-        RefreshSourceApprovalState();
+    [RelayCommand]
+    private void ApproveVisibleSourceProposals()
+    {
+        UpdateSourceProposals(VisibleSourceImportProposals, static proposal => proposal.IsIncluded = true);
     }
 
     [RelayCommand]
     private void ClearSourceProposalApprovals()
     {
-        foreach (var proposal in SourceImportProposals)
+        UpdateSourceProposals(SourceImportProposals, static proposal => proposal.IsIncluded = false);
+    }
+
+    [RelayCommand]
+    private void ClearVisibleSourceProposalApprovals()
+    {
+        UpdateSourceProposals(VisibleSourceImportProposals, static proposal => proposal.IsIncluded = false);
+    }
+
+    [RelayCommand]
+    private void AssignVisibleSourceProposalsToSelectedVersion()
+    {
+        if (SelectedVersion is null)
         {
-            proposal.IsIncluded = false;
+            IntegrationMessage = "Create or select a release before choosing an import destination.";
+            return;
         }
 
-        RefreshSourceApprovalState();
+        UpdateSourceProposals(
+            VisibleSourceImportProposals,
+            proposal => proposal.TargetVersion = SelectedVersion);
+        IntegrationMessage = $"Assigned {VisibleSourceProposalCount} shown items to {SelectedVersion.Name}.";
     }
 
     [RelayCommand]
@@ -2314,27 +2630,38 @@ public partial class MainWindowViewModel : ViewModelBase
             return;
         }
 
-        if (approved.Any(static proposal =>
-                proposal.TargetVersion is null ||
-                string.IsNullOrWhiteSpace(proposal.Title)))
-        {
-            IntegrationMessage = "Every approved proposal needs a title and target version.";
-            return;
-        }
-
         try
         {
+            if (approved.Any(static proposal => string.IsNullOrWhiteSpace(proposal.Title)))
+            {
+                IntegrationMessage = "Every selected item needs a title.";
+                return;
+            }
+
+            var fallbackReleaseName = SelectedVersion?.Name ?? NewVersionName.Trim();
+            if (approved.Any(proposal =>
+                    proposal.TargetVersion is null &&
+                    string.IsNullOrWhiteSpace(proposal.SuggestedVersionName) &&
+                    string.IsNullOrWhiteSpace(fallbackReleaseName)))
+            {
+                IntegrationMessage = "Name the fallback release for work with no detected milestone.";
+                return;
+            }
+
             var request = new ApprovedSourceImportRequest(
                 approved
-                    .Select(static proposal => new ApprovedSourceImportItem(
-                        proposal.TargetVersion!.VersionId,
+                    .Select(proposal => new ApprovedSourceImportItem(
+                        proposal.TargetVersion?.VersionId ?? Guid.Empty,
                         proposal.ItemTypeId,
                         proposal.CategoryId,
                         proposal.Title,
                         proposal.Description,
                         proposal.IsDone,
                         proposal.Kind,
-                        proposal.SourceReference))
+                        proposal.SourceReference,
+                        proposal.TargetVersion?.Name ??
+                        proposal.SuggestedVersionName ??
+                        fallbackReleaseName))
                     .ToArray());
             ApplySession(
                 _coordinatorService.ApplyApprovedSourceImport(
@@ -3104,6 +3431,73 @@ public partial class MainWindowViewModel : ViewModelBase
         SelectedRecentProject = RecentProjects.FirstOrDefault();
     }
 
+    private RecentProjectReference? CreateCurrentProjectReference()
+    {
+        if (_currentSession is null)
+        {
+            return null;
+        }
+
+        var project = _currentSession.LoadResult.Workspace.Project;
+        return new RecentProjectReference(
+            project.Name,
+            project.ProjectCode,
+            _currentSession.Paths.LocalWorkspaceRoot,
+            _currentSession.Paths.SharedProjectRoot,
+            DateTimeOffset.UtcNow);
+    }
+
+    private bool IsProjectDeletionPending(RecentProjectReference? project) =>
+        project is not null
+        && string.Equals(
+            _pendingProjectDeletionKey,
+            $"{Path.GetFullPath(project.LocalWorkspaceRoot)}|{Path.GetFullPath(project.SharedWorkspaceRoot)}",
+            StringComparison.Ordinal);
+
+    private void StageProjectDeletion(RecentProjectReference project)
+    {
+        _pendingProjectDeletionKey =
+            $"{Path.GetFullPath(project.LocalWorkspaceRoot)}|{Path.GetFullPath(project.SharedWorkspaceRoot)}";
+        OnPropertyChanged(nameof(DeleteSelectedProjectLabel));
+        OnPropertyChanged(nameof(DeleteCurrentProjectLabel));
+    }
+
+    private void OpenProjectDeletionDialog(
+        RecentProjectReference project,
+        bool targetsCurrentSession)
+    {
+        _projectDeletionTarget = project;
+        _projectDeletionTargetsCurrentSession = targetsCurrentSession;
+        IsProjectDeletionDialogOpen = true;
+        NotifyProjectDeletionDialogChanged();
+    }
+
+    private void NotifyProjectDeletionDialogChanged()
+    {
+        OnPropertyChanged(nameof(ProjectDeletionDialogTitle));
+        OnPropertyChanged(nameof(ProjectDeletionDialogCode));
+        OnPropertyChanged(nameof(ProjectDeletionDialogLocalPath));
+        OnPropertyChanged(nameof(ProjectDeletionDialogSharedPath));
+    }
+
+    private void ResetPendingProjectDeletion()
+    {
+        _pendingProjectDeletionKey = null;
+        OnPropertyChanged(nameof(DeleteSelectedProjectLabel));
+        OnPropertyChanged(nameof(DeleteCurrentProjectLabel));
+    }
+
+    private static string BuildProjectDeletedMessage(ProjectDeletionResult result)
+    {
+        if (result.LocalWorkspaceRootRemoved && result.SharedWorkspaceRootRemoved)
+        {
+            return $"Removed {result.ProjectName} from Blueprints. Linked repositories and source files were not changed.";
+        }
+
+        return
+            $"Removed {result.ProjectName}'s Blueprints data. The workspace folder itself was kept because it contains unrelated files; linked repositories and source files were not changed.";
+    }
+
     private void RefreshIntegrations()
     {
         var settings = _integrationStatusService.GetSettings();
@@ -3154,9 +3548,16 @@ public partial class MainWindowViewModel : ViewModelBase
                     ? candidate.SuggestedCategoryId
                     : defaultCategory,
             };
+            var detectedTargetVersion = string.IsNullOrWhiteSpace(compatibleCandidate.SuggestedVersionName)
+                ? targetVersion
+                : Versions.FirstOrDefault(version =>
+                    string.Equals(
+                        NormalizeVersionName(version.Name),
+                        NormalizeVersionName(compatibleCandidate.SuggestedVersionName),
+                        StringComparison.OrdinalIgnoreCase));
             var proposal = new SourceImportProposal(
                 compatibleCandidate,
-                targetVersion,
+                detectedTargetVersion,
                 existingTitles.Contains(NormalizeComparableTitle(candidate.Title)));
             proposal.PropertyChanged += SourceProposalPropertyChanged;
             SourceImportProposals.Add(proposal);
@@ -3168,14 +3569,44 @@ public partial class MainWindowViewModel : ViewModelBase
         RefreshSourceApprovalState();
     }
 
-    private void SourceProposalPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs eventArgs) =>
+    private void SourceProposalPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs eventArgs)
+    {
+        if (!_isUpdatingSourceProposals)
+        {
+            RefreshSourceApprovalState();
+        }
+    }
+
+    private void UpdateSourceProposals(
+        IEnumerable<SourceImportProposal> proposals,
+        Action<SourceImportProposal> update)
+    {
+        _isUpdatingSourceProposals = true;
+        try
+        {
+            foreach (var proposal in proposals.ToArray())
+            {
+                update(proposal);
+            }
+        }
+        finally
+        {
+            _isUpdatingSourceProposals = false;
+        }
         RefreshSourceApprovalState();
+    }
 
     private void RefreshSourceApprovalState()
     {
         OnPropertyChanged(nameof(HasSourceProposals));
+        OnPropertyChanged(nameof(IsSourceProposalEmpty));
+        OnPropertyChanged(nameof(VisibleSourceImportProposals));
+        OnPropertyChanged(nameof(VisibleSourceProposalCount));
+        OnPropertyChanged(nameof(HasVisibleSourceProposals));
         OnPropertyChanged(nameof(ApprovedSourceProposalCount));
         OnPropertyChanged(nameof(SourceApprovalSummary));
+        OnPropertyChanged(nameof(SourceImportActionLabel));
+        OnPropertyChanged(nameof(DetectedSourceReleaseCount));
         OnPropertyChanged(nameof(CanApplyApprovedSourceProposals));
         OnPropertyChanged(nameof(AdaptiveGuidanceTitle));
         OnPropertyChanged(nameof(AdaptiveGuidanceDetail));
@@ -3187,6 +3618,9 @@ public partial class MainWindowViewModel : ViewModelBase
             title.Trim()
                 .ToUpperInvariant()
                 .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+
+    private static string NormalizeVersionName(string versionName) =>
+        versionName.Trim().Trim('[', ']').TrimStart('v', 'V');
 
     private void ApplyDesignSourceProposals()
     {
@@ -3728,7 +4162,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         if (string.Equals(normalizedPath, "project/relationships.json", StringComparison.Ordinal))
         {
-            return "Typed relationship graph";
+            return "Typed relationships";
         }
 
         if (normalizedPath.StartsWith("versions/", StringComparison.Ordinal) &&

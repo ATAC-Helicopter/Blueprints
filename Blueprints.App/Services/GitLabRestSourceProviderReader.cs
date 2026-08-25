@@ -56,26 +56,30 @@ public sealed class GitLabRestSourceProviderReader : IHostedSourceProviderReader
 
         var project = Uri.EscapeDataString(repository.RepositoryName);
         var token = _credentialSource.GetGitLabToken();
-        var issuesTask = ReadAsync(
+        var issuesTask = ReadPagesAsync(
             $"projects/{project}/issues?scope=all&per_page=100",
+            100,
             repository.RepositoryName,
             "issues",
             GitLabSourceJsonParser.ParseIssues,
             token);
-        var mergeRequestsTask = ReadAsync(
+        var mergeRequestsTask = ReadPagesAsync(
             $"projects/{project}/merge_requests?scope=all&state=all&per_page=100",
+            100,
             repository.RepositoryName,
             "merge requests",
             GitLabSourceJsonParser.ParseMergeRequests,
             token);
-        var releasesTask = ReadAsync(
+        var releasesTask = ReadPagesAsync(
             $"projects/{project}/releases?per_page=50",
+            50,
             repository.RepositoryName,
             "releases",
             GitLabSourceJsonParser.ParseReleases,
             token);
-        var milestonesTask = ReadAsync(
+        var milestonesTask = ReadPagesAsync(
             $"projects/{project}/milestones?per_page=100",
+            100,
             repository.RepositoryName,
             "milestones",
             GitLabSourceJsonParser.ParseMilestones,
@@ -91,18 +95,27 @@ public sealed class GitLabRestSourceProviderReader : IHostedSourceProviderReader
         var mergeRequests = mergeRequestsTask.Result;
         var releases = releasesTask.Result;
         var milestones = milestonesTask.Result;
-        return new HostedSourceDiscoveryResult(
+        SourceDiscoveryCandidate[] candidates =
             [
                 .. issues.Candidates,
                 .. mergeRequests.Candidates,
                 .. releases.Candidates,
                 .. milestones.Candidates,
-            ],
+            ];
+        var boundedCandidates = candidates
+            .Take(HostedSourceProviderContract.MaximumCandidatesPerDiscovery)
+            .ToArray();
+        var limitWarnings = candidates.Length > boundedCandidates.Length
+            ? new[] { $"GitLab discovery was limited to {HostedSourceProviderContract.MaximumCandidatesPerDiscovery} items." }
+            : [];
+        return new HostedSourceDiscoveryResult(
+            boundedCandidates,
             [
                 .. issues.Warnings,
                 .. mergeRequests.Warnings,
                 .. releases.Warnings,
                 .. milestones.Warnings,
+                .. limitWarnings,
             ],
             issues.Candidates.Count,
             milestones.Candidates.Count,
@@ -110,7 +123,39 @@ public sealed class GitLabRestSourceProviderReader : IHostedSourceProviderReader
             releases.Candidates.Count);
     }
 
-    private async Task<ProviderReadResult> ReadAsync(
+    private async Task<ProviderReadResult> ReadPagesAsync(
+        string relativeUri,
+        int pageSize,
+        string repositoryName,
+        string sourceName,
+        Func<string, string, IReadOnlyList<SourceDiscoveryCandidate>> parser,
+        string? token)
+    {
+        var candidates = new List<SourceDiscoveryCandidate>();
+        var warnings = new List<string>();
+        var maximumPages = (int)Math.Ceiling(
+            HostedSourceProviderContract.MaximumCandidatesPerDiscovery / (double)pageSize);
+        for (var page = 1; page <= maximumPages; page++)
+        {
+            var separator = relativeUri.Contains('?', StringComparison.Ordinal) ? '&' : '?';
+            var result = await ReadPageAsync(
+                    $"{relativeUri}{separator}page={page}",
+                    repositoryName,
+                    sourceName,
+                    parser,
+                    token)
+                .ConfigureAwait(false);
+            candidates.AddRange(result.Candidates);
+            warnings.AddRange(result.Warnings);
+            if (result.RawItemCount < pageSize || result.Warnings.Count > 0)
+            {
+                break;
+            }
+        }
+        return new ProviderReadResult(candidates, warnings, candidates.Count);
+    }
+
+    private async Task<ProviderReadResult> ReadPageAsync(
         string relativeUri,
         string repositoryName,
         string sourceName,
@@ -134,7 +179,11 @@ public sealed class GitLabRestSourceProviderReader : IHostedSourceProviderReader
             {
                 return Failure(sourceName, response.StatusCode);
             }
-            return new ProviderReadResult(parser(body, repositoryName), []);
+            using var document = System.Text.Json.JsonDocument.Parse(body);
+            var rawItemCount = document.RootElement.ValueKind == System.Text.Json.JsonValueKind.Array
+                ? document.RootElement.GetArrayLength()
+                : 0;
+            return new ProviderReadResult(parser(body, repositoryName), [], rawItemCount);
         }
         catch (Exception exception) when (
             exception is HttpRequestException or
@@ -217,5 +266,6 @@ public sealed class GitLabRestSourceProviderReader : IHostedSourceProviderReader
 
     private sealed record ProviderReadResult(
         IReadOnlyList<SourceDiscoveryCandidate> Candidates,
-        IReadOnlyList<string> Warnings);
+        IReadOnlyList<string> Warnings,
+        int RawItemCount = 0);
 }

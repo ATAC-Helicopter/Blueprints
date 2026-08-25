@@ -60,6 +60,131 @@ public sealed class ProjectWorkspaceCoordinatorServiceTests : IDisposable
     }
 
     [Fact]
+    public void DeleteProject_RemovesBlueprintsDataButPreservesUnrelatedFiles()
+    {
+        var localRoot = Path.Combine(_rootDirectory, "delete-local", "AP");
+        var sharedRoot = Path.Combine(_rootDirectory, "delete-shared", "AP");
+        var service = CreateService();
+        var session = service.CreateProject(
+            new ProjectCreateRequest(
+                "Atlas Planner",
+                "AP",
+                "SemVer",
+                localRoot,
+                sharedRoot));
+        File.WriteAllText(Path.Combine(localRoot, "source-notes.txt"), "real project work");
+        File.WriteAllText(Path.Combine(sharedRoot, "keep-me.txt"), "not managed by Blueprints");
+
+        var result = service.DeleteProject(
+            new RecentProjectReference(
+                "Atlas Planner",
+                "AP",
+                localRoot,
+                sharedRoot,
+                DateTimeOffset.UtcNow));
+
+        Assert.False(result.LocalWorkspaceRootRemoved);
+        Assert.False(result.SharedWorkspaceRootRemoved);
+        Assert.False(Directory.Exists(Path.Combine(localRoot, "project")));
+        Assert.False(Directory.Exists(Path.Combine(localRoot, ".blueprints")));
+        Assert.Equal("real project work", File.ReadAllText(Path.Combine(localRoot, "source-notes.txt")));
+        Assert.Equal("not managed by Blueprints", File.ReadAllText(Path.Combine(sharedRoot, "keep-me.txt")));
+        Assert.DoesNotContain(
+            service.GetRecentProjects(),
+            project => project.LocalWorkspaceRoot == session.Paths.LocalWorkspaceRoot);
+    }
+
+    [Fact]
+    public void DeleteProject_RemovesEmptyBlueprintsWorkspaceRoots()
+    {
+        var localRoot = Path.Combine(_rootDirectory, "delete-empty-local", "AP");
+        var sharedRoot = Path.Combine(_rootDirectory, "delete-empty-shared", "AP");
+        var service = CreateService();
+        service.CreateProject(
+            new ProjectCreateRequest(
+                "Atlas Planner",
+                "AP",
+                "SemVer",
+                localRoot,
+                sharedRoot));
+
+        var result = service.DeleteProject(
+            new RecentProjectReference(
+                "Atlas Planner",
+                "AP",
+                localRoot,
+                sharedRoot,
+                DateTimeOffset.UtcNow));
+
+        Assert.True(result.LocalWorkspaceRootRemoved);
+        Assert.True(result.SharedWorkspaceRootRemoved);
+        Assert.False(Directory.Exists(localRoot));
+        Assert.False(Directory.Exists(sharedRoot));
+        Assert.Empty(service.GetRecentProjects());
+    }
+
+    [Fact]
+    public void DeleteProject_RefusesWorkspaceInsideGitWorktree()
+    {
+        var repositoryRoot = Path.Combine(_rootDirectory, "working-repository");
+        var localRoot = Path.Combine(repositoryRoot, "planning", "AP");
+        var sharedRoot = Path.Combine(_rootDirectory, "git-refusal-shared", "AP");
+        var service = CreateService();
+        service.CreateProject(
+            new ProjectCreateRequest(
+                "Atlas Planner",
+                "AP",
+                "SemVer",
+                localRoot,
+                sharedRoot));
+        Directory.CreateDirectory(Path.Combine(repositoryRoot, ".git"));
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => service.DeleteProject(
+                new RecentProjectReference(
+                    "Atlas Planner",
+                    "AP",
+                    localRoot,
+                    sharedRoot,
+                    DateTimeOffset.UtcNow)));
+
+        Assert.Contains("Git worktree", exception.Message, StringComparison.Ordinal);
+        Assert.True(File.Exists(Path.Combine(localRoot, "project", "project.json")));
+        Assert.Single(service.GetRecentProjects());
+    }
+
+    [Fact]
+    public void DeleteProject_RefusesMismatchedSharedProject()
+    {
+        var firstLocalRoot = Path.Combine(_rootDirectory, "mismatch-local", "ONE");
+        var firstSharedRoot = Path.Combine(_rootDirectory, "mismatch-shared", "ONE");
+        var secondLocalRoot = Path.Combine(_rootDirectory, "mismatch-local", "TWO");
+        var secondSharedRoot = Path.Combine(_rootDirectory, "mismatch-shared", "TWO");
+        var service = CreateService();
+        service.CreateProject(
+            new ProjectCreateRequest("One", "ONE", "SemVer", firstLocalRoot, firstSharedRoot));
+        service.CreateProject(
+            new ProjectCreateRequest("Two", "TWO", "SemVer", secondLocalRoot, secondSharedRoot));
+        Directory.CreateDirectory(Path.Combine(secondSharedRoot, "project"));
+        File.Copy(
+            Path.Combine(secondLocalRoot, "project", "project.json"),
+            Path.Combine(secondSharedRoot, "project", "project.json"));
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => service.DeleteProject(
+                new RecentProjectReference(
+                    "One",
+                    "ONE",
+                    firstLocalRoot,
+                    secondSharedRoot,
+                    DateTimeOffset.UtcNow)));
+
+        Assert.Contains("different project", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.True(File.Exists(Path.Combine(firstLocalRoot, "project", "project.json")));
+        Assert.True(File.Exists(Path.Combine(secondSharedRoot, "project", "project.json")));
+    }
+
+    [Fact]
     public void CreateProject_WritesSignedAuditEntry()
     {
         var localRoot = Path.Combine(_rootDirectory, "audit-create-local", "AP");
@@ -1186,6 +1311,46 @@ public sealed class ProjectWorkspaceCoordinatorServiceTests : IDisposable
             auditEntries,
             path => File.ReadAllText(path)
                 .Contains("\"operation\":\"source.import.apply\"", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ApplyApprovedSourceImport_AtomicallyCreatesManyDetectedReleasesAndItems()
+    {
+        var localRoot = Path.Combine(_rootDirectory, "source-stress-local", "BP");
+        var sharedRoot = Path.Combine(_rootDirectory, "source-stress-shared", "BP");
+        var service = CreateService();
+        service.CreateProject(
+            new ProjectCreateRequest(
+                "Blueprints",
+                "BP",
+                "SemVer",
+                localRoot,
+                sharedRoot));
+        var imports = Enumerable.Range(0, 1_750)
+            .Select(index => new ApprovedSourceImportItem(
+                Guid.Empty,
+                index % 5 == 0 ? "bug" : "feature",
+                index % 5 == 0 ? "fixed" : "added",
+                $"Imported work {index:0000}",
+                null,
+                index % 3 == 0,
+                SourceArtifactKind.Changelog,
+                $"changelog:item:{index}",
+                $"1.{index % 71}.0"))
+            .ToArray();
+
+        var updated = service.ApplyApprovedSourceImport(
+            localRoot,
+            sharedRoot,
+            new ApprovedSourceImportRequest(imports));
+
+        Assert.Equal(71, updated.LoadResult.Workspace.Versions.Count);
+        Assert.Equal(1_750, updated.LoadResult.Workspace.Versions.Sum(static version => version.Items.Count));
+        Assert.All(updated.LoadResult.Workspace.Versions, static version => Assert.NotEmpty(version.Items));
+        var importAuditEntries = Directory.EnumerateFiles(Path.Combine(localRoot, "log"), "*.json")
+            .Count(path => File.ReadAllText(path)
+                .Contains("\"operation\":\"source.import.apply\"", StringComparison.Ordinal));
+        Assert.Equal(1, importAuditEntries);
     }
 
     [Fact]

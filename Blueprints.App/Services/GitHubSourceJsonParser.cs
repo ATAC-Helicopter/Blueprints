@@ -283,7 +283,8 @@ public static class GitHubSourceJsonParser
                 ProviderReferenceKind.Release,
                 repositoryName,
                 tag,
-                url));
+                url),
+            tag.TrimStart('v', 'V'));
     }
 
     private static IReadOnlyList<string> ReadReleaseAssetNames(JsonElement release)
@@ -352,7 +353,8 @@ public static class GitHubSourceJsonParser
                 ProviderReferenceKind.Issue,
                 repositoryName,
                 $"#{number}",
-                url));
+                url),
+            milestone);
     }
 
     private static IReadOnlyList<string> ReadProjectNames(JsonElement issue)

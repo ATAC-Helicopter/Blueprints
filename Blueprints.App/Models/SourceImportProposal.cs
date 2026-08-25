@@ -39,6 +39,13 @@ public sealed class SourceImportProposal : ObservableObject
     public string ProviderReferenceSummary =>
         Candidate.ProviderReference?.DisplaySummary ?? "Unclassified source reference";
 
+    public string? SuggestedVersionName => Candidate.SuggestedVersionName;
+
+    public string DestinationHint => TargetVersion?.Name ??
+        (string.IsNullOrWhiteSpace(SuggestedVersionName)
+            ? "Uses fallback release"
+            : $"Detected release: {SuggestedVersionName}");
+
     public string ConfidenceSummary => $"{Candidate.Confidence:P0} confidence";
 
     public bool IsDuplicate { get; }
@@ -84,6 +91,12 @@ public sealed class SourceImportProposal : ObservableObject
     public WorkspaceVersionCard? TargetVersion
     {
         get => _targetVersion;
-        set => SetProperty(ref _targetVersion, value);
+        set
+        {
+            if (SetProperty(ref _targetVersion, value))
+            {
+                OnPropertyChanged(nameof(DestinationHint));
+            }
+        }
     }
 }

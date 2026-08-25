@@ -1,6 +1,6 @@
-# Source Lens
+# Imports and source discovery
 
-Source Lens converts existing project signals into editable Blueprints work-item proposals. It is an approval workflow, not an autonomous importer.
+The **Imports** workspace converts existing project signals into editable Blueprints work-item proposals. It is an approval workflow, not an autonomous importer. The underlying feature is also referred to as Source Lens in code and historical release notes.
 
 ## Supported sources
 
@@ -23,7 +23,7 @@ Standalone draft discovery reads only Projects linked to the repository, checks 
 
 ## Requirements
 
-- Browse to one or more local Git worktrees in **Find work**, or clone a repository there.
+- Browse to one or more local Git worktrees in **Imports**, or clone a repository there.
 - Install Git.
 - The Git worktree must have a recognizable `github.com` origin remote.
 - Public issues, pull requests, and releases can be discovered anonymously.
@@ -37,13 +37,13 @@ Repository discovery talks to hosted services through a provider-neutral reader 
 
 ## Approval workflow
 
-1. Open **Find work**.
-2. Browse to or clone a repository, select it, and choose **Find work to import**.
+1. Open **Imports**.
+2. Browse to or clone a repository, select it, and choose **Scan for work**.
 3. Select a proposal from the inbox.
 4. Review and edit its title, description, target version, work type, changelog category, and completion state.
-5. Include or exclude the proposal with **Approved**.
+5. Include or exclude the proposal with **Include in import**.
 6. Repeat for the remaining proposals.
-7. Select **Apply approved to blueprint**.
+7. Select the apply action shown below the review queue.
 
 Nothing is written to the workspace during discovery or editing. Apply requires a trusted, conflict-free workspace and an editable target version. All approved proposals are validated before persistence and are then written as one signed workspace mutation with one signed audit entry.
 

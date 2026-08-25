@@ -31,6 +31,7 @@ public sealed partial class MarkdownSourceDiscoveryParser
 
         var candidates = new List<SourceDiscoveryCandidate>();
         var heading = string.Empty;
+        string? suggestedVersionName = null;
         var lines = File.ReadLines(filePath);
         var lineNumber = 0;
 
@@ -42,6 +43,11 @@ public sealed partial class MarkdownSourceDiscoveryParser
             if (headingMatch.Success)
             {
                 heading = headingMatch.Groups["heading"].Value.Trim();
+                var detectedVersionName = ExtractVersionName(heading);
+                if (detectedVersionName is not null || headingMatch.Groups["marks"].Value.Length == 1)
+                {
+                    suggestedVersionName = detectedVersionName;
+                }
                 continue;
             }
 
@@ -80,7 +86,8 @@ public sealed partial class MarkdownSourceDiscoveryParser
                         ProviderReferenceKind.PlanningDocument,
                         Path.GetDirectoryName(Path.GetFullPath(filePath)) ?? string.Empty,
                         $"{relativeName}:{lineNumber}",
-                        null)));
+                        null),
+                    suggestedVersionName));
 
             if (candidates.Count >= MaximumCandidatesPerFile)
             {
@@ -156,8 +163,19 @@ public sealed partial class MarkdownSourceDiscoveryParser
             .TrimEnd('.');
     }
 
-    [GeneratedRegex(@"^#{1,6}\s+(?<heading>.+)$")]
+    private static string? ExtractVersionName(string heading)
+    {
+        var match = VersionHeadingPattern().Match(heading);
+        return match.Success
+            ? match.Groups["version"].Value.TrimStart('v', 'V')
+            : null;
+    }
+
+    [GeneratedRegex(@"^(?<marks>#{1,6})\s+(?<heading>.+)$")]
     private static partial Regex HeadingPattern();
+
+    [GeneratedRegex(@"(?:^|\s|\[)(?<version>v?\d+\.\d+(?:\.\d+)?)(?:\]|\s|$|[—-])", RegexOptions.IgnoreCase)]
+    private static partial Regex VersionHeadingPattern();
 
     [GeneratedRegex(@"^[-*+]\s+(?:\[(?<checkbox>[ xX])\]\s+)?(?<title>.+)$")]
     private static partial Regex MarkdownItemPattern();

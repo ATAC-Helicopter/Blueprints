@@ -40,7 +40,8 @@ public static class GitLabSourceJsonParser
                         ProviderReferenceKind.Issue,
                         repositoryName,
                         $"#{iid}",
-                        ReadString(issue, "web_url")));
+                        ReadString(issue, "web_url")),
+                    milestone);
             })
             .ToArray();
     }
@@ -117,7 +118,8 @@ public static class GitLabSourceJsonParser
                         ProviderReferenceKind.Release,
                         repositoryName,
                         tag,
-                        ReadNestedString(release, "_links", "self")));
+                        ReadNestedString(release, "_links", "self")),
+                    tag.TrimStart('v', 'V'));
             })
             .ToArray();
     }
@@ -154,7 +156,8 @@ public static class GitLabSourceJsonParser
                         ProviderReferenceKind.Project,
                         repositoryName,
                         iid.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                        $"https://gitlab.com/{repositoryName}/-/milestones/{iid}"));
+                        $"https://gitlab.com/{repositoryName}/-/milestones/{iid}"),
+                    title);
             })
             .ToArray();
     }

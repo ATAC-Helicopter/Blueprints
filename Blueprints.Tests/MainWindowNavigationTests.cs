@@ -19,7 +19,7 @@ public sealed class MainWindowNavigationTests
         Assert.False(viewModel.IsSyncSelected);
         Assert.False(viewModel.IsTrustSelected);
         Assert.False(viewModel.IsIntegrationsSelected);
-        Assert.Equal("Plan releases", viewModel.SelectedWorkspaceSectionTitle);
+        Assert.Equal("Releases", viewModel.SelectedWorkspaceSectionTitle);
     }
 
     [Fact]
@@ -98,5 +98,26 @@ public sealed class MainWindowNavigationTests
 
         Assert.Equal(3, viewModel.ApprovedSourceProposalCount);
         Assert.True(viewModel.CanApplyApprovedSourceProposals);
+    }
+
+    [Fact]
+    public void OverviewFilters_SelectedReleaseItemsWithoutChangingProjectState()
+    {
+        var viewModel = new MainWindowViewModel();
+        var version = Assert.Single(viewModel.Versions, candidate => candidate.Items.Count > 0);
+        viewModel.SelectedVersion = version;
+        var item = version.Items[0];
+
+        viewModel.OverviewSearchText = item.ItemKey;
+
+        Assert.Equal(item.ItemId, Assert.Single(viewModel.OverviewItems).ItemId);
+
+        viewModel.OverviewLifecycleFilter = item.WorkflowState == Blueprints.Core.Enums.WorkItemLifecycle.Complete
+            ? "Planned"
+            : "Complete";
+
+        Assert.Empty(viewModel.OverviewItems);
+        Assert.True(viewModel.IsOverviewItemEmpty);
+        Assert.Equal(version.Items.Count, viewModel.SelectedVersion.Items.Count);
     }
 }

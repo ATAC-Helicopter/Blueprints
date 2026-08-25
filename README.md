@@ -24,9 +24,9 @@
 Release notes often live in scattered issues, commit messages, and private documents. Blueprints keeps release intent in a portable workspace that remains readable without a server:
 
 - plan versions and categorized release items;
-- plan inside movable version frames with Planned, In Progress, Review, and Complete lifecycle columns;
-- switch between an interactive planning board, dependency graph, and release-note projection;
-- create, select, label, and edit signed typed relationships directly from the canvas;
+- review release work in a searchable, progress-filtered table;
+- edit release and work-item details in conventional forms;
+- create, select, label, and edit signed typed relationships as explicit records;
 - generate stable human-readable item keys;
 - freeze and release versions with immutable released content;
 - export Markdown changelogs, optionally enriched by local Git history;
@@ -42,8 +42,8 @@ Release notes often live in scattered issues, commit messages, and private docum
 | Area | Status |
 | --- | --- |
 | Local project, version, and item workflow | Working |
-| Persistent signed canvas layout | Working |
-| Interactive Plan and Dependencies views | Working |
+| Searchable release and work-item workspace | Working |
+| Typed relationship records | Working |
 | Signed persistence and trust validation | Working |
 | Markdown changelog export | Working |
 | Shared-folder push/pull | Working with distinct signed identities and staged validation |
@@ -96,11 +96,12 @@ Blueprints uses a local workspace as the editable source of truth and a separate
 
 ## Documentation
 
+New here? Read the [complete user manual](docs/user-guide.md) for the full journey from installation and identity setup through releases, imports, collaboration, validation, backup, and recovery.
+
 - [Documentation index](docs/README.md)
-- [User guide](docs/user-guide.md)
+- [Complete user manual](docs/user-guide.md)
 - [Accessibility](docs/accessibility.md)
-- [Canvas engine](docs/canvas-engine.md)
-- [Source Lens](docs/source-lens.md)
+- [Imports and source discovery](docs/source-lens.md)
 - [VaultSync integration](docs/vaultsync-integration.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Architecture](docs/architecture.md)

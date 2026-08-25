@@ -36,6 +36,9 @@ public sealed class GitHubRestSourceProviderReaderTests
         Assert.DoesNotContain(
             result.Candidates,
             static candidate => candidate.Title == "Pull duplicated by issues API");
+        Assert.Equal(
+            "0.4.0",
+            result.Candidates.Single(static candidate => candidate.Title == "Fix direct discovery").SuggestedVersionName);
     }
 
     [Fact]
@@ -97,6 +100,25 @@ public sealed class GitHubRestSourceProviderReaderTests
                     warning,
                     StringComparison.Ordinal);
             });
+    }
+
+    [Fact]
+    public void Read_ContinuesToTheNextPageWhenAProviderPageIsFull()
+    {
+        var handler = new PaginatedGitHubHandler();
+        var reader = new GitHubRestSourceProviderReader(
+            new HttpClient(handler)
+            {
+                BaseAddress = new Uri("https://api.github.test/", UriKind.Absolute),
+            },
+            new TestCredentialSource(null));
+
+        var result = reader.Read(
+            "/repository",
+            new HostedRepositoryDescriptor(SourceProviderKind.GitHub, "example/project"));
+
+        Assert.Equal(101, result.IssueCount);
+        Assert.Contains(handler.Paths, static path => path.Contains("page=2", StringComparison.Ordinal));
     }
 
     [Theory]
@@ -268,6 +290,35 @@ public sealed class GitHubRestSourceProviderReaderTests
                 Content = new StringContent(json),
             };
         }
+    }
+
+    private sealed class PaginatedGitHubHandler : HttpMessageHandler
+    {
+        public List<string> Paths { get; } = [];
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            var path = request.RequestUri!.PathAndQuery;
+            Paths.Add(path);
+            var isIssues = request.RequestUri.AbsolutePath.EndsWith("/issues", StringComparison.Ordinal);
+            var isFirstPage = !path.Contains("page=2", StringComparison.Ordinal);
+            var json = isIssues
+                ? isFirstPage
+                    ? "[" + string.Join(',', Enumerable.Range(1, 100).Select(IssueJson)) + "]"
+                    : "[" + IssueJson(101) + "]"
+                : "[]";
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(json),
+            });
+        }
+
+        private static string IssueJson(int number) =>
+            $$"""
+            {"number":{{number}},"title":"Issue {{number}}","state":"open","html_url":"https://github.test/example/project/issues/{{number}}","labels":[]}
+            """;
     }
 
     private sealed record CapturedRequest(

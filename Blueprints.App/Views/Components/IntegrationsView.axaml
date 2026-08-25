@@ -4,306 +4,231 @@
              xmlns:models="using:Blueprints.App.Models"
              x:Class="Blueprints.App.Views.Components.IntegrationsView"
              x:DataType="vm:MainWindowViewModel">
-  <Grid RowDefinitions="Auto,Auto,Auto,*" RowSpacing="12">
-    <Border Background="#202238" BorderBrush="#343650" BorderThickness="1" CornerRadius="13" Padding="18">
+  <Grid RowDefinitions="104,86,*" Background="#F7F8FA">
+    <Border Background="#FFFFFF" BorderBrush="#E4E7EC" BorderThickness="0,0,0,1" Padding="28,18">
       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="20">
-        <StackPanel Spacing="6">
-          <TextBlock Text="SOURCES" Foreground="#68D5EF" FontSize="11" FontWeight="Bold" LetterSpacing="1.6" />
-          <TextBlock Text="Bring real project work onto the board" Foreground="White" FontSize="22" FontWeight="Black" />
-          <TextBlock Text="Link any local Git repository or clone from any Git remote. Blueprints reads common planning files everywhere, plus issues, change requests, projects, releases, notes, and distribution files from GitHub or GitLab. You review every suggestion before it enters the plan."
-                     Foreground="#B5D4E3"
-                     TextWrapping="Wrap"
-                     MaxWidth="760" />
+        <StackPanel Spacing="4" VerticalAlignment="Center">
+          <TextBlock Text="Imports" Classes="page-title" />
+          <TextBlock Text="Scan repositories, review every proposal, and choose exactly what enters the project."
+                     Classes="muted" />
         </StackPanel>
-        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-          <Button Classes="tool"
-                  Content="Refresh health"
-                  Command="{Binding RefreshIntegrationStatusesCommand}" />
-          <Button Classes="primary"
-                  Content="Find work to import"
-                  Command="{Binding DiscoverSourcesCommand}"
-                  IsEnabled="{Binding CanDiscoverSources}" />
-        </StackPanel>
+        <Button Grid.Column="1" Classes="primary" Content="Scan selected repository"
+                Command="{Binding DiscoverSourcesCommand}" IsEnabled="{Binding CanDiscoverSources}"
+                VerticalAlignment="Center" />
       </Grid>
     </Border>
 
-    <Border Grid.Row="1" Classes="card" Padding="16">
-      <Grid ColumnDefinitions="1.05*,1*" ColumnSpacing="22">
-        <StackPanel Spacing="10">
-          <StackPanel Spacing="2">
-            <TextBlock Text="Use a repository on this computer" FontSize="16" FontWeight="Bold" />
-            <TextBlock Text="Choose a folder once. Blueprints remembers it on this device."
-                       Classes="muted"
-                       FontSize="11" />
-          </StackPanel>
-          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-            <ComboBox ItemsSource="{Binding LinkedRepositoryPaths}"
-                      SelectedItem="{Binding SelectedRepositoryPath}"
-                      PlaceholderText="Choose a linked repository" />
-            <Button Grid.Column="1"
-                    Classes="secondary"
-                    Content="Browse…"
-                    Click="BrowseRepository_Click" />
-          </Grid>
-          <TextBlock Text="{Binding SelectedRepositoryName}"
-                     Foreground="#6254D9"
-                     FontWeight="Bold" />
-          <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-            <Button Classes="secondary"
-                    Content="Pull latest"
-                    Command="{Binding PullRepositoryCommand}"
-                    IsEnabled="{Binding CanRunSelectedRepositoryOperation}" />
-            <Button Grid.Column="1"
-                    Classes="secondary"
-                    Content="Push commits"
-                    Command="{Binding PushRepositoryCommand}"
-                    IsEnabled="{Binding CanRunSelectedRepositoryOperation}" />
-          </Grid>
-          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-            <TextBox Text="{Binding GitCommitMessage}"
-                     PlaceholderText="Describe all local changes to commit" />
-            <Button Grid.Column="1"
-                    Classes="primary"
-                    Content="Commit all"
-                    Command="{Binding CommitRepositoryCommand}"
-                    IsEnabled="{Binding CanCommitRepository}"
-                    ToolTip.Tip="Stages tracked, untracked, and deleted files, then creates one commit" />
-          </Grid>
-          <Expander Header="Manage linked paths manually">
-            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="0,8,0,0">
-              <TextBox Text="{Binding LocalGitRepositoryPath}"
-                       AcceptsReturn="True"
-                       MinHeight="58"
-                       VerticalContentAlignment="Top"
-                       PlaceholderText="One local repository path per line" />
-              <Button Grid.Column="1"
-                      Classes="secondary"
-                      Content="Save"
-                      Command="{Binding SaveLocalGitRepositoryPathCommand}" />
-            </Grid>
-          </Expander>
-        </StackPanel>
+    <Border Grid.Row="1" Background="#FFFFFF" BorderBrush="#E4E7EC" BorderThickness="0,0,0,1" Padding="24,12">
+      <Grid ColumnDefinitions="Auto,320,Auto,*,Auto" ColumnSpacing="10">
+        <TextBlock Text="SOURCE" Classes="field-label" VerticalAlignment="Center" />
+        <ComboBox Grid.Column="1" ItemsSource="{Binding LinkedRepositoryPaths}"
+                  SelectedItem="{Binding SelectedRepositoryPath}" PlaceholderText="Select a repository" />
+        <Button Grid.Column="2" Classes="secondary" Content="Choose folder…" Click="BrowseRepository_Click" />
+        <TextBlock Grid.Column="3" Text="{Binding IntegrationMessage}" Classes="muted" FontSize="11"
+                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+        <Button Grid.Column="4" Classes="secondary" Content="Repository settings">
+          <Button.Flyout>
+            <Flyout Placement="BottomEdgeAlignedRight">
+              <ScrollViewer MaxHeight="680">
+                <StackPanel Width="500" Spacing="18">
+                  <StackPanel Spacing="4">
+                    <TextBlock Text="Repository and recovery settings" Classes="section-title" />
+                    <TextBlock Text="These actions are explicit and independent from scanning or importing."
+                               Classes="muted" FontSize="11" TextWrapping="Wrap" />
+                  </StackPanel>
 
-        <StackPanel Grid.Column="1" Spacing="10">
-          <StackPanel Spacing="2">
-            <TextBlock Text="Clone a repository" FontSize="16" FontWeight="Bold" />
-            <TextBlock Text="Downloads into a new folder. Hooks and submodules are not run."
-                       Classes="muted"
-                       FontSize="11" />
-          </StackPanel>
-          <TextBox Text="{Binding CloneRemote}"
-                   PlaceholderText="https://github.com/owner/project.git" />
-          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-            <TextBox Text="{Binding CloneDestinationParent}"
-                     PlaceholderText="Where should it be downloaded?" />
-            <Button Grid.Column="1"
-                    Classes="secondary"
-                    Content="Browse…"
-                    Click="BrowseCloneDestination_Click" />
-          </Grid>
-          <TextBox Text="{Binding CloneFolderName}"
-                   PlaceholderText="Folder name (optional)" />
-          <Button Classes="primary"
-                  Content="Clone and link repository"
-                  Command="{Binding CloneRepositoryCommand}"
-                  IsEnabled="{Binding CanCloneRepository}" />
-          <Border Background="#F4F2FF" BorderBrush="#D8D3F3" BorderThickness="1" CornerRadius="9" Padding="10">
-            <TextBlock Text="Pull only accepts fast-forward updates and is blocked while local files are changed. Push, pull, clone, and commit are always explicit."
-                       Foreground="#554E72"
-                       FontSize="10"
-                       TextWrapping="Wrap" />
-          </Border>
-        </StackPanel>
-      </Grid>
-    </Border>
-
-    <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="10">
-      <Border Classes="card" Padding="12,8">
-        <StackPanel Orientation="Horizontal" Spacing="8">
-          <TextBlock Text="BACKUP HEALTH" Classes="eyebrow" VerticalAlignment="Center" />
-          <TextBlock Text="read-only" Foreground="#277A67" FontSize="11" FontWeight="Bold" VerticalAlignment="Center" />
-        </StackPanel>
-      </Border>
-      <TextBox Grid.Column="1"
-               Text="{Binding VaultSyncMetadataRoot}"
-               PlaceholderText="Destination, .vaultsync, meta folder, or vaultsync.meta.db path" />
-      <Button Grid.Column="2"
-              Classes="secondary"
-              Content="Save health link"
-              Command="{Binding SaveVaultSyncMetadataRootCommand}" />
-      <Button Grid.Column="3"
-              Classes="secondary"
-              Content="Register exchange"
-              Command="{Binding RegisterVaultSyncExchangeRootCommand}"
-              IsEnabled="{Binding CanRegisterVaultSyncExchangeRoot}" />
-    </Grid>
-
-    <Grid Grid.Row="3" ColumnDefinitions="390,*" ColumnSpacing="12">
-      <Border Classes="card" Padding="0">
-        <Grid RowDefinitions="Auto,Auto,*,Auto">
-          <Border Padding="15,13" BorderBrush="#D1E4EE" BorderThickness="0,0,0,1">
-            <StackPanel Spacing="3">
-              <Grid ColumnDefinitions="*,Auto">
-                <TextBlock Text="Proposal inbox" FontSize="17" FontWeight="Bold" />
-                <Border Grid.Column="1" Background="#E1F2F8" CornerRadius="10" Padding="8,3">
-                  <TextBlock Text="{Binding SourceImportProposals.Count}" Foreground="#5A4ECC" FontWeight="Bold" FontSize="11" />
-                </Border>
-              </Grid>
-              <TextBlock Text="{Binding SourceDiscoverySummary}" Classes="muted" FontSize="11" TextWrapping="Wrap" />
-            </StackPanel>
-          </Border>
-
-          <Border Grid.Row="1"
-                  Background="#FFF7E6"
-                  BorderBrush="#E8C97B"
-                  BorderThickness="0,0,0,1"
-                  Padding="12,8"
-                  IsVisible="{Binding HasSourceDiscoveryWarnings}">
-            <TextBlock Text="{Binding SourceDiscoveryWarnings}" Foreground="#725315" FontSize="11" TextWrapping="Wrap" />
-          </Border>
-
-          <ListBox Grid.Row="2"
-                   ItemsSource="{Binding SourceImportProposals}"
-                   SelectedItem="{Binding SelectedSourceProposal}"
-                   Background="#FAFAFD">
-            <ListBox.ItemTemplate>
-              <DataTemplate x:DataType="models:SourceImportProposal">
-                <Border Background="White"
-                        BorderBrush="#D3E5EE"
-                        BorderThickness="0,0,0,1"
-                        Padding="12">
-                  <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
-                    <CheckBox IsChecked="{Binding IsIncluded}" VerticalAlignment="Top" />
-                    <StackPanel Grid.Column="1" Spacing="4">
-                      <Grid ColumnDefinitions="*,Auto">
-                        <TextBlock Text="{Binding Kind}" Classes="eyebrow" FontSize="9" />
-                        <TextBlock Grid.Column="1" Text="{Binding ConfidenceSummary}" Foreground="#277A67" FontSize="10" />
+                  <Border Classes="subtle-card">
+                    <StackPanel Spacing="10">
+                      <TextBlock Text="CURRENT REPOSITORY" Classes="eyebrow" />
+                      <TextBlock Text="{Binding SelectedRepositoryName}" FontWeight="SemiBold" />
+                      <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                        <Button Classes="secondary" Content="Pull latest" Command="{Binding PullRepositoryCommand}"
+                                IsEnabled="{Binding CanRunSelectedRepositoryOperation}" />
+                        <Button Grid.Column="1" Classes="secondary" Content="Push commits" Command="{Binding PushRepositoryCommand}"
+                                IsEnabled="{Binding CanRunSelectedRepositoryOperation}" />
                       </Grid>
-                      <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" MaxLines="2" />
-                      <Grid ColumnDefinitions="*,Auto">
-                        <TextBlock Text="{Binding SourceContext}" Classes="muted" FontSize="10" TextTrimming="CharacterEllipsis" />
-                        <TextBlock Grid.Column="1" Text="{Binding DuplicateSummary}" Foreground="#A56B00" FontSize="10" />
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <TextBox Text="{Binding GitCommitMessage}" PlaceholderText="Commit message" />
+                        <Button Grid.Column="1" Classes="primary" Content="Commit all" Command="{Binding CommitRepositoryCommand}"
+                                IsEnabled="{Binding CanCommitRepository}" />
                       </Grid>
                     </StackPanel>
-                  </Grid>
-                </Border>
-              </DataTemplate>
-            </ListBox.ItemTemplate>
-          </ListBox>
+                  </Border>
 
-          <Border Grid.Row="3" Background="#EDF6FA" BorderBrush="#D1E4EE" BorderThickness="0,1,0,0" Padding="12">
-            <StackPanel Spacing="8">
-              <Grid ColumnDefinitions="*,Auto">
-                <TextBlock Text="{Binding SourceApprovalSummary}" FontWeight="Bold" FontSize="11" VerticalAlignment="Center" />
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="5">
-                  <Button Classes="compact secondary" Content="All" Command="{Binding ApproveAllSourceProposalsCommand}" />
-                  <Button Classes="compact secondary" Content="None" Command="{Binding ClearSourceProposalApprovalsCommand}" />
+                  <Border Classes="subtle-card">
+                    <StackPanel Spacing="10">
+                      <TextBlock Text="CLONE REPOSITORY" Classes="eyebrow" />
+                      <TextBox Text="{Binding CloneRemote}" PlaceholderText="Repository URL" />
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <TextBox Text="{Binding CloneDestinationParent}" PlaceholderText="Destination folder" />
+                        <Button Grid.Column="1" Classes="secondary" Content="Choose…" Click="BrowseCloneDestination_Click" />
+                      </Grid>
+                      <TextBox Text="{Binding CloneFolderName}" PlaceholderText="Folder name (optional)" />
+                      <Button Classes="primary" Content="Clone and connect" Command="{Binding CloneRepositoryCommand}"
+                              IsEnabled="{Binding CanCloneRepository}" HorizontalAlignment="Left" />
+                    </StackPanel>
+                  </Border>
+
+                  <Expander Header="Manage repository paths manually">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="0,8,0,0">
+                      <TextBox Text="{Binding LocalGitRepositoryPath}" AcceptsReturn="True" MinHeight="80"
+                               PlaceholderText="One path per line" />
+                      <Button Grid.Column="1" Classes="secondary" Content="Save" Command="{Binding SaveLocalGitRepositoryPathCommand}" />
+                    </Grid>
+                  </Expander>
+
+                  <Border Classes="subtle-card">
+                    <StackPanel Spacing="10">
+                      <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Spacing="2">
+                          <TextBlock Text="VAULTSYNC HEALTH" Classes="eyebrow" />
+                          <TextBlock Text="Optional, passive recovery evidence" Classes="muted" FontSize="10" />
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="secondary compact" Content="Refresh"
+                                Command="{Binding RefreshIntegrationStatusesCommand}" />
+                      </Grid>
+                      <TextBox Text="{Binding VaultSyncMetadataRoot}" PlaceholderText="VaultSync destination or metadata path" />
+                      <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                        <Button Classes="secondary" Content="Save health link" Command="{Binding SaveVaultSyncMetadataRootCommand}" />
+                        <Button Grid.Column="1" Classes="secondary" Content="Register shared folder"
+                                Command="{Binding RegisterVaultSyncExchangeRootCommand}"
+                                IsEnabled="{Binding CanRegisterVaultSyncExchangeRoot}" />
+                      </Grid>
+                    </StackPanel>
+                  </Border>
                 </StackPanel>
+              </ScrollViewer>
+            </Flyout>
+          </Button.Flyout>
+        </Button>
+      </Grid>
+    </Border>
+
+    <Grid Grid.Row="2" ColumnDefinitions="380,*" ColumnSpacing="18" Margin="24,20">
+      <Border Classes="card" Padding="0">
+        <Grid RowDefinitions="Auto,Auto,*,Auto">
+          <Border Padding="16,14" BorderBrush="#E4E7EC" BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Spacing="2">
+                <TextBlock Text="REVIEW QUEUE" Classes="eyebrow" />
+                <TextBlock Text="Choose proposals to import" FontSize="17" FontWeight="SemiBold" />
+              </StackPanel>
+              <Border Grid.Column="1" Background="#F0EEFF" CornerRadius="12" Padding="10,4" VerticalAlignment="Center">
+                <TextBlock Text="{Binding SourceImportProposals.Count}" Foreground="#5A4AE8" FontWeight="Bold" />
+              </Border>
+            </Grid>
+          </Border>
+
+          <StackPanel Grid.Row="1" Margin="12" Spacing="8">
+            <TextBox Text="{Binding SourceProposalSearchText}" PlaceholderText="Search proposals" />
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
+              <TextBlock Text="{Binding VisibleSourceProposalCount, StringFormat='Showing {0}'}" Classes="muted"
+                         FontSize="10" VerticalAlignment="Center" />
+              <Button Grid.Column="1" Classes="secondary compact" Content="Select shown"
+                      Command="{Binding ApproveVisibleSourceProposalsCommand}" />
+              <Button Grid.Column="2" Classes="secondary compact" Content="Clear"
+                      Command="{Binding ClearVisibleSourceProposalApprovalsCommand}" />
+            </Grid>
+          </StackPanel>
+
+          <Grid Grid.Row="2">
+            <ListBox ItemsSource="{Binding VisibleSourceImportProposals}" SelectedItem="{Binding SelectedSourceProposal}"
+                     IsVisible="{Binding HasVisibleSourceProposals}">
+              <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="models:SourceImportProposal">
+                  <Grid Margin="8,10" ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                    <CheckBox IsChecked="{Binding IsIncluded}" VerticalAlignment="Top" />
+                    <StackPanel Grid.Column="1" Spacing="3">
+                      <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Text="{Binding Kind}" Classes="eyebrow" />
+                        <TextBlock Grid.Column="1" Text="{Binding DuplicateSummary}" Foreground="#B54708" FontSize="9" />
+                      </Grid>
+                      <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" MaxLines="2" />
+                      <TextBlock Text="{Binding SourceContext}" Classes="muted" FontSize="9" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                  </Grid>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="260" Spacing="6"
+                        IsVisible="{Binding IsSourceProposalEmpty}">
+              <TextBlock Text="Nothing to review" FontSize="17" FontWeight="SemiBold" HorizontalAlignment="Center" />
+              <TextBlock Text="Select a repository and scan it. No project data changes until you approve and apply proposals."
+                         Classes="muted" TextAlignment="Center" TextWrapping="Wrap" />
+            </StackPanel>
+          </Grid>
+
+          <Border Grid.Row="3" Background="#F9FAFB" BorderBrush="#E4E7EC" BorderThickness="0,1,0,0" Padding="12">
+            <StackPanel Spacing="8">
+              <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
+                <TextBlock Text="{Binding SourceApprovalSummary}" FontWeight="SemiBold" FontSize="11" VerticalAlignment="Center" />
+                <Button Grid.Column="1" Classes="secondary compact" Content="Select all" Command="{Binding ApproveAllSourceProposalsCommand}" />
+                <Button Grid.Column="2" Classes="secondary compact" Content="Clear all" Command="{Binding ClearSourceProposalApprovalsCommand}" />
               </Grid>
-              <Button Classes="primary"
-                      Content="Apply approved to blueprint"
-                      Command="{Binding ApplyApprovedSourceProposalsCommand}"
-                      IsEnabled="{Binding CanApplyApprovedSourceProposals}" />
+              <Button Classes="primary" Content="{Binding SourceImportActionLabel}"
+                      Command="{Binding ApplyApprovedSourceProposalsCommand}" IsEnabled="{Binding CanApplyApprovedSourceProposals}" />
             </StackPanel>
           </Border>
         </Grid>
       </Border>
 
-      <Border Grid.Column="1" Classes="card" Padding="0">
-        <Grid RowDefinitions="Auto,*,Auto">
-          <Border Padding="17,13" Background="#F1F8FB" BorderBrush="#D1E4EE" BorderThickness="0,0,0,1">
-            <Grid ColumnDefinitions="*,Auto">
-              <StackPanel Spacing="2">
-                <TextBlock Text="REVIEW + SHAPE" Classes="eyebrow" />
-                <TextBlock Text="You own the final blueprint" FontSize="17" FontWeight="Bold" />
-              </StackPanel>
-              <Border Grid.Column="1" Background="#DFF4ED" CornerRadius="12" Padding="9,4" VerticalAlignment="Center">
-                <TextBlock Text="No automatic writes" Foreground="#277A67" FontSize="11" FontWeight="Bold" />
-              </Border>
-            </Grid>
-          </Border>
+      <Border Grid.Column="1" Classes="card">
+        <Grid RowDefinitions="Auto,*,Auto" RowSpacing="14">
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Spacing="3">
+              <TextBlock Text="PROPOSAL DETAILS" Classes="eyebrow" />
+              <TextBlock Text="Review before importing" FontSize="20" FontWeight="SemiBold" />
+            </StackPanel>
+            <CheckBox Grid.Column="1" Content="Include in import" IsChecked="{Binding SelectedSourceProposal.IsIncluded}"
+                      IsEnabled="{Binding HasSelectedSourceProposal}" VerticalAlignment="Center" />
+          </Grid>
 
-          <ScrollViewer Grid.Row="1">
-            <StackPanel Margin="18" Spacing="14">
-              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+          <ScrollViewer Grid.Row="1" IsEnabled="{Binding HasSelectedSourceProposal}">
+            <StackPanel Spacing="14">
+              <Border Classes="subtle-card">
                 <StackPanel Spacing="3">
                   <TextBlock Text="{Binding SelectedSourceProposal.Kind}" Classes="eyebrow" />
-                  <TextBlock Text="{Binding SelectedSourceProposal.SourceReference}" Classes="mono muted" FontSize="10" />
-                  <TextBlock Text="{Binding SelectedSourceProposal.ProviderReferenceSummary}" Classes="muted" FontSize="10" TextWrapping="Wrap" />
-                </StackPanel>
-                <CheckBox Grid.Column="1"
-                          Content="Approved"
-                          IsChecked="{Binding SelectedSourceProposal.IsIncluded}"
-                          VerticalAlignment="Center" />
-              </Grid>
-
-              <StackPanel Spacing="5">
-                <TextBlock Text="Title" FontWeight="Bold" FontSize="11" />
-                <TextBox Text="{Binding SelectedSourceProposal.Title}" PlaceholderText="Proposal title" />
-              </StackPanel>
-
-              <StackPanel Spacing="5">
-                <TextBlock Text="Context and release-note detail" FontWeight="Bold" FontSize="11" />
-                <TextBox Text="{Binding SelectedSourceProposal.Description}"
-                         AcceptsReturn="True"
-                         Height="112"
-                         PlaceholderText="Add the context humans need to understand this work." />
-              </StackPanel>
-
-              <Grid ColumnDefinitions="*,*,*" ColumnSpacing="10">
-                <StackPanel Spacing="5">
-                  <TextBlock Text="Target version" FontWeight="Bold" FontSize="11" />
-                  <ComboBox ItemsSource="{Binding Versions}"
-                            SelectedItem="{Binding SelectedSourceProposal.TargetVersion}">
-                    <ComboBox.ItemTemplate>
-                      <DataTemplate x:DataType="models:WorkspaceVersionCard">
-                        <TextBlock Text="{Binding Name}" />
-                      </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                  </ComboBox>
-                </StackPanel>
-                <StackPanel Grid.Column="1" Spacing="5">
-                  <TextBlock Text="Work type" FontWeight="Bold" FontSize="11" />
-                  <ComboBox ItemsSource="{Binding AvailableItemTypes}"
-                            SelectedItem="{Binding SelectedSourceProposal.ItemTypeId}" />
-                </StackPanel>
-                <StackPanel Grid.Column="2" Spacing="5">
-                  <TextBlock Text="Changelog group" FontWeight="Bold" FontSize="11" />
-                  <ComboBox ItemsSource="{Binding AvailableCategories}"
-                            SelectedItem="{Binding SelectedSourceProposal.CategoryId}" />
-                </StackPanel>
-              </Grid>
-
-              <CheckBox Content="Mark completed"
-                        IsChecked="{Binding SelectedSourceProposal.IsDone}" />
-
-              <Border Background="#ECF7FB" BorderBrush="#B9DCEB" BorderThickness="1" CornerRadius="6" Padding="12">
-                <StackPanel Spacing="4">
-                  <TextBlock Text="WHY BLUEPRINTS SUGGESTED THIS" Classes="eyebrow" />
-                  <TextBlock Text="{Binding SelectedSourceProposal.SourceContext}" TextWrapping="Wrap" />
-                  <TextBlock Text="{Binding SelectedSourceProposal.ConfidenceSummary}" Foreground="#277A67" FontWeight="Bold" FontSize="11" />
+                  <TextBlock Text="{Binding SelectedSourceProposal.SourceReference}" Classes="mono muted" FontSize="10" TextWrapping="Wrap" />
+                  <TextBlock Text="{Binding SelectedSourceProposal.DuplicateSummary}" Foreground="#B54708" FontSize="10" />
                 </StackPanel>
               </Border>
-
-              <StackPanel Spacing="8">
-                <TextBlock Text="Connection health" Classes="eyebrow" />
-                <ItemsControl ItemsSource="{Binding Integrations}">
-                  <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="models:IntegrationStatusCard">
-                      <Grid ColumnDefinitions="120,110,*" ColumnSpacing="10" Margin="0,3">
-                        <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" />
-                        <TextBlock Grid.Column="1" Text="{Binding State}" Foreground="#5A4ECC" />
-                        <TextBlock Grid.Column="2" Text="{Binding Summary}" Classes="muted" TextTrimming="CharacterEllipsis" />
-                      </Grid>
-                    </DataTemplate>
-                  </ItemsControl.ItemTemplate>
-                </ItemsControl>
+              <StackPanel Spacing="5">
+                <TextBlock Text="Title" Classes="field-label" />
+                <TextBox Text="{Binding SelectedSourceProposal.Title}" PlaceholderText="Outcome" />
               </StackPanel>
+              <StackPanel Spacing="5">
+                <TextBlock Text="Context" Classes="field-label" />
+                <TextBox Text="{Binding SelectedSourceProposal.Description}" AcceptsReturn="True" Height="100" />
+              </StackPanel>
+              <Grid ColumnDefinitions="*,*,*" ColumnSpacing="10">
+                <StackPanel Spacing="5">
+                  <TextBlock Text="Target release" Classes="field-label" />
+                  <ComboBox ItemsSource="{Binding Versions}" SelectedItem="{Binding SelectedSourceProposal.TargetVersion}" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="5">
+                  <TextBlock Text="Work type" Classes="field-label" />
+                  <ComboBox ItemsSource="{Binding AvailableItemTypes}" SelectedItem="{Binding SelectedSourceProposal.ItemTypeId}" />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Spacing="5">
+                  <TextBlock Text="Changelog group" Classes="field-label" />
+                  <ComboBox ItemsSource="{Binding AvailableCategories}" SelectedItem="{Binding SelectedSourceProposal.CategoryId}" />
+                </StackPanel>
+              </Grid>
+              <CheckBox Content="Already completed" IsChecked="{Binding SelectedSourceProposal.IsDone}" />
             </StackPanel>
           </ScrollViewer>
 
-          <Border Grid.Row="2" Background="#202238" Padding="14,10">
-            <TextBlock Text="{Binding IntegrationMessage}" Foreground="#C9E4EF" TextWrapping="Wrap" />
+          <Border Grid.Row="2" Classes="callout">
+            <Grid ColumnDefinitions="*,220,Auto,Auto" ColumnSpacing="8">
+              <StackPanel Spacing="2" VerticalAlignment="Center">
+                <TextBlock Text="FALLBACK RELEASE" Classes="eyebrow" />
+                <TextBlock Text="Used only when a proposal has no detected release." Classes="muted" FontSize="10" />
+              </StackPanel>
+              <ComboBox Grid.Column="1" ItemsSource="{Binding Versions}" SelectedItem="{Binding SelectedVersion}" />
+              <Button Grid.Column="2" Classes="secondary" Content="Create release" Command="{Binding CreateVersionCommand}" />
+              <Button Grid.Column="3" Classes="secondary" Content="Assign shown"
+                      Command="{Binding AssignVisibleSourceProposalsToSelectedVersionCommand}" />
+            </Grid>
           </Border>
         </Grid>
       </Border>

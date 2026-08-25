@@ -13,6 +13,8 @@ Back up:
 
 The application-data root is the operating system's local application-data directory plus `Blueprints`. The local project path and shared exchange path are shown in the application.
 
+Typical application-data locations are `%LOCALAPPDATA%\Blueprints` on Windows, `~/Library/Application Support/Blueprints` on macOS, and `~/.local/share/Blueprints` on Linux. The operating system and runtime determine the exact resolved location; inspect the active profile rather than assuming a path during recovery.
+
 Private signing keys exist only in the identity directory. On macOS and Linux, restoring an encrypted private key without the matching `Security/local-private-key-protector.key` does not restore the identity.
 
 ## Create a consistent backup
@@ -53,7 +55,7 @@ The `packs/` directories help diagnose individual publications, but they are not
 
 1. Restore the complete project-specific directory, including `.blueprints-exchange.json`, under `<destination>/.blueprints/projects/<project-id>/`.
 2. Confirm the destination still exposes `.vaultsync/meta/vaultsync.meta.db`.
-3. Link the restored VaultSync destination in Source Lens and select **Register exchange** twice. A valid matching marker is accepted idempotently; a mismatched or malformed marker is rejected.
+3. Link the restored VaultSync destination under **Imports** → **Source settings** and select **Register shared folder** twice. A valid matching marker is accepted idempotently; a mismatched or malformed marker is rejected.
 4. Reopen the restored local project with the restored project-specific path as its shared root.
 5. Refresh and confirm project trust, audit continuity, the shared manifest version, and VaultSync health before pulling or pushing.
 

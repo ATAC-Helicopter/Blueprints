@@ -68,6 +68,30 @@ public sealed class MarkdownSourceDiscoveryParserTests : IDisposable
     }
 
     [Fact]
+    public void Parse_PreservesReleaseHeadingsAcrossCategorySubsections()
+    {
+        var path = Write(
+            "CHANGELOG.md",
+            """
+            # Changelog
+            ## [1.8.7] - Unreleased
+            ### Added
+            - Portable recovery
+            ### Fixed
+            - Repair snapshot validation
+            ## [1.8.6] - 10.08.2026
+            ### Changed
+            - Simplify restore review
+            """);
+
+        var candidates = new MarkdownSourceDiscoveryParser().Parse(path, SourceArtifactKind.Changelog);
+
+        Assert.Equal("1.8.7", candidates[0].SuggestedVersionName);
+        Assert.Equal("1.8.7", candidates[1].SuggestedVersionName);
+        Assert.Equal("1.8.6", candidates[2].SuggestedVersionName);
+    }
+
+    [Fact]
     public void Parse_NormalizesMarkdownLinksAndCode()
     {
         var path = Write(

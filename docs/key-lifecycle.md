@@ -30,7 +30,7 @@ Keep identity backups separate from project backups. Project workspaces contain 
 
 Blueprints can export the current identity as an encrypted recovery file:
 
-1. open **People** and enter a passphrase of at least 12 characters;
+1. open **Team** and enter a passphrase of at least 12 characters;
 2. create the encrypted backup;
 3. store the backup separately from project backups;
 4. store the passphrase in a different trusted location;

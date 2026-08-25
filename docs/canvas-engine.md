@@ -1,4 +1,7 @@
-# Canvas engine
+# Legacy canvas data contract
+
+> [!NOTE]
+> The current Blueprints interface no longer presents project work as a canvas or graph. Overview uses standard release lists, a searchable work-item table, and form-based relationship records. This document remains only to describe compatibility with signed layout data created by earlier pre-release builds.
 
 The canvas is Blueprints' primary workspace. It is a projection of canonical signed project documents, never a parallel graph store.
 

@@ -4,6 +4,48 @@ Notable changes to Blueprints are documented here. The project follows semantic 
 
 ## Unreleased
 
+Plan-first workspace and large-source-import overhaul. This iteration replaces the dashboard-style shell with a focused planning desk and makes repository-scale imports practical without weakening signed workspace boundaries.
+
+### Added
+
+- A persistent project workspace with the plan as the primary surface and quieter navigation for releases, imports, sharing, people, and project safety.
+- A rebuilt three-step import flow for choosing a repository, reviewing a searchable proposal queue, and importing selected work.
+- Search-aware bulk selection, clear-visible/all actions, bulk destination assignment, and plain-language source settings for large proposal sets.
+- Automatic release detection from changelog and roadmap version headings, GitHub and GitLab issue milestones, hosted releases, and GitLab milestones.
+- Automatic matching to existing releases and one-confirmation creation of missing detected releases, with an explicit fallback only for work that has no release signal.
+- GitHub and GitLab REST pagination up to the existing 5,000-candidate repository boundary.
+- Stress coverage for an atomic import of 1,750 items across 71 automatically created releases.
+- A two-step “Delete from Blueprints” action for open and recent projects that removes local planning, shared sync, audit, export, and project-specific view data while preserving linked repositories and unrelated files.
+
+### Changed
+
+- The visual system now uses warm paper, graphite, and vermilion instead of the previous violet dashboard treatment.
+- Onboarding, releases, team, sync, trust, and source-import screens use task language instead of node, entity, schematic, and integration terminology.
+- VaultSync health and repository maintenance controls are progressively disclosed under source settings instead of competing with the import workflow.
+- Large boards open with release frames collapsed once the plan exceeds 500 items, allowing the user to expand only the releases they need.
+- Hosted-provider discovery accepts up to 5,000 candidates instead of 500 while retaining the 4 MiB bounded-response rule for each page.
+
+### Performance
+
+- Detected releases and imported items are now constructed, validated, signed, audited, and saved in one atomic workspace transaction instead of one complete transaction per release followed by a separate item import.
+- Large import key generation uses bounded in-memory sequence counters and mutable staging lists instead of repeatedly scanning and copying the growing workspace.
+- Version collection changes, canvas rebuilds, and release-filter refreshes are coalesced so one large import triggers one final UI refresh rather than dozens of progressively larger renders.
+
+### Security
+
+- Project deletion validates the selected local project identity and matching shared project or manifest before removing data, refuses overlapping roots and Git worktrees, and never follows directory links.
+
+### Fixed
+
+- Selecting all proposals no longer leaves the import action disabled merely because the project has no pre-existing release.
+- Changelog category headings such as Added, Changed, and Fixed no longer discard their parent version heading during discovery.
+- Imports from projects with thousands of issues are no longer silently limited to the first GitHub or GitLab API page.
+
+### Known limitations
+
+- GitHub Projects still require `BLUEPRINTS_GITHUB_TOKEN`; anonymous discovery continues to cover public REST sources and local planning files.
+- General planning fields such as owners, due dates, priorities, and estimates remain future product work.
+
 ## 0.8.0 — 2026-07-31
 
 Interactive-blueprint-board milestone. This release replaces the changelog-like canvas with version frames, item lifecycle columns, focused dependency rendering, and direct signed relationship authoring.
